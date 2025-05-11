@@ -16,7 +16,18 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState(1.0)
+  const [isMobile, setIsMobile] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Extract filename from URL
   const filename = file.split('/').pop() || ''
@@ -120,62 +131,72 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-4 bg-zinc-100 dark:bg-zinc-900">
-        <Document
-          file={file}
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={onDocumentLoadError}
-          loading={
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-            </div>
-          }
-        >
-          {numPages && Array.from(new Array(numPages), (_, index) => (
-            <div
-              key={`page_wrapper_${index + 1}`}
-              data-page-number={index + 1}
-              className="pdf-page-container mb-4 flex justify-center" // Wrapper for each page
+      {isMobile ? (
+        <iframe
+          src={file}
+          className="w-full h-full"
+          title="PDF Viewer"
+        />
+      ) : (
+        <>
+          <div ref={scrollContainerRef} className="flex-1 overflow-auto p-4 bg-zinc-100 dark:bg-zinc-900">
+            <Document
+              file={file}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                </div>
+              }
             >
-              <Page
-                pageNumber={index + 1}
-                scale={scale}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-                className="shadow-lg" // Added shadow for better page distinction
-              />
+              {numPages && Array.from(new Array(numPages), (_, index) => (
+                <div
+                  key={`page_wrapper_${index + 1}`}
+                  data-page-number={index + 1}
+                  className="pdf-page-container mb-4 flex justify-center"
+                >
+                  <Page
+                    pageNumber={index + 1}
+                    scale={scale}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    className="shadow-lg"
+                  />
+                </div>
+              ))}
+            </Document>
+          </div>
+          <div className="flex items-center justify-between p-4 border-t border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-800/50">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setScale(prev => Math.max(0.5, prev - 0.1))}
+                disabled={scale <= 0.5}
+              >
+                -
+              </Button>
+              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                {Math.round(scale * 100)}%
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setScale(prev => Math.min(2, prev + 0.1))}
+                disabled={scale >= 2}
+              >
+                +
+              </Button>
             </div>
-          ))}
-        </Document>
-      </div>
-      <div className="flex items-center justify-between p-4 border-t border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-800/50">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setScale(prev => Math.max(0.5, prev - 0.1))}
-            disabled={scale <= 0.5}
-          >
-            -
-          </Button>
-          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-            {Math.round(scale * 100)}%
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setScale(prev => Math.min(2, prev + 0.1))}
-            disabled={scale >= 2}
-          >
-            +
-          </Button>
-        </div>
-        <div className="flex items-center">
-          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-            Page {pageNumber} of {numPages || '--'}
-          </span>
-        </div>
-      </div>
+            <div className="flex items-center">
+              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                Page {pageNumber} of {numPages || '--'}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 } 
