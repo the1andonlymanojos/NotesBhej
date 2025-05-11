@@ -118,7 +118,7 @@ export default function CourseViewPage({
   const [isLoading, setIsLoading] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
   const supabase = createClient()
-
+console.log(selectedContent)
   // Check if device is mobile
   useEffect(() => {
     const checkMobile = () => {
