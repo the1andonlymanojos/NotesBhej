@@ -6,15 +6,20 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Command } from "cmdk"
-import { Search, BookOpen, Tag, Download, ArrowRight, FileText, Plus } from "lucide-react"
+import { Search, BookOpen, Tag, ArrowRight, FileText, Plus } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DialogTitle } from "@radix-ui/react-dialog"
+import { Database } from "@/types/supabase"
 
+type Course = Database['public']['Tables']['course']['Row'] & {
+  course_content?: CourseContent[]
+}
+type CourseContent = Database['public']['Tables']['course_content']['Row']
 export default function HomePage() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
-  const [courses, setCourses] = useState<any[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const supabase = createClient()
@@ -29,14 +34,14 @@ export default function HomePage() {
       // Extract unique tags from all course content
       const tags = new Set<string>()
       data?.forEach(course => {
-        course.course_content?.forEach((content: any) => {
+        course.course_content?.forEach((content: CourseContent) => {
           content.tags?.forEach((tag: string) => tags.add(tag))
         })
       })
       setAvailableTags(Array.from(tags))
     }
     fetchCourses()
-  }, [])
+  }, [supabase])
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -56,7 +61,7 @@ export default function HomePage() {
       course.code.toLowerCase().includes(search.toLowerCase())
     
     const matchesTags = selectedTags.length === 0 || 
-      course.course_content?.some((content: any) => 
+      course.course_content?.some((content: CourseContent) => 
         selectedTags.every(tag => content.tags?.includes(tag))
       )
 
@@ -154,62 +159,63 @@ export default function HomePage() {
                     )}
                   </div>
                 </div>
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent card click when clicking the button
-                    router.push(`/add-content/${course.id}`);
-                  }}
-                  className="bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white text-xs sm:text-sm px-2 sm:px-3 py-1 flex-shrink-0"
-                  aria-label="Add Content"
-                >
-                  <Plus className="h-3.5 w-3.5 sm:hidden" />
-                  <span className="hidden sm:inline">Add Content</span>
-                </Button>
               </div>
-  
-              {course.course_content?.length > 0 ? (
-                <div className="space-y-2 max-h-[250px] sm:max-h-[300px] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-indigo-200 dark:scrollbar-thumb-indigo-700 scrollbar-track-transparent">
-                  {course.course_content.map((content: any) => (
-                    <div
-                      key={content.id}
-                      className="flex items-center justify-between p-2 bg-white/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center">
-                          <p className="text-zinc-900 dark:text-zinc-100 font-medium truncate mr-1">
-                            {content.year} - {content.semester}
-                          </p>
-                          {content.instructor && (
-                            <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate hidden sm:inline">
-                              • {content.instructor}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {content.tags?.map((tag: string, index: number) => (
-                            <span
-                              key={index}
-                              className="px-1.5 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+
+              <div className="space-y-3">
+                {/* Show unique tags */}
+                {(() => {
+                  const uniqueTags = new Set<string>();
+                  course.course_content?.forEach((content: CourseContent) => {
+                    content.tags?.forEach((tag: string) => uniqueTags.add(tag));
+                  });
+                  return uniqueTags.size > 0 ? (
+                    <div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 flex items-center">
+                        <Tag className="h-3.5 w-3.5 mr-1" />
+                        Tags
                       </div>
-                      <a
-                        href={content.resource_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors ml-2 flex-shrink-0"
-                        aria-label="Download resource"
-                      >
-                        <Download size={16} />
-                        <span className="text-xs hidden sm:inline">Download</span>
-                      </a>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.from(uniqueTags).map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
+                  ) : null;
+                })()}
+
+                {/* Show unique professors */}
+                {(() => {
+                  const uniqueProfessors = new Set<string>();
+                  course.course_content?.forEach((content: CourseContent) => {
+                    if (content.instructor) uniqueProfessors.add(content.instructor);
+                  });
+                  return uniqueProfessors.size > 0 ? (
+                    <div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 flex items-center">
+                        <BookOpen className="h-3.5 w-3.5 mr-1" />
+                        Professors
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.from(uniqueProfessors).map((professor) => (
+                          <span
+                            key={professor}
+                            className="px-2 py-1 text-xs bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300 rounded-full"
+                          >
+                            {professor}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+
+              {(!course.course_content || course.course_content.length === 0) && (
                 <div className="py-6 text-center text-zinc-500 dark:text-zinc-400 text-sm italic bg-zinc-50 dark:bg-zinc-800/30 rounded-lg">
                   No content available yet
                 </div>

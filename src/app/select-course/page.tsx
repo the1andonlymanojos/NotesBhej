@@ -8,11 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Database } from "@/types/supabase"
+
+type Course = Database['public']['Tables']['course']['Row']
 
 export default function SelectCoursePage() {
   const supabase = createClient()
   const router = useRouter()
-  const [courses, setCourses] = useState<any[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
   const [search, setSearch] = useState("")
 
   useEffect(() => {
@@ -21,7 +24,7 @@ export default function SelectCoursePage() {
       setCourses(data || [])
     }
     fetchCourses()
-  }, [])
+  }, [supabase])
 
   const filteredCourses = courses.filter((course) =>
     course.title.toLowerCase().includes(search.toLowerCase())
@@ -74,7 +77,7 @@ export default function SelectCoursePage() {
             href="/create-course"
             className="inline-block text-indigo-600 dark:text-indigo-300 font-medium underline underline-offset-4 hover:text-fuchsia-500 dark:hover:text-fuchsia-400 transition"
           >
-            <span className="mr-1">Don't see your class?</span>
+            <span className="mr-1">Don&apos;t see your class?</span>
             <span className="font-bold">Create a new one &rarr;</span>
           </Link>
         </div>

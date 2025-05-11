@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { BookOpen, Github } from "lucide-react"
+import { BookOpen } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()

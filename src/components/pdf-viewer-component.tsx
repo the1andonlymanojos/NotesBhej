@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.mjs`;
 
 interface PDFViewerComponentProps {
   file: string
@@ -15,71 +16,136 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState(1.0)
-  const [error, setError] = useState<string | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Configure PDF.js worker
+  // Extract filename from URL
+  const filename = file.split('/').pop() || ''
+
+  // Load saved scroll position and scale
   useEffect(() => {
-    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
-  }, [])
+    const savedData = localStorage.getItem(`pdf-viewer-${filename}`)
+    if (savedData) {
+      const { scrollPosition, savedScale } = JSON.parse(savedData)
+      setScale(savedScale)
+      // Wait for the PDF to load before restoring scroll
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollPosition
+        }
+      }, 1000)
+    } else {
+      // Reset to default scale if no saved data
+      setScale(1.0)
+    }
+  }, [filename]) // Add filename as dependency to reload when file changes
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages)
+  // Save scroll position and scale
+  const saveScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const scrollPosition = scrollContainerRef.current.scrollTop
+      localStorage.setItem(`pdf-viewer-${filename}`, JSON.stringify({
+        scrollPosition,
+        savedScale: scale
+      }))
+    }
+  }
+
+  // Save on scroll and scale change
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      // Debounce the save operation
+      clearTimeout((window as any).scrollTimeout)
+      ;(window as any).scrollTimeout = setTimeout(saveScrollPosition, 1000)
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      clearTimeout((window as any).scrollTimeout)
+    }
+  }, [filename, scale]) // Add scale as dependency to save when it changes
+
+  // Save when scale changes
+  useEffect(() => {
+    saveScrollPosition()
+  }, [scale])
+
+  function onDocumentLoadSuccess({ numPages: loadedNumPages }: { numPages: number }) {
+    setNumPages(loadedNumPages)
     setPageNumber(1)
-    setError(null)
   }
 
   function onDocumentLoadError(error: Error) {
-    setError('Failed to load PDF. Please try again.')
-    console.error('Error loading PDF:', error)
+    console.error('Error while loading PDF:', error);
+    // Optionally, set an error state here to display a message to the user
   }
 
-  function changePage(offset: number) {
-    setPageNumber(prevPageNumber => {
-      const newPageNumber = prevPageNumber + offset
-      return Math.min(Math.max(1, newPageNumber), numPages || 1)
-    })
-  }
+  useEffect(() => {
+    if (!numPages || !scrollContainerRef.current) {
+      return; // Guard: no pages or scroll container not yet available
+    }
 
-  function previousPage() {
-    changePage(-1)
-  }
+    const options = {
+      root: scrollContainerRef.current,
+      rootMargin: '0px',
+      threshold: 0.4, // Page is considered "current" if 40% is visible
+    };
 
-  function nextPage() {
-    changePage(1)
-  }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const targetElement = entry.target as HTMLElement;
+          const pageNumStr = targetElement.dataset.pageNumber;
+          if (pageNumStr) {
+            const newPageNum = parseInt(pageNumStr, 10);
+            setPageNumber(newPageNum); // Update state for display
+            console.log(`Current page in view: ${newPageNum}`);
+          }
+        }
+      });
+    }, options);
+
+    const pageElements = scrollContainerRef.current.querySelectorAll('.pdf-page-container');
+    pageElements.forEach(el => observer.observe(el));
+
+    return () => {
+      pageElements.forEach(el => observer.unobserve(el));
+      observer.disconnect();
+    };
+  }, [numPages, scale, file]); // Rerun if numPages, scale, or file changes
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-auto p-4">
-        {error ? (
-          <div className="flex items-center justify-center h-full text-red-500">
-            {error}
-          </div>
-        ) : (
-          <Document
-            file={file}
-            onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={onDocumentLoadError}
-            loading={
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-              </div>
-            }
-          >
-            <Page
-              pageNumber={pageNumber}
-              scale={scale}
-              renderTextLayer={true}
-              renderAnnotationLayer={true}
-              className="mx-auto"
-              loading={
-                <div className="flex items-center justify-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-                </div>
-              }
-            />
-          </Document>
-        )}
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-4 bg-zinc-100 dark:bg-zinc-900">
+        <Document
+          file={file}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading={
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+          }
+        >
+          {numPages && Array.from(new Array(numPages), (_, index) => (
+            <div
+              key={`page_wrapper_${index + 1}`}
+              data-page-number={index + 1}
+              className="pdf-page-container mb-4 flex justify-center" // Wrapper for each page
+            >
+              <Page
+                pageNumber={index + 1}
+                scale={scale}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+                className="shadow-lg" // Added shadow for better page distinction
+              />
+            </div>
+          ))}
+        </Document>
       </div>
       <div className="flex items-center justify-between p-4 border-t border-zinc-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-800/50">
         <div className="flex items-center gap-2">
@@ -103,26 +169,10 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
             +
           </Button>
         </div>
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={previousPage}
-            disabled={pageNumber <= 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center">
           <span className="text-sm text-zinc-600 dark:text-zinc-400">
             Page {pageNumber} of {numPages || '--'}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={nextPage}
-            disabled={pageNumber >= (numPages || 1)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </div>

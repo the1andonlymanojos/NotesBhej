@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 // The client you created from the Server-Side Auth instructions
 import { createClient } from '@/utils/supabase/server'
-import { log } from 'console'
+
 
 export async function GET(request: Request) {
     console.log("THIS ROUTE IS CALLED")

@@ -1,8 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { FileText, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react"
+import { FileText, X, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import PDFViewerComponent from "./pdf-viewer-component"
+import { useHover } from "@uidotdev/usehooks"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
 interface PDFViewerProps {
   files: Array<{
@@ -14,76 +23,87 @@ interface PDFViewerProps {
     instructor?: string
   }>
   onClose: () => void
+  initialFileId?: string | null
 }
 
-export default function PDFViewer({ files, onClose }: PDFViewerProps) {
-  const [selected, setSelected] = useState<string | null>(null)
-  const [showSidebar, setShowSidebar] = useState(true)
-
+export default function PDFViewer({ files, onClose, initialFileId }: PDFViewerProps) {
+  const [selected, setSelected] = useState<string | null>(initialFileId || null)
   const selectedFile = files.find(f => f.id === selected)
+  const [ref, isHovered] = useHover()
+  const [showBar, setShowBar] = useState(false)
+
+  // Update selected file when initialFileId changes
+  useEffect(() => {
+    if (initialFileId) {
+      setSelected(initialFileId)
+    }
+  }, [initialFileId])
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+
+    if (isHovered) {
+      setShowBar(true)
+    } else {
+      if(showBar){
+        timeoutId = setTimeout(() => {
+          setShowBar(false)
+        }, 1000)
+      } // Hide after 1 second of not hovering
+    }
+    console.log("isHovered", isHovered)
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }, [isHovered, showBar])
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg">
-      {/* Sidebar */}
-      {showSidebar && (
-        <aside className="w-72 bg-white/50 dark:bg-zinc-800/50 p-4 border-r border-zinc-200 dark:border-zinc-700 overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Course Content</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSidebar(false)}
-              className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-            >
-              Hide
-            </Button>
-          </div>
-          {files.length > 0 ? (
-            <ul className="space-y-2">
-              {files.map((file) => (
-                <li key={file.id}>
-                  <button
-                    onClick={() => setSelected(file.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-all duration-200
-                      ${selected === file.id
-                        ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
-                        : 'bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-700/50 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300'
-                      }`}
-                  >
-                    <div className="font-medium truncate">{file.title}</div>
-                    <div className="text-xs mt-1 text-zinc-500 dark:text-zinc-400">
-                      {file.year} - {file.semester}
-                      {file.instructor && ` • ${file.instructor}`}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-              <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="italic">No content available.</p>
-            </div>
-          )}
-        </aside>
-      )}
-
+    <div className="flex h-[calc(100vh-2rem)] rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg">
+      
       {/* Main viewer */}
-      <main className={`flex-1 flex flex-col ${!showSidebar ? 'pl-4' : 'p-4'}`}>
+      <main className={`flex-1 flex flex-col p-4 relative overflow-auto`}>
         {/* Top bar */}
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-4">
-            {!showSidebar && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSidebar(true)}
-                className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-              >
-                Show Sidebar
-              </Button>
-            )}
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <div ref={ref} className={`absolute top-4 left-4 right-4 z-60 flex justify-between items-center p-2 sm:p-3 rounded-xl bg-white/30 dark:bg-zinc-950/30 backdrop-blur-xl border border-white/20 dark:border-zinc-800/20 transition-all duration-900 ${showBar ? 'opacity-100' : 'opacity-0'} sm:opacity-100`}>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[300px] sm:w-[400px]">
+                <SheetHeader>
+                  <SheetTitle>Browse Files</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-2">
+                  {files.map((file) => (
+                    <Button
+                      key={file.id}
+                      variant={selected === file.id ? "secondary" : "ghost"}
+                      className="w-full justify-start"
+                      onClick={() => {
+                        setSelected(file.id)
+                      }}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm font-medium">{file.title}</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {file.year} • {file.semester}
+                          {file.instructor && ` • ${file.instructor}`}
+                        </span>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
+            <h3 className="text-sm sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[200px] sm:max-w-none">
               {selectedFile ? selectedFile.title : 'Select content to view'}
             </h3>
           </div>
@@ -91,20 +111,18 @@ export default function PDFViewer({ files, onClose }: PDFViewerProps) {
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+            className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 h-8 w-8 sm:h-9 sm:w-9 p-0"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Viewer */}
-        <div className="flex-1 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-800">
+        <div className="flex-1 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-auto bg-white dark:bg-zinc-800 mt-2 relative">
           {selectedFile ? (
-            <iframe
-              src={`${selectedFile.resource_url}#toolbar=0`}
-              className="w-full h-full border-none"
-              loading="lazy"
-            />
+            <div className="h-full w-full overflow-auto">
+              <PDFViewerComponent file={selectedFile.resource_url} />
+            </div>
           ) : (
             <div className="h-full flex items-center justify-center text-zinc-500 dark:text-zinc-400">
               <div className="text-center">

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { FileText, Download, Tag, Calendar, User, ArrowLeft, Plus, Search, Filter } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface CourseContent {
   id: string
@@ -17,6 +18,72 @@ interface CourseContent {
   semester: string
   instructor?: string
   tags?: string[]
+}
+
+function CourseSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
+      <div className="fixed top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
+
+      <div className="max-w-7xl mx-auto">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-4 mb-6">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+        </div>
+
+        {/* Search and Filters Skeleton */}
+        <div className="mb-6 space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <div className="flex flex-wrap items-center gap-4">
+            <Skeleton className="h-8 w-32" />
+            <div className="flex gap-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-6 w-16 rounded-full" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Content Grid Skeleton */}
+        <div className="space-y-6">
+          {[1, 2].map((group) => (
+            <div
+              key={group}
+              className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="h-6 w-32" />
+              </div>
+
+              <div className="overflow-x-auto">
+                <div className="flex gap-4 pb-2 min-w-min">
+                  {[1, 2, 3].map((item) => (
+                    <div
+                      key={item}
+                      className="flex flex-col w-64 flex-shrink-0 p-3 bg-white/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700"
+                    >
+                      <Skeleton className="h-5 w-48 mb-2" />
+                      <div className="flex flex-wrap gap-2">
+                        <Skeleton className="h-4 w-16 rounded-full" />
+                        <Skeleton className="h-4 w-16 rounded-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function CourseViewPage({
@@ -34,35 +101,49 @@ export default function CourseViewPage({
   const [sortBy, setSortBy] = useState<"year" | "instructor">("year")
   const [showViewer, setShowViewer] = useState(false)
   const [selectedContent, setSelectedContent] = useState<any>(null)
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
     const fetchCourseData = async () => {
-      const { data: courseData } = await supabase
-        .from("course")
-        .select("*")
-        .eq("id", courseId)
-        .single()
+      setIsLoading(true)
+      try {
+        const { data: courseData } = await supabase
+          .from("course")
+          .select("*")
+          .eq("id", courseId)
+          .single()
 
-      const { data: contentData } = await supabase
-        .from("course_content")
-        .select("*")
-        .eq("course_id", courseId)
-        .order(sortBy, { ascending: true })
+        const { data: contentData } = await supabase
+          .from("course_content")
+          .select("*")
+          .eq("course_id", courseId)
+          .order(sortBy, { ascending: true })
 
-      setCourse(courseData)
-      setContent(contentData || [])
-      console.log("contentData", contentData)
-      // Extract unique tags
-      const tags = new Set<string>()
-      contentData?.forEach(item => {
-        item.tags?.forEach((tag: string) => tags.add(tag))
-      })
-      setAvailableTags(Array.from(tags))
+        setCourse(courseData)
+        setContent(contentData || [])
+        // Extract unique tags
+        const tags = new Set<string>()
+        contentData?.forEach(item => {
+          item.tags?.forEach((tag: string) => tags.add(tag))
+        })
+        setAvailableTags(Array.from(tags))
+      } catch (error) {
+        console.error("Error fetching course data:", error)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     fetchCourseData()
   }, [courseId, sortBy])
+
+  if (isLoading) {
+    return <CourseSkeleton />
+  }
+
+  if (!course) return null
 
   const filteredContent = content.filter(item => {
     const matchesSearch = 
@@ -93,8 +174,6 @@ export default function CourseViewPage({
         : [...prev, tag]
     )
   }
-
-  if (!course) return null
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
@@ -200,6 +279,7 @@ export default function CourseViewPage({
                         className="group flex flex-col w-64 flex-shrink-0 p-3 bg-white/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200 cursor-pointer"
                         onClick={() => {
                           setSelectedContent(item)
+                          setSelectedFileId(item.id)
                           setShowViewer(true)
                         }}
                       >
@@ -256,6 +336,7 @@ export default function CourseViewPage({
               <PDFViewer 
                 files={filteredContent} 
                 onClose={() => setShowViewer(false)}
+                initialFileId={selectedFileId}
               />
             </div>
           </div>
