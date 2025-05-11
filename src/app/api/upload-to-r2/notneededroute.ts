@@ -85,9 +85,3 @@
 //     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
 //   }
 // }
-
-import { NextResponse } from "next/server"
-
-export const GET = async () => {
-  return NextResponse.json({ message: "Hello, world!" })
-}

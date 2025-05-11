@@ -6,11 +6,13 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileInput } from "@/components/ui/file-input"
-import { Sparkles, Upload, FileText, Tag, X, AlertCircle } from "lucide-react"
+import { Upload, FileText, Tag, X, AlertCircle } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Progress } from "@/components/ui/progress"
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
-import { log } from "console"
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
+import { Database } from "@/types/supabase"
+
+type CourseContent = Database["public"]["Tables"]["course_content"]["Row"]
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 export default function AddContentPage({
@@ -27,7 +29,7 @@ export default function AddContentPage({
   const [semester, setSemester] = useState("")
   const [instructor, setInstructor] = useState("")
   const [tags, setTags] = useState<string[]>([])
-  const [existingContent, setExistingContent] = useState<any[]>([])
+  const [existingContent, setExistingContent] = useState<CourseContent[]>([])
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const [showSizeWarning, setShowSizeWarning] = useState(false)
@@ -43,7 +45,7 @@ export default function AddContentPage({
       setExistingContent(data || [])
     }
     if (courseId) fetchExistingContent()
-  }, [courseId])
+  }, [courseId, supabase])
 
   const handleUpload = async () => {
     const oversized = files.filter(file => file.size > MAX_FILE_SIZE)

@@ -24,7 +24,6 @@ const s3Client = new S3Client({
   endpoint: R2_ENDPOINT,
 })
 
-//const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 export async function POST(request: Request) {
   try {

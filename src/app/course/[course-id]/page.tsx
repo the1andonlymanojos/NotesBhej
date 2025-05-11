@@ -5,20 +5,15 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Download, Tag, Calendar, User, ArrowLeft, Plus, Search, Filter } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Database } from "@/types/supabase"
 
-interface CourseContent {
-  id: string
-  title: string
-  resource_url: string
-  year: number
-  semester: string
-  instructor?: string
-  tags?: string[]
-}
+type CourseContent = Database["public"]["Tables"]["course_content"]["Row"]
+
+type Course = Database["public"]["Tables"]["course"]["Row"]
 
 function CourseSkeleton() {
   return (
@@ -93,18 +88,18 @@ export default function CourseViewPage({
 }) {
   const router = useRouter()
   const courseId = use(params)["course-id"]
-  const [course, setCourse] = useState<any>(null)
-  const [content, setContent] = useState<any[]>([])
+  const [course, setCourse] = useState<Course | null>(null)
+  const [content, setContent] = useState<CourseContent[]>([])
   const [search, setSearch] = useState("")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"year" | "instructor">("year")
   const [showViewer, setShowViewer] = useState(false)
-  const [selectedContent, setSelectedContent] = useState<any>(null)
+  const [selectedContent, setSelectedContent] = useState<CourseContent | null>(null)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const supabase = createClient()
-
+console.log("courseId", selectedContent)
   useEffect(() => {
     const fetchCourseData = async () => {
       setIsLoading(true)
@@ -334,7 +329,16 @@ export default function CourseViewPage({
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
             <div className="absolute inset-4">
               <PDFViewer 
-                files={filteredContent} 
+                files={filteredContent
+                  .filter(item => item.title && item.resource_url && item.year && item.semester)
+                  .map(item => ({
+                    id: item.id,
+                    title: item.title!,
+                    resource_url: item.resource_url!,
+                    year: item.year!,
+                    semester: item.semester!,
+                    instructor: item.instructor || undefined
+                  }))} 
                 onClose={() => setShowViewer(false)}
                 initialFileId={selectedFileId}
               />
