@@ -1,5 +1,18 @@
 "use client"
 
+// Add polyfill for Promise.withResolvers
+if (!Promise.withResolvers) {
+  Promise.withResolvers = function <T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: any) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+}
+
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Document, Page, pdfjs } from 'react-pdf'
@@ -86,13 +99,16 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
   }, [scale, saveScrollPosition])
 
   function onDocumentLoadSuccess({ numPages: loadedNumPages }: { numPages: number }) {
+    console.log('PDF loaded successfully with', loadedNumPages, 'pages')
     setNumPages(loadedNumPages)
     setPageNumber(1)
   }
 
   function onDocumentLoadError(error: Error) {
-    console.error('Error while loading PDF:', error);
-    // Optionally, set an error state here to display a message to the user
+    console.error('Error while loading PDF:', error)
+    console.log('Attempted to load file:', file)
+    // Set an error state to display a message to the user
+    setNumPages(null)
   }
 
   useEffect(() => {
@@ -147,6 +163,18 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
               loading={
                 <div className="flex items-center justify-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                </div>
+              }
+              error={
+                <div className="flex flex-col items-center justify-center h-full text-red-500">
+                  <p>Failed to load PDF. Please try again or download the file.</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => window.open(file, '_blank')}
+                  >
+                    Download PDF
+                  </Button>
                 </div>
               }
             >
