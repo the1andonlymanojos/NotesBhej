@@ -82,3 +82,11 @@
 //     </div>
 //   )
 // }
+
+export default function DebugUpload() {
+  return (
+    <div>
+      <h1>Debug Upload</h1>
+    </div>
+  )
+}

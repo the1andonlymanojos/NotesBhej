@@ -132,7 +132,7 @@ console.log("courseId", selectedContent)
     }
 
     fetchCourseData()
-  }, [courseId, sortBy])
+  }, [courseId, sortBy, supabase])
 
   if (isLoading) {
     return <CourseSkeleton />

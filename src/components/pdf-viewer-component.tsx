@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
@@ -40,7 +40,7 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
   }, [filename]) // Add filename as dependency to reload when file changes
 
   // Save scroll position and scale
-  const saveScrollPosition = () => {
+  const saveScrollPosition = useCallback(() => {
     if (scrollContainerRef.current) {
       const scrollPosition = scrollContainerRef.current.scrollTop
       localStorage.setItem(`pdf-viewer-${filename}`, JSON.stringify({
@@ -48,30 +48,31 @@ export default function PDFViewerComponent({ file }: PDFViewerComponentProps) {
         savedScale: scale
       }))
     }
-  }
+  }, [filename, scale])
 
   // Save on scroll and scale change
   useEffect(() => {
     const container = scrollContainerRef.current
     if (!container) return
 
+    let scrollTimeout: NodeJS.Timeout
     const handleScroll = () => {
       // Debounce the save operation
-      clearTimeout((window as any).scrollTimeout)
-      ;(window as any).scrollTimeout = setTimeout(saveScrollPosition, 1000)
+      clearTimeout(scrollTimeout)
+      scrollTimeout = setTimeout(saveScrollPosition, 1000)
     }
 
     container.addEventListener('scroll', handleScroll)
     return () => {
       container.removeEventListener('scroll', handleScroll)
-      clearTimeout((window as any).scrollTimeout)
+      clearTimeout(scrollTimeout)
     }
-  }, [filename, scale]) // Add scale as dependency to save when it changes
+  }, [filename, scale, saveScrollPosition])
 
   // Save when scale changes
   useEffect(() => {
     saveScrollPosition()
-  }, [scale])
+  }, [scale, saveScrollPosition])
 
   function onDocumentLoadSuccess({ numPages: loadedNumPages }: { numPages: number }) {
     setNumPages(loadedNumPages)

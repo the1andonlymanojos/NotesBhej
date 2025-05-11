@@ -235,7 +235,7 @@ export default function AddContentPage({
                         {content.year} - {content.semester} - {content.instructor}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {content.tags.map((tag, index) => (
+                        {(content.tags ?? []).map((tag, index) => (
                           <span
                             key={index}
                             className="px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
@@ -245,7 +245,7 @@ export default function AddContentPage({
                         ))}
                       </div>
                       <a
-                        href={content.resource_url}
+                        href={content.resource_url ?? ''}
                         target="_blank"
                         className="mt-2 inline-flex items-center text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
                       >
