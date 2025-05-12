@@ -117,6 +117,13 @@ export default function CourseViewPage({
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+  const [useNativeViewer, setUseNativeViewer] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('useNativeViewer')
+      return saved ? JSON.parse(saved) : false
+    }
+    return false
+  })
   const supabase = createClient()
 console.log(selectedContent)
   // Check if device is mobile
@@ -128,6 +135,11 @@ console.log(selectedContent)
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Persist viewer preference
+  useEffect(() => {
+    localStorage.setItem('useNativeViewer', JSON.stringify(useNativeViewer))
+  }, [useNativeViewer])
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -200,8 +212,10 @@ console.log(selectedContent)
   }
 
   const handleContentClick = (item: CourseContent) => {
-    if (isMobile && item.resource_url) {
-      window.open(item.resource_url, '_blank')
+    if (isMobile || useNativeViewer) {
+      if (item.resource_url) {
+        window.open(item.resource_url, '_blank')
+      }
     } else {
       setSelectedContent(item)
       setSelectedFileId(item.id)
@@ -211,7 +225,16 @@ console.log(selectedContent)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
-      <div className="fixed top-4 right-4 z-10">
+      <div className="fixed top-4 right-4 z-10 flex items-center gap-2">
+        {!isMobile && (
+          <Button
+            variant="ghost"
+            onClick={() => setUseNativeViewer(!useNativeViewer)}
+            className="hover:bg-white/50 dark:hover:bg-zinc-800/50 text-sm"
+          >
+            {useNativeViewer ? "Use In-App Viewer" : "Use Browser Viewer"}
+          </Button>
+        )}
         <ThemeToggle />
       </div>
 
