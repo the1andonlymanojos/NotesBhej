@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Database } from "@/types/supabase"
 
 type CourseContent = Database["public"]["Tables"]["course_content"]["Row"]
