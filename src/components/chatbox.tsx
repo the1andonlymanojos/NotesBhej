@@ -29,9 +29,16 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   let scrollTimeout: ReturnType<typeof setTimeout>
+  const [chatKey, setChatKey] = useState<string | null>(null)
   useEffect(() => {
-    console.log("ViewportRef", viewportRef.current);
-  }, [viewportRef, messages]);
+    const fetchChatKey = async () => {
+      const response = await fetch("/api/get-chat-key")
+      const data = await response.json()
+      console.log("Chat key", data)
+      setChatKey(data.jwt)
+    }
+    fetchChatKey()
+  }, [])
 
   useEffect(() => {
     clearTimeout(scrollTimeout)
@@ -58,8 +65,13 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
     setMessages((prev) => [...prev, newMessage])
     setInput("")
 
+    if (!chatKey) {
+      alert("No chat key found")
+      return
+    }
+
+    const eventSource = new EventSource(`https://casterly-rock.stoat-toad.ts.net/chat/stream?course_code=${courseCode}&question=${input.trim()}&chat_key=${chatKey}`)
     
-    const eventSource = new EventSource(`http://localhost:8000/chat/stream?course_code=${courseCode}&question=${input.trim()}`)
 
     const botMessageId = Math.random().toString(36).substr(2, 9)
     let accumulated = ""

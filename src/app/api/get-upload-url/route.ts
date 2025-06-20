@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { v4 as uuidv4 } from "uuid"
+import { createClient } from "@/utils/supabase/server"
 
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID
@@ -27,6 +28,21 @@ const s3Client = new S3Client({
 
 export async function POST(request: Request) {
   try {
+    // Extract redirect parameter from URL query params
+    const url = new URL(request.url)
+    const redirectParam = url.searchParams.get('redirect')
+    
+    // Ensure user is logged in
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Authentication required" }, 
+        { status: 401 }
+      )
+    }
+
     const { fileName, fileType } = await request.json()
 
     if (!fileName || !fileType) {
@@ -53,7 +69,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       signedUrl,
       fileName: uniqueFileName,
-      publicUrl: `${PublicURL}/${uniqueFileName}`
+      publicUrl: `${PublicURL}/${uniqueFileName}`,
+      redirect: redirectParam, // Include redirect parameter in response
+      userId: user.id // Include user ID for reference
     })
   } catch (error) {
     console.error("Error generating signed URL:", error)
