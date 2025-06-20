@@ -15,10 +15,17 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true)
+      
+      // Get redirect parameter from URL query params
+      // Get the "redirect" parameter from the URL query params, default to "/"
+      const redirectTo = typeof window !== "undefined"
+        ? (new URLSearchParams(window.location.search).get("redirect") || "/")
+        : "/";
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`
         }
       })
       if (error) throw error

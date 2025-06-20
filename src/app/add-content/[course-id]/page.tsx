@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileInput } from "@/components/ui/file-input"
-import { Upload, FileText, Tag, X, AlertCircle } from "lucide-react"
+import { Upload, FileText, Tag, X, AlertCircle, ArrowLeft } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Progress } from "@/components/ui/progress"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
@@ -34,6 +34,8 @@ export default function AddContentPage({
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const [showSizeWarning, setShowSizeWarning] = useState(false)
   const [oversizedFiles, setOversizedFiles] = useState<File[]>([])
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [showValidationError, setShowValidationError] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -47,7 +49,31 @@ export default function AddContentPage({
     if (courseId) fetchExistingContent()
   }, [courseId, supabase])
 
+  const validateStep2 = () => {
+    const errors: string[] = []
+    
+    if (files.length === 0) {
+      errors.push("Please select at least one file to upload")
+      return errors
+    }
+    
+    // Check if all files have titles
+    const filesWithoutTitles = files.filter(file => !fileTitles[file.name]?.trim())
+    if (filesWithoutTitles.length > 0) {
+      errors.push("Please provide titles for all files")
+    }
+    
+    return errors
+  }
+
   const handleUpload = async () => {
+    const validationErrors = validateStep2()
+    if (validationErrors.length > 0) {
+      setValidationErrors(validationErrors)
+      setShowValidationError(true)
+      return
+    }
+
     const oversized = files.filter(file => file.size > MAX_FILE_SIZE)
     if (oversized.length > 0) {
       setOversizedFiles(oversized)
@@ -123,7 +149,7 @@ export default function AddContentPage({
       if (error) {
         throw new Error("Failed to save content metadata")
       }
-      router.push(`/add-content/${courseId}`)
+      router.push(`/course/${courseId}`)
     } catch (error) {
       alert(error instanceof Error ? error.message : "Error uploading content")
     } finally {
@@ -164,6 +190,45 @@ export default function AddContentPage({
         }))
       }
     })
+  }
+
+  const validateStep1 = () => {
+    const errors: string[] = []
+    
+    if (!instructor.trim()) {
+      errors.push("Instructor name is required")
+    }
+    
+    if (!year || year === "") {
+      errors.push("Year is required")
+    } else {
+      const yearNum = parseInt(year as string)
+      if (isNaN(yearNum) || yearNum < 2000 || yearNum > new Date().getFullYear() + 5) {
+        errors.push("Please enter a valid year (2000 - " + (new Date().getFullYear() + 5) + ")")
+      }
+    }
+    
+    if (!semester.trim()) {
+      errors.push("Batch and Semester information is required")
+    } else {
+      // Validate format: 20XXYYYY-ZZ (e.g., 2022IMT-VI)
+      const semesterRegex = /^20\d{2}[A-Z]+-(?:I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$/
+      if (!semesterRegex.test(semester.trim())) {
+        errors.push("Batch and Semester must follow format: 20XXYYYY-ZZ (e.g., 2022IMT-VI) CASE SENSITIVE! (ONLY ONE BATCH, EVEN IF MULTIPLE BATCHES WERE OFFERED, PLEASE SELECT ONE)")
+      }
+    }
+    
+    return errors
+  }
+
+  const handleNextStep = () => {
+    const errors = validateStep1()
+    if (errors.length > 0) {
+      setValidationErrors(errors)
+      setShowValidationError(true)
+      return
+    }
+    setStep(2)
   }
 
   return (
@@ -208,12 +273,52 @@ export default function AddContentPage({
     </AlertDialogFooter>
   </AlertDialogContent>
 </AlertDialog>
+
+      <AlertDialog open={showValidationError} onOpenChange={setShowValidationError}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <AlertCircle className="h-5 w-5" />
+              Required Fields Missing
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <p>Please fill in the following required fields:</p>
+            
+            <ul className="list-disc pl-5 space-y-1">
+              {validationErrors.map((error, index) => (
+                <li key={index} className="text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </li>
+              ))}
+            </ul>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowValidationError(false)} className="bg-indigo-600 hover:bg-indigo-700">
+              Got it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="w-full max-w-7xl bg-white/80 dark:bg-zinc-900/80 shadow-2xl rounded-3xl p-4 sm:p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 backdrop-blur-lg my-4">
-        <div className="flex items-center gap-3 mb-4 sm:mb-6">
-          <Upload className="text-indigo-500 dark:text-indigo-300 h-6 w-6 sm:h-8 sm:w-8" />
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent">
-            Add Course Content
-          </h1>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => router.push(`/course/${courseId}`)}
+              variant="outline"
+              size="sm"
+              className="border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Course
+            </Button>
+            <Upload className="text-indigo-500 dark:text-indigo-300 h-6 w-6 sm:h-8 sm:w-8" />
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent">
+              Add Course Content
+            </h1>
+          </div>
         </div>
   
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -286,34 +391,37 @@ export default function AddContentPage({
                       Instructor Name
                     </label>
                     <Input
-                      placeholder="e.g., Dr. Smith"
+                      placeholder="e.g., Dr. AK Srinivasulu"
                       value={instructor}
                       onChange={(e) => setInstructor(e.target.value)}
+                      disabled={loading}
                       className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                     />
                   </div>
   
                   <div>
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                      Year
+                      Year the course was conducted
                     </label>
                     <Input
                       placeholder="e.g., 2024"
                       type="number"
                       value={year}
                       onChange={(e) => setYear(e.target.value)}
+                      disabled={loading}
                       className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                     />
                   </div>
   
                   <div>
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                      Semester
+                      Batch and Semester course was offered to (only one batch pelase)
                     </label>
                     <Input
-                      placeholder="e.g., Fall 2024"
+                      placeholder="e.g., 2022IMT-VI "
                       value={semester}
                       onChange={(e) => setSemester(e.target.value)}
+                      disabled={loading}
                       className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                     />
                   </div>
@@ -324,9 +432,10 @@ export default function AddContentPage({
                       Tags
                     </label>
                     <Input
-                      placeholder="Add tags separated by commas"
+                      placeholder="Add tags separated by commas (class-notes)"
                       value={tags.join(", ")}
                       onChange={(e) => setTags(e.target.value.split(",").map(tag => tag.trim()))}
+                      disabled={loading}
                       className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                     />
                   </div>
@@ -340,6 +449,7 @@ export default function AddContentPage({
                     <FileInput
                       multiple
                       onChange={handleFileChange}
+                      disabled={loading}
                       className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-700 rounded-xl p-4 sm:p-6 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors"
                     />
                     {files.length > 0 && (
@@ -356,11 +466,13 @@ export default function AddContentPage({
                                 console.log("fileTitles", fileTitles)
                               }}
                                 placeholder="Enter file title"
+                                disabled={loading}
                                 className="flex-1 mr-2 border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                               />
                               <button
                                 onClick={() => removeFile(file.name)}
-                                className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                disabled={loading}
+                                className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Remove file"
                               >
                                 <X size={16} className="text-zinc-500 dark:text-zinc-400" />
@@ -383,7 +495,8 @@ export default function AddContentPage({
             <div className="mt-4 pt-2 border-t border-zinc-200 dark:border-zinc-800">
               {step === 1 ? (
                 <Button
-                  onClick={() => setStep(2)}
+                  onClick={handleNextStep}
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-sky-400 dark:from-indigo-700 dark:via-fuchsia-700 dark:to-sky-700 text-white font-semibold shadow-lg hover:scale-[1.01] hover:shadow-xl transition-all duration-200"
                 >
                   Next Step
@@ -392,6 +505,7 @@ export default function AddContentPage({
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <Button
                     onClick={() => setStep(1)}
+                    disabled={loading}
                     variant="outline"
                     className="sm:flex-1 border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50"
                   >

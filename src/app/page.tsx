@@ -2,19 +2,28 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Command } from "cmdk"
-import { Search, BookOpen, Tag, ArrowRight, FileText, Plus } from "lucide-react"
+import { Search, BookOpen, Tag, ArrowRight, FileText, Plus, User, LogOut, Settings, ChevronDown } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { User as SupabaseUser } from "@supabase/supabase-js"
 type Course = Database['public']['Tables']['course']['Row'] & {
   course_content?: CourseContent[]
 }
 type CourseContent = Database['public']['Tables']['course_content']['Row']
+
 export default function HomePage() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -22,7 +31,24 @@ export default function HomePage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    // Check for user session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -78,9 +104,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-3 sm:p-4">
-      <div className="fixed top-4 right-4 z-10">
-        <ThemeToggle />
-      </div>
+     
   
       <div className="max-w-7xl mx-auto pt-10 sm:pt-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -89,21 +113,82 @@ export default function HomePage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent">
               Course Content Hub
             </h1>
-          </div>
-          <Button
-            onClick={() => setOpen(true)}
-            variant="outline"
-            className="relative w-full sm:w-auto bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-md hover:shadow-lg transition-all duration-200 text-zinc-800 dark:text-zinc-200 px-3 sm:px-4 py-2 h-10"
-          >
-            <div className="flex items-center justify-center">
-              <Search className="mr-2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-              <span>Quick Search</span>
-              <div className="hidden sm:flex ml-2 h-5 items-center justify-center rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                ⌘K
+          </div><div className="flex items-center gap-2">
+          <div className="hidden sm:block">
+            <Button
+              onClick={() => setOpen(true)}
+              variant="outline"
+              className="relative w-full sm:w-auto bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-md hover:shadow-lg transition-all duration-200 text-zinc-800 dark:text-zinc-200 px-3 sm:px-4 py-2 h-10"
+            >
+              <div className="flex items-center justify-center">
+                <Search className="mr-2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                <span>Quick Search</span>
+                <div className="hidden sm:flex ml-2 h-5 items-center justify-center rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+                  ⌘K
+                </div>
               </div>
-            </div>
-            <span className="absolute inset-0 rounded-md ring-0 focus-within:ring-2 ring-indigo-500 dark:ring-indigo-400 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900" />
+              <span className="absolute inset-0 rounded-md ring-0 focus-within:ring-2 ring-indigo-500 dark:ring-indigo-400 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900" />
+            </Button>
+          </div>
+          {user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="relative h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm"
+              >
+                <span className="flex items-center gap-2">
+                  {user.user_metadata?.avatar_url ? (
+                    <div className="relative w-6 h-6 rounded-full overflow-hidden">
+                      <Image
+                        src={user.user_metadata.avatar_url}
+                        alt="User avatar"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <User className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                  )}
+                  <span className="text-sm">
+                    Hi, {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => router.push('/profile')}>
+                <User className="w-4 h-4 mr-2" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  router.refresh()
+                }}
+                className="text-red-600 dark:text-red-400"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button
+            onClick={() => router.push('/login')}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            Sign in
           </Button>
+        )}
+        <ThemeToggle />
+        </div>
         </div>
   
         <div className="mb-6 sm:mb-8">

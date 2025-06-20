@@ -9,6 +9,7 @@ import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter } from "lucid
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
+import Chatbox from "@/components/chatbox"
 
 type CourseContent = Database["public"]["Tables"]["course_content"]["Row"]
 
@@ -151,7 +152,7 @@ console.log(selectedContent)
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button
-            onClick={() => router.back()}
+            onClick={() => router.push("/")}
             variant="ghost"
             className="hover:bg-white/50 dark:hover:bg-zinc-800/50"
           >
@@ -378,7 +379,7 @@ console.log(selectedContent)
         )}
 
         {/* Add Content Button */}
-        <div className="fixed bottom-6 right-6">
+        <div className="fixed bottom-6 right-6 flex items-center justify-center gap-4">
           <Button
             onClick={() => router.push(`/add-content/${courseId}`)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-md sm:px-4 sm:py-2 flex items-center justify-center"
@@ -386,7 +387,11 @@ console.log(selectedContent)
             <Plus className="h-5 w-5 sm:mr-2" />
             <span className="hidden sm:inline">Add Content</span>
           </Button>
+          <div>
+            <Chatbox courseCode={course.code}/>
+          </div>
         </div>
+
       </div>
     </div>
   )
