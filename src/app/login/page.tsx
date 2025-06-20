@@ -18,18 +18,19 @@ export default function LoginPage() {
       
       // Get redirect parameter from URL query params
       // Get the "redirect" parameter from the URL query params, default to "/"
-      let redirectURL  = typeof window !== "undefined"
-        ? `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(window.location.href)}`
-        : ''
+      const redirectTo = typeof window !== "undefined"
+        ? (new URLSearchParams(window.location.search).get("redirect") || "/")
+        : "/";
 
-      console.log("redirectURL", redirectURL)
-      if (redirectURL === '') {
-        redirectURL = `${window.location.origin}/auth/callback`
-      }
+        
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectURL
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            redirect: redirectTo
+          }
         }
       })
       if (error) throw error
