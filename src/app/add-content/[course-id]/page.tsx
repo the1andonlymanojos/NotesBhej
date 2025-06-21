@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Database } from "@/types/supabase"
 
 type CourseContent = Database["public"]["Tables"]["course_content"]["Row"]
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_FILE_SIZE = 30 * 1024 * 1024 // 10MB
 
 export default function AddContentPage({
   params,
