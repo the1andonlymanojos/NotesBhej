@@ -323,7 +323,7 @@ export default function AddContentPage({
   
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left Column - Existing Content */}
-          <div className="flex flex-col">
+          <div className="hidden lg:flex flex-col">
             <h2 className="text-lg sm:text-xl font-semibold text-zinc-700 dark:text-zinc-300 mb-3 sm:mb-4 flex items-center gap-2">
               <FileText className="text-indigo-500" size={20} />
               Existing Content
