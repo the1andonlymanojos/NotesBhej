@@ -42,8 +42,6 @@ const s3Client = new S3Client({
     secretAccessKey: UseDev ? MINIO_SECRET_KEY! : R2_SECRET_KEY!,
   },
 })
-
-const BUCKET_NAME = UseDev ? MINIO_BUCKET_NAME! : R2_BUCKET_NAME!
 const PublicURL = UseDev
   ? `https://s3.manoj-shiv.tech` // this should match MINIO_ENDPOINT's public domain
   : `https://data.miga.manoj-shiv.tech`
