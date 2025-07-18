@@ -4,26 +4,49 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { v4 as uuidv4 } from "uuid"
 import { createClient } from "@/utils/supabase/server"
 
+const UseDev = process.env.UseDev === "true"
+
+// ===== MINIO CONFIG =====
+const MINIO_BUCKET_NAME = process.env.MINIO_BUCKET_NAME
+const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY
+const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY
+const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT
+
+// ===== R2 CONFIG =====
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID
 const R2_ACCESS_KEY = process.env.R2_ACESS_KEY_ID
 const R2_SECRET_KEY = process.env.R2_SECRET_KEY
+const R2_ENDPOINT = R2_ACCOUNT_ID
+  ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  : undefined
 
-if (!R2_BUCKET_NAME || !R2_ACCOUNT_ID || !R2_ACCESS_KEY || !R2_SECRET_KEY) {
-  throw new Error("Missing required R2 environment variables")
+// ===== VALIDATION =====
+if (UseDev) {
+  if (!MINIO_BUCKET_NAME || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY || !MINIO_ENDPOINT) {
+    throw new Error("Missing required MinIO environment variables")
+  }
+} else {
+  if (!R2_BUCKET_NAME || !R2_ACCOUNT_ID || !R2_ACCESS_KEY || !R2_SECRET_KEY) {
+    throw new Error("Missing required R2 environment variables")
+  }
 }
-const PublicURL  = `https://data.miga.manoj-shiv.tech`
 
-const R2_ENDPOINT = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-
+// ===== CONFIGURE S3 CLIENT =====
 const s3Client = new S3Client({
-  region: "auto",
+  region: UseDev ? "us-east-1" : "auto", // MinIO needs dummy region
+  endpoint: UseDev ? MINIO_ENDPOINT : R2_ENDPOINT,
+  forcePathStyle: UseDev, // required for MinIO; not needed for R2
   credentials: {
-    accessKeyId: R2_ACCESS_KEY,
-    secretAccessKey: R2_SECRET_KEY,
+    accessKeyId: UseDev ? MINIO_ACCESS_KEY! : R2_ACCESS_KEY!,
+    secretAccessKey: UseDev ? MINIO_SECRET_KEY! : R2_SECRET_KEY!,
   },
-  endpoint: R2_ENDPOINT,
 })
+
+const BUCKET_NAME = UseDev ? MINIO_BUCKET_NAME! : R2_BUCKET_NAME!
+const PublicURL = UseDev
+  ? `https://s3.manoj-shiv.tech` // this should match MINIO_ENDPOINT's public domain
+  : `https://data.miga.manoj-shiv.tech`
 
 
 export async function POST(request: Request) {
