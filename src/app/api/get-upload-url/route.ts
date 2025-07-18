@@ -43,7 +43,7 @@ const s3Client = new S3Client({
   },
 })
 const PublicURL = UseDev
-  ? `https://s3.manoj-shiv.tech` // this should match MINIO_ENDPOINT's public domain
+  ? `https://s3.manoj-shiv.tech/notes` // this should match MINIO_ENDPOINT's public domain
   : `https://data.miga.manoj-shiv.tech`
 
 
