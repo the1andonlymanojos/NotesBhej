@@ -55,7 +55,8 @@ import {
   Shield,
   Clock,
   AlertTriangle,
-  Edit
+  Edit,
+  Tag
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { User as SupabaseUser } from "@supabase/supabase-js"
@@ -65,6 +66,7 @@ type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Course = Database["public"]["Tables"]["coursenew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
 type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
+type Tag = Database["public"]["Tables"]["tags"]["Row"]
 // Enhanced content type with course and professor info
 type EnhancedContent = CourseContent & {
   course_name?: string
@@ -85,6 +87,8 @@ export default function ContentModerationPage() {
   const [editLoading, setEditLoading] = useState(false)
   const [allCourses, setAllCourses] = useState<Course[]>([])
   const [allProfessors, setAllProfessors] = useState<Professor[]>([])
+  const [allTags, setAllTags] = useState<Tag[]>([])
+  const [editingTag, setEditingTag] = useState<number | null>(null)
   const supabase = createClient()
 
   // Check if user is admin based on user_meta table
@@ -117,18 +121,20 @@ export default function ContentModerationPage() {
     }
   }
 
-  // Fetch all courses and professors for the edit form
+  // Fetch all courses, professors, and tags for the edit form
   const fetchCoursesAndProfessors = async () => {
     try {
-      const [coursesResult, professorsResult] = await Promise.all([
+      const [coursesResult, professorsResult, tagsResult] = await Promise.all([
         supabase.from("coursenew").select("*").order("title"),
-        supabase.from("professorsnew").select("*").order("name")
+        supabase.from("professorsnew").select("*").order("name"),
+        supabase.from("tags").select("*").order("name")
       ])
 
       if (coursesResult.data) setAllCourses(coursesResult.data)
       if (professorsResult.data) setAllProfessors(professorsResult.data)
+      if (tagsResult.data) setAllTags(tagsResult.data)
     } catch (error) {
-      console.error("Error fetching courses and professors:", error)
+      console.error("Error fetching courses, professors, and tags:", error)
     }
   }
 
@@ -276,7 +282,7 @@ export default function ContentModerationPage() {
     try {
       setEditLoading(true)
       
-      const { error } = await supabase
+              const { error } = await supabase
         .from("course_contentnew")
         .update({
           title: editingContent.title,
@@ -284,7 +290,8 @@ export default function ContentModerationPage() {
           semester_number: editingContent.semester_number,
           batch: editingContent.batch,
           course_id: editingContent.course_id,
-          professor_id: editingContent.professor_id
+          professor_id: editingContent.professor_id,
+          tag_ids: editingTag ? [editingTag] : null
         })
         .eq("id", editingContent.id)
 
@@ -457,6 +464,23 @@ export default function ContentModerationPage() {
                             {content.batch}
                           </Badge>
                         </div>
+                        {content.tag_ids && content.tag_ids.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {content.tag_ids.slice(0, 3).map((tagId) => {
+                              const tag = allTags.find(t => t.id === tagId)
+                              return tag ? (
+                                <Badge key={tagId} variant="secondary" className="text-xs px-2 py-0.5">
+                                  {tag.name}
+                                </Badge>
+                              ) : null
+                            })}
+                            {content.tag_ids.length > 3 && (
+                              <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                                +{content.tag_ids.length - 3} more
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -497,7 +521,10 @@ export default function ContentModerationPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setEditingContent(content)}
+                          onClick={() => {
+                            setEditingContent(content)
+                            setEditingTag(content.tag_ids && content.tag_ids.length > 0 ? content.tag_ids[0] : null)
+                          }}
                           className="h-8 px-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950"
                         >
                           <Edit className="h-3 w-3" />
@@ -572,7 +599,12 @@ export default function ContentModerationPage() {
         </div>
 
         {/* Edit Content Modal */}
-        <Dialog open={!!editingContent} onOpenChange={(open) => !open && setEditingContent(null)}>
+        <Dialog open={!!editingContent} onOpenChange={(open) => {
+          if (!open) {
+            setEditingContent(null)
+            setEditingTag(null)
+          }
+        }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Edit Content</DialogTitle>
@@ -674,6 +706,47 @@ export default function ContentModerationPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">
+                    Tags
+                  </label>
+                  <div className="flex flex-wrap gap-2 p-3 border border-zinc-300 dark:border-zinc-600 rounded-md bg-zinc-50 dark:bg-zinc-800/50">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTag(null)}
+                      className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+                        editingTag === null
+                          ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700"
+                          : "bg-white dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                      }`}
+                    >
+                      None
+                    </button>
+                    {allTags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => setEditingTag(tag.id)}
+                        className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+                          editingTag === tag.id
+                            ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700"
+                            : "bg-white dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600 hover:bg-blue-50 dark:hover:bg-blue-900/50"
+                        }`}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                    {allTags.length === 0 && (
+                      <span className="text-sm text-zinc-500 dark:text-zinc-400">No tags available</span>
+                    )}
+                  </div>
+                  {editingTag && (
+                    <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                      Selected: {allTags.find(t => t.id === editingTag)?.name}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

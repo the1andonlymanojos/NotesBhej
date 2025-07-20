@@ -32,6 +32,11 @@ export default function PDFViewer({ files, onClose, initialFileId }: PDFViewerPr
   const [ref, isHovered] = useHover()
   const [showBar, setShowBar] = useState(false)
 
+  // Sort files alphabetically by title
+  const sortedFiles = [...files].sort((a, b) => 
+    a.title.toLowerCase().localeCompare(b.title.toLowerCase())
+  )
+
   // Update selected file when initialFileId changes
   useEffect(() => {
     if (initialFileId) {
@@ -76,27 +81,36 @@ export default function PDFViewer({ files, onClose, initialFileId }: PDFViewerPr
                   <Menu className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-                <SheetHeader>
+              <SheetContent side="left" className="w-[300px] sm:w-[400px] flex flex-col">
+                <SheetHeader className="flex-shrink-0">
                   <SheetTitle>Browse Files</SheetTitle>
                 </SheetHeader>
-                <div className="mt-6 space-y-2">
-                  {files.map((file) => (
+                <div className="flex-1 overflow-y-auto mt-6 space-y-2 pr-2">
+                  {sortedFiles.map((file) => (
                     <Button
                       key={file.id}
                       variant={selected === file.id ? "secondary" : "ghost"}
-                      className="w-full justify-start"
+                      className="w-full justify-start h-auto py-3 px-3"
                       onClick={() => {
                         setSelected(file.id)
                       }}
                     >
-                      <FileText className="h-4 w-4 mr-2" />
-                      <div className="flex flex-col items-start">
-                        <span className="text-sm font-medium">{file.title}</span>
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {file.year} • {file.semester}
-                          {file.instructor && ` • ${file.instructor}`}
-                        </span>
+                      <div className="flex items-start gap-3 w-full min-w-0">
+                        <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <div className="flex flex-col items-start w-full min-w-0 text-left">
+                          <span className="text-sm font-medium leading-tight break-words w-full">
+                            {file.title}
+                          </span>
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 break-words w-full">
+                            {file.year} • {file.semester}
+                            {file.instructor && (
+                              <>
+                                <br />
+                                <span className="font-medium">{file.instructor}</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </Button>
                   ))}
