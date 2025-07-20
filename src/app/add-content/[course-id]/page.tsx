@@ -6,13 +6,20 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileInput } from "@/components/ui/file-input"
-import { Upload, FileText, Tag, X, AlertCircle, ArrowLeft } from "lucide-react"
+import { Upload, FileText, Tag, X, AlertCircle, ArrowLeft, Check, ChevronsUpDown, ChevronDown, ChevronUp } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Progress } from "@/components/ui/progress"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { cn } from "@/lib/utils"
 import { Database } from "@/types/supabase"
 
-type CourseContent = Database["public"]["Tables"]["course_content"]["Row"]
+type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
+type CourseContentNew = Database["public"]["Tables"]["course_contentnew"]["Row"]
+type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
+type Tag = Database["public"]["Tables"]["tags"]["Row"]
+type CourseContentTag = Database["public"]["Tables"]["course_content_tags"]["Row"]
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 10MB
 
 export default function AddContentPage({
@@ -25,10 +32,16 @@ export default function AddContentPage({
   const [step, setStep] = useState(1)
   const [files, setFiles] = useState<File[]>([])
   const [fileTitles, setFileTitles] = useState<{ [key: string]: string }>({})
+  const [fileTagIds, setFileTagIds] = useState<{ [key: string]: number | null }>({})
   const [year, setYear] = useState<number | string>("")
-  const [semester, setSemester] = useState("")
-  const [instructor, setInstructor] = useState("")
-  const [tags, setTags] = useState<string[]>([])
+  const [batch, setBatch] = useState("")
+  const [semesterNumber, setSemesterNumber] = useState<number | string>("")
+  const [selectedProfessorId, setSelectedProfessorId] = useState<number | null>(null)
+  const [selectedProfessorName, setSelectedProfessorName] = useState("")
+  const [professors, setProfessors] = useState<Professor[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
+  const [openCombobox, setOpenCombobox] = useState(false)
+  const [showIndividualTags, setShowIndividualTags] = useState(false)
   const [existingContent, setExistingContent] = useState<CourseContent[]>([])
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
@@ -39,15 +52,40 @@ export default function AddContentPage({
   const supabase = createClient()
 
   useEffect(() => {
-    const fetchExistingContent = async () => {
-      const { data } = await supabase
-        .from("course_content")
+    const fetchData = async () => {
+      // Fetch existing content
+      const { data: contentData } = await supabase
+        .from("course_contentnew")
         .select("*")
         .eq("course_id", courseId)
-      setExistingContent(data || [])
+      setExistingContent(contentData || [])
+
+      // Fetch professors for autocomplete
+      const { data: professorsData } = await supabase
+        .from("professorsnew")
+        .select("*")
+        .order("name")
+      setProfessors(professorsData || [])
+
+      // Fetch tags for selection
+      const { data: tagsData } = await supabase
+        .from("tags")
+        .select("*")
+        .order("name")
+      setTags(tagsData || [])
     }
-    if (courseId) fetchExistingContent()
+    if (courseId) fetchData()
   }, [courseId, supabase])
+
+  // Check if all files have the same tag
+  const getAllFilesTagStatus = () => {
+    if (files.length === 0) return null;
+    
+    const firstFileTag = fileTagIds[files[0].name];
+    const allSameTag = files.every(file => fileTagIds[file.name] === firstFileTag);
+    
+    return allSameTag ? firstFileTag : 'mixed';
+  }
 
   const validateStep2 = () => {
     const errors: string[] = []
@@ -122,7 +160,7 @@ export default function AddContentPage({
           })
           console.log({publicUrl, title: fileTitles[file.name]})
 
-          return {publicUrl, title: fileTitles[file.name]}
+          return {publicUrl, title: fileTitles[file.name], fileName: file.name}
         })
       )
 
@@ -130,15 +168,16 @@ export default function AddContentPage({
       const { data: session } = await supabase.auth.getSession()
       const userId = session?.session?.user?.id
 
-      const { error } = await supabase.from("course_content").insert(
+      const { error } = await supabase.from("course_contentnew").insert(
         uploadedUrls.map((pair) => ({
           course_id: courseId,
           user_id: userId,
-          instructor,
+          professor_id: selectedProfessorId,
           year: parseInt(year as string),
-          semester,
+          batch: batch,
+          semester_number: parseInt(semesterNumber as string),
           resource_url: pair.publicUrl,
-          tags,
+          tag_ids: fileTagIds[pair.fileName] ? [fileTagIds[pair.fileName]] : null,
           title: pair.title,
           visible: false,
         }))
@@ -170,6 +209,11 @@ export default function AddContentPage({
       delete newTitles[fileName]
       return newTitles
     })
+    setFileTagIds(prev => {
+      const newTagIds = { ...prev }
+      delete newTagIds[fileName]
+      return newTagIds
+    })
   }
 
   const removeOversizedFiles = () => {
@@ -181,12 +225,18 @@ export default function AddContentPage({
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || [])
     setFiles(prev => [...prev, ...newFiles])
-    // Initialize titles for new files
+    // Initialize titles and tag selections for new files
     newFiles.forEach(file => {
       if (!fileTitles[file.name]) {
         setFileTitles(prev => ({
           ...prev,
           [file.name]: file.name.substring(0, file.name.lastIndexOf('.')) || file.name
+        }))
+      }
+      if (!fileTagIds[file.name]) {
+        setFileTagIds(prev => ({
+          ...prev,
+          [file.name]: null
         }))
       }
     })
@@ -195,7 +245,7 @@ export default function AddContentPage({
   const validateStep1 = () => {
     const errors: string[] = []
     
-    if (!instructor.trim()) {
+    if (!selectedProfessorName.trim()) {
       errors.push("Instructor name is required")
     }
     
@@ -208,15 +258,20 @@ export default function AddContentPage({
       }
     }
     
-    if (!semester.trim()) {
-      errors.push("Batch and Semester information is required")
+    if (!batch.trim()) {
+      errors.push("Batch is required")
+    }
+
+    if (!semesterNumber || semesterNumber === "") {
+      errors.push("Semester number is required")
     } else {
-      // Validate format: 20XXYYYY-ZZ (e.g., 2022IMT-VI)
-      const semesterRegex = /^20\d{2}[A-Z]+-(?:I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$/
-      if (!semesterRegex.test(semester.trim())) {
-        errors.push("Batch and Semester must follow format: 20XXYYYY-ZZ (e.g., 2022IMT-VI) CASE SENSITIVE! (ONLY ONE BATCH, EVEN IF MULTIPLE BATCHES WERE OFFERED, PLEASE SELECT ONE)")
+      const semesterNum = parseInt(semesterNumber as string)
+      if (isNaN(semesterNum) || semesterNum < 1 || semesterNum > 12) {
+        errors.push("Please enter a valid semester number (1-12)")
       }
     }
+
+
     
     return errors
   }
@@ -337,17 +392,23 @@ export default function AddContentPage({
                       className="p-3 sm:p-4 bg-white/50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all"
                     >
                       <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {content.year} - {content.semester} - {content.instructor}
+                        {content.year} - {content.batch} - Semester {content.semester_number}
+                        {content.professor_id && (
+                          <span> - {professors.find(p => p.id === content.professor_id)?.name || 'Unknown Professor'}</span>
+                        )}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {(content.tags ?? []).map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                        {(content.tag_ids ?? []).map((tagId: number) => {
+                          const tag = tags.find(t => t.id === tagId);
+                          return tag ? (
+                            <span
+                              key={tagId}
+                              className="px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                            >
+                              {tag.name}
+                            </span>
+                          ) : null;
+                        })}
                       </div>
                       <a
                         href={content.resource_url ?? ''}
@@ -390,21 +451,66 @@ export default function AddContentPage({
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                       Instructor Name
                     </label>
-                    <Input
-                      placeholder="e.g., Dr. AK Srinivasulu"
-                      value={instructor}
-                      onChange={(e) => setInstructor(e.target.value)}
-                      disabled={loading}
-                      className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
-                    />
+                    <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openCombobox}
+                          className="w-full justify-between border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50"
+                          disabled={loading}
+                        >
+                          {selectedProfessorName || "Select instructor..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search instructor..." 
+                            value={selectedProfessorName}
+                            onValueChange={setSelectedProfessorName}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No instructor found.</CommandEmpty>
+                            <CommandGroup>
+                              {professors
+                                .filter(professor =>
+                                  professor.name?.toLowerCase().includes(selectedProfessorName.toLowerCase())
+                                )
+                                .slice(0, 5)
+                                .map((professor) => (
+                                <CommandItem
+                                  key={professor.id}
+                                  value={professor.name || ""}
+                                  onSelect={(currentValue) => {
+                                    setSelectedProfessorName(currentValue);
+                                    setSelectedProfessorId(professor.id);
+                                    setOpenCombobox(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedProfessorName === professor.name ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {professor.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
   
-                  <div>
+                                    <div>
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                      Year the course was conducted
+                      Batch Year (when the batch was admitted)
                     </label>
                     <Input
-                      placeholder="e.g., 2024"
+                      placeholder="e.g., 2022 (for 2022IMT batch)"
                       type="number"
                       value={year}
                       onChange={(e) => setYear(e.target.value)}
@@ -412,33 +518,35 @@ export default function AddContentPage({
                       className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                     />
                   </div>
-  
+
                   <div>
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                      Batch and Semester course was offered to (only one batch pelase)
+                      Batch Name/Type (program abbreviation)
                     </label>
                     <Input
-                      placeholder="e.g., 2022IMT-VI "
-                      value={semester}
-                      onChange={(e) => setSemester(e.target.value)}
+                      placeholder="e.g., IMT (for 2022IMT batch)"
+                      value={batch}
+                      onChange={(e) => setBatch(e.target.value)}
+                      disabled={loading}
+                      className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                      Semester Number (which semester of their course)
+                    </label>
+                    <Input
+                      placeholder="e.g., 6 (for 6th semester)"
+                      type="number"
+                      value={semesterNumber}
+                      onChange={(e) => setSemesterNumber(e.target.value)}
                       disabled={loading}
                       className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                     />
                   </div>
   
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
-                      <Tag size={16} />
-                      Tags
-                    </label>
-                    <Input
-                      placeholder="Add tags separated by commas (class-notes)"
-                      value={tags.join(", ")}
-                      onChange={(e) => setTags(e.target.value.split(",").map(tag => tag.trim()))}
-                      disabled={loading}
-                      className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
-                    />
-                  </div>
+
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -453,8 +561,78 @@ export default function AddContentPage({
                       className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-700 rounded-xl p-4 sm:p-6 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors"
                     />
                     {files.length > 0 && (
-                      <div className="mt-4 space-y-3">
-                        {files.map((file) => (
+                      <div className="mt-4 space-y-4">
+                        {/* Tag All Files Section */}
+                        <div className="p-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              Tag All Files:
+                            </label>
+                            <button
+                              onClick={() => setShowIndividualTags(!showIndividualTags)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 border border-zinc-300 dark:border-zinc-600 rounded hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                            >
+                              {showIndividualTags ? (
+                                <>
+                                  <ChevronUp size={12} />
+                                  Hide Individual
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown size={12} />
+                                  Show Individual
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            <button
+                              onClick={() => {
+                                setFileTagIds(prev => {
+                                  const newTagIds = { ...prev };
+                                  files.forEach(file => {
+                                    newTagIds[file.name] = null;
+                                  });
+                                  return newTagIds;
+                                });
+                              }}
+                              className={cn(
+                                "px-2 py-1 text-xs rounded border transition-colors",
+                                getAllFilesTagStatus() === null
+                                  ? "border-indigo-300 dark:border-indigo-700 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300"
+                                  : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-600"
+                              )}
+                            >
+                              None
+                            </button>
+                            {tags.map((tag) => (
+                              <button
+                                key={tag.id}
+                                onClick={() => {
+                                  setFileTagIds(prev => {
+                                    const newTagIds = { ...prev };
+                                    files.forEach(file => {
+                                      newTagIds[file.name] = tag.id;
+                                    });
+                                    return newTagIds;
+                                  });
+                                }}
+                                className={cn(
+                                  "px-2 py-1 text-xs rounded border transition-colors",
+                                  getAllFilesTagStatus() === tag.id
+                                    ? "border-indigo-300 dark:border-indigo-700 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300"
+                                    : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/50"
+                                )}
+                              >
+                                {tag.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* Individual Files */}
+                        <div className="space-y-3">
+                          {files.map((file) => (
                           <div 
                             key={file.name} 
                             className="group flex flex-col gap-2 bg-white/50 dark:bg-zinc-800/50 rounded-xl px-3 py-2 sm:px-4 sm:py-3 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all"
@@ -478,6 +656,42 @@ export default function AddContentPage({
                                 <X size={16} className="text-zinc-500 dark:text-zinc-400" />
                               </button>
                             </div>
+                            
+                            {/* Tag selection for this file - collapsible */}
+                            {showIndividualTags && (
+                              <div className="mt-2">
+                                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                                  Tag (optional)
+                                </label>
+                                <div className="flex flex-wrap gap-1">
+                                  <button
+                                    onClick={() => setFileTagIds(prev => ({ ...prev, [file.name]: null }))}
+                                    className={cn(
+                                      "px-2 py-1 text-xs rounded-md border",
+                                      !fileTagIds[file.name]
+                                        ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700"
+                                        : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                                    )}
+                                  >
+                                    None
+                                  </button>
+                                  {tags.map((tag) => (
+                                    <button
+                                      key={tag.id}
+                                      onClick={() => setFileTagIds(prev => ({ ...prev, [file.name]: tag.id }))}
+                                      className={cn(
+                                        "px-2 py-1 text-xs rounded-md border",
+                                        fileTagIds[file.name] === tag.id
+                                          ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700"
+                                          : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                                      )}
+                                    >
+                                      {tag.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             <div className="flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
                               <span className="truncate max-w-[200px]">{file.name}</span>
                               <span>{uploadProgress[file.name] ? `${Math.round(uploadProgress[file.name])}%` : "Ready"}</span>
@@ -485,6 +699,7 @@ export default function AddContentPage({
                             <Progress value={uploadProgress[file.name] || 0} className="h-1.5" />
                           </div>
                         ))}
+                        </div>
                       </div>
                     )}
                   </div>

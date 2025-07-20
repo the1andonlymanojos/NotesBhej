@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, Lock, AlertTriangle, Coffee, Heart } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, Lock, AlertTriangle, Coffee, Heart, EyeOff, Clock } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
@@ -57,6 +57,7 @@ export default function CourseViewPage({
     return false
   })
   const [isPinned, setIsPinned] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const supabase = createClient()
 
   // Check if device is mobile
@@ -80,12 +81,44 @@ export default function CourseViewPage({
     return semesters[semesterNumber] || `Semester ${semesterNumber}`
   }
 
+  // Helper function to get hidden content label
+  const getHiddenLabel = (item: EnhancedContent) => {
+    if (item.visible !== false) return null
+    if (currentUserId && item.user_id === currentUserId) {
+      return { text: "Pending Approval", icon: "clock" }
+    }
+    return { text: "Hidden", icon: "eye-off" }
+  }
+
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
         // Check if user is authenticated
         const { data: { user } } = await supabase.auth.getUser()
         const isAuthenticated = !!user
+        setCurrentUserId(user?.id || null)
+
+        // Log user course interaction if authenticated
+        if (isAuthenticated && user) {
+          try {
+            await supabase
+              .from("user_course_interaction")
+              .insert({
+                user_id: user.id,
+                course_id: courseId,
+                interaction_type: 'view'
+              })
+          } catch (error) {
+            // Log detailed error information for debugging
+            console.error("Error logging user course interaction:", error)
+            console.error("Attempted to insert:", {
+              user_id: user.id,
+              course_id: courseId,
+              interaction_type: 'course_view',
+              created_at: new Date().toISOString()
+            })
+          }
+        }
 
         // Fetch course data
         const { data: courseData } = await supabase
@@ -160,7 +193,6 @@ export default function CourseViewPage({
           .select("*")
           .eq("user_id", user.id)
           .eq("course_id", courseId)
-          .single()
 
         setIsPinned(!!pinnedData)
       } catch (error) {
@@ -370,13 +402,39 @@ export default function CourseViewPage({
               {filteredContent.map((item) => (
                 <div
                   key={item.id}
-                  className="group flex flex-col p-3 bg-white/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200 cursor-pointer"
+                  className={`group flex flex-col p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                    item.visible === false
+                      ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
+                      : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
+                  }`}
                   onClick={() => handleContentClick(item)}
                 >
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                      {item.title || "Untitled Resource"}
-                    </h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1">
+                        {item.title || "Untitled Resource"}
+                      </h4>
+                      {(() => {
+                        const hiddenLabel = getHiddenLabel(item)
+                        if (!hiddenLabel) return null
+                        return (
+                          <div className="flex items-center gap-1">
+                            {hiddenLabel.icon === "clock" ? (
+                              <Clock className="h-4 w-4 text-blue-500" />
+                            ) : (
+                              <EyeOff className="h-4 w-4 text-amber-500" />
+                            )}
+                            <span className={`px-2 py-0.5 text-xs rounded-full ${
+                              hiddenLabel.icon === "clock" 
+                                ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                                : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+                            }`}>
+                              {hiddenLabel.text}
+                            </span>
+                          </div>
+                        )
+                      })()}
+                    </div>
                     <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                       <Calendar className="h-4 w-4" />
                       <span>{item.year} - {item.semester_display} ({item.batch})</span>
@@ -453,23 +511,53 @@ export default function CourseViewPage({
                       {items.map((item: EnhancedContent) => (
                         <div
                           key={item.id}
-                          className="group flex flex-col w-64 flex-shrink-0 p-3 bg-white/50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200 cursor-pointer"
+                          className={`group flex flex-col w-64 flex-shrink-0 p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                            item.visible === false
+                              ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
+                              : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
+                          }`}
                           onClick={() => handleContentClick(item)}
                         >
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                              {item.title || "Untitled Resource"}
-                            </h4>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1">
+                                {item.title || "Untitled Resource"}
+                              </h4>
+                              {(() => {
+                                const hiddenLabel = getHiddenLabel(item)
+                                if (!hiddenLabel) return null
+                                return hiddenLabel.icon === "clock" ? (
+                                  <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                )
+                              })()}
+                            </div>
                             <div className="flex flex-wrap justify-between gap-2 mt-2">
-                              {item.tag_names?.map((tag: string, index: number) => (
-                                <span
-                                  key={index}
-                                  className="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              <FileText className="h-5 w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors" />
+                              <div className="flex flex-wrap gap-1">
+                                {(() => {
+                                  const hiddenLabel = getHiddenLabel(item)
+                                  if (!hiddenLabel) return null
+                                  return (
+                                    <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                      hiddenLabel.icon === "clock" 
+                                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                                        : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+                                    }`}>
+                                      {hiddenLabel.text}
+                                    </span>
+                                  )
+                                })()}
+                                {item.tag_names?.map((tag: string, index: number) => (
+                                  <span
+                                    key={index}
+                                    className="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                              <FileText className="h-5 w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
                             </div>
                           </div>
                         </div>

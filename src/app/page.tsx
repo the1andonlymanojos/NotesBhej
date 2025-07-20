@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Command } from "cmdk"
-import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, ChevronUp } from "lucide-react"
+import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, ChevronUp, Shield } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
@@ -38,9 +38,40 @@ export default function HomePage() {
   const [pinnedCourses, setPinnedCourses] = useState<CourseNew[]>([])
   const [pinnedCourseIds, setPinnedCourseIds] = useState<Set<number>>(new Set())
   const [showPinnedSection, setShowPinnedSection] = useState(true)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [roleLoading, setRoleLoading] = useState(true)
   const supabase = createClient()
 
   const totalPages = Math.ceil(totalCourses / ITEMS_PER_PAGE)
+
+  const isAdmin = (role: string | null) => {
+    if (!role) return false
+    return role === 'admin' || role === 'moderator' || role === 'super_admin'
+  }
+
+  // Fetch user role from user_meta table
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_meta")
+        .select("role")
+        .eq("user_id", userId)
+        .single()
+
+      if (error) {
+        console.error("Error fetching user role:", error)
+        setUserRole(null)
+        return
+      }
+
+      setUserRole(data?.role || null)
+    } catch (error) {
+      console.error("Error fetching user role:", error)
+      setUserRole(null)
+    } finally {
+      setRoleLoading(false)
+    }
+  }
 
   useEffect(() => {
     // Check for user session
@@ -57,6 +88,17 @@ export default function HomePage() {
 
     return () => subscription.unsubscribe()
   }, [supabase.auth])
+
+  // Fetch user role when user changes
+  useEffect(() => {
+    if (user) {
+      setRoleLoading(true)
+      fetchUserRole(user.id)
+    } else {
+      setUserRole(null)
+      setRoleLoading(false)
+    }
+  }, [user, supabase])
 
   // Fetch pinned courses for authenticated user
   const fetchPinnedCourses = async () => {
@@ -278,6 +320,16 @@ export default function HomePage() {
                     <Settings className="w-4 h-4 mr-2" />
                     Settings
                   </DropdownMenuItem>
+                  {/* Admin-only content moderation link */}
+                  {!roleLoading && isAdmin(userRole) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => router.push('/admin/content-moderation')}>
+                        <Shield className="w-4 h-4 mr-2" />
+                        Content Moderation
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={async () => {
@@ -299,6 +351,18 @@ export default function HomePage() {
                 Sign in
               </Button>
             )}
+            
+            {/* Admin button - show prominently when user is admin */}
+            {user && !roleLoading && isAdmin(userRole) && (
+              <Button
+                onClick={() => router.push('/admin/content-moderation')}
+                className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Admin Panel
+              </Button>
+            )}
+            
             <ThemeToggle />
           </div>
         </div>
