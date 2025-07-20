@@ -7,27 +7,32 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instanciate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.3 (519615d)"
+  }
   public: {
     Tables: {
       course: {
         Row: {
+          abbreviation: string | null
           code: string
           created_at: string
-          description: string | null
           id: string
           title: string
         }
         Insert: {
+          abbreviation?: string | null
           code: string
           created_at?: string
-          description?: string | null
           id?: string
           title: string
         }
         Update: {
+          abbreviation?: string | null
           code?: string
           created_at?: string
-          description?: string | null
           id?: string
           title?: string
         }
@@ -36,9 +41,11 @@ export type Database = {
       course_content: {
         Row: {
           course_id: string | null
+          course_title: string | null
           created_at: string
           id: string
           instructor: string | null
+          new_course_id: number | null
           resource_url: string | null
           semester: string | null
           tags: string[] | null
@@ -49,9 +56,11 @@ export type Database = {
         }
         Insert: {
           course_id?: string | null
+          course_title?: string | null
           created_at?: string
           id?: string
           instructor?: string | null
+          new_course_id?: number | null
           resource_url?: string | null
           semester?: string | null
           tags?: string[] | null
@@ -62,9 +71,11 @@ export type Database = {
         }
         Update: {
           course_id?: string | null
+          course_title?: string | null
           created_at?: string
           id?: string
           instructor?: string | null
+          new_course_id?: number | null
           resource_url?: string | null
           semester?: string | null
           tags?: string[] | null
@@ -83,9 +94,453 @@ export type Database = {
           },
         ]
       }
+      course_content_tags: {
+        Row: {
+          course_content_id: number
+          tag_id: number
+        }
+        Insert: {
+          course_content_id: number
+          tag_id: number
+        }
+        Update: {
+          course_content_id?: number
+          tag_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_content_tags_course_content_id_fkey"
+            columns: ["course_content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_content_tags_course_content_id_fkey"
+            columns: ["course_content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_anon"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_content_tags_course_content_id_fkey"
+            columns: ["course_content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_content_tags_course_content_id_fkey"
+            columns: ["course_content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_content_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_contentnew: {
+        Row: {
+          batch: string
+          course_id: number | null
+          created_at: string
+          id: number
+          professor_id: number | null
+          resource_url: string
+          semester_number: number
+          tag_ids: number[] | null
+          title: string
+          user_id: string | null
+          visible: boolean | null
+          year: number
+        }
+        Insert: {
+          batch: string
+          course_id?: number | null
+          created_at?: string
+          id?: number
+          professor_id?: number | null
+          resource_url: string
+          semester_number: number
+          tag_ids?: number[] | null
+          title: string
+          user_id?: string | null
+          visible?: boolean | null
+          year: number
+        }
+        Update: {
+          batch?: string
+          course_id?: number | null
+          created_at?: string
+          id?: number
+          professor_id?: number | null
+          resource_url?: string
+          semester_number?: number
+          tag_ids?: number[] | null
+          title?: string
+          user_id?: string | null
+          visible?: boolean | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_contentnew_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_professor_id_fkey"
+            columns: ["professor_id"]
+            isOneToOne: false
+            referencedRelation: "professorsnew"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coursenew: {
+        Row: {
+          abbreviation: string | null
+          code: string
+          created_at: string
+          id: number
+          title: string
+        }
+        Insert: {
+          abbreviation?: string | null
+          code: string
+          created_at?: string
+          id?: number
+          title: string
+        }
+        Update: {
+          abbreviation?: string | null
+          code?: string
+          created_at?: string
+          id?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      professorsnew: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          department: string | null
+          designation: string | null
+          email: string | null
+          id: number
+          name: string
+          phone: string | null
+          research_interests: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          id?: number
+          name: string
+          phone?: string | null
+          research_interests?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          department?: string | null
+          designation?: string | null
+          email?: string | null
+          id?: number
+          name?: string
+          phone?: string | null
+          research_interests?: string | null
+        }
+        Relationships: []
+      }
+      tags: {
+        Row: {
+          id: number
+          name: string
+        }
+        Insert: {
+          id?: number
+          name: string
+        }
+        Update: {
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
+      user_course_interaction: {
+        Row: {
+          course_id: number
+          created_at: string | null
+          id: number
+          interaction_type: string
+          user_id: string
+        }
+        Insert: {
+          course_id: number
+          created_at?: string | null
+          id?: number
+          interaction_type: string
+          user_id: string
+        }
+        Update: {
+          course_id?: number
+          created_at?: string | null
+          id?: number
+          interaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_course_interaction_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_meta: {
+        Row: {
+          created_at: string | null
+          id: number
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          role: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_pinned_courses: {
+        Row: {
+          course_id: number
+          pinned_at: string | null
+          user_id: string
+        }
+        Insert: {
+          course_id: number
+          pinned_at?: string | null
+          user_id: string
+        }
+        Update: {
+          course_id?: number
+          pinned_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_pinned_courses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      course_contentnew_anon: {
+        Row: {
+          batch: string | null
+          course_id: number | null
+          created_at: string | null
+          id: number | null
+          professor_id: number | null
+          resource_url: string | null
+          semester_number: number | null
+          tag_ids: number[] | null
+          title: string | null
+          user_id: string | null
+          visible: boolean | null
+          year: number | null
+        }
+        Insert: {
+          batch?: string | null
+          course_id?: number | null
+          created_at?: string | null
+          id?: number | null
+          professor_id?: number | null
+          resource_url?: never
+          semester_number?: number | null
+          tag_ids?: number[] | null
+          title?: string | null
+          user_id?: string | null
+          visible?: boolean | null
+          year?: number | null
+        }
+        Update: {
+          batch?: string | null
+          course_id?: number | null
+          created_at?: string | null
+          id?: number | null
+          professor_id?: number | null
+          resource_url?: never
+          semester_number?: number | null
+          tag_ids?: number[] | null
+          title?: string | null
+          user_id?: string | null
+          visible?: boolean | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_contentnew_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_professor_id_fkey"
+            columns: ["professor_id"]
+            isOneToOne: false
+            referencedRelation: "professorsnew"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_contentnew_safe: {
+        Row: {
+          batch: string | null
+          course_id: number | null
+          created_at: string | null
+          id: number | null
+          professor_id: number | null
+          resource_url: string | null
+          semester_number: number | null
+          tag_ids: number[] | null
+          title: string | null
+          user_id: string | null
+          visible: boolean | null
+          year: number | null
+        }
+        Insert: {
+          batch?: string | null
+          course_id?: number | null
+          created_at?: string | null
+          id?: number | null
+          professor_id?: number | null
+          resource_url?: never
+          semester_number?: number | null
+          tag_ids?: number[] | null
+          title?: string | null
+          user_id?: string | null
+          visible?: boolean | null
+          year?: number | null
+        }
+        Update: {
+          batch?: string | null
+          course_id?: number | null
+          created_at?: string | null
+          id?: number | null
+          professor_id?: number | null
+          resource_url?: never
+          semester_number?: number | null
+          tag_ids?: number[] | null
+          title?: string | null
+          user_id?: string | null
+          visible?: boolean | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_contentnew_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_professor_id_fkey"
+            columns: ["professor_id"]
+            isOneToOne: false
+            referencedRelation: "professorsnew"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_contentnew_user: {
+        Row: {
+          batch: string | null
+          course_id: number | null
+          created_at: string | null
+          id: number | null
+          professor_id: number | null
+          resource_url: string | null
+          semester_number: number | null
+          tag_ids: number[] | null
+          title: string | null
+          user_id: string | null
+          visible: boolean | null
+          year: number | null
+        }
+        Insert: {
+          batch?: string | null
+          course_id?: number | null
+          created_at?: string | null
+          id?: number | null
+          professor_id?: number | null
+          resource_url?: string | null
+          semester_number?: number | null
+          tag_ids?: number[] | null
+          title?: string | null
+          user_id?: string | null
+          visible?: boolean | null
+          year?: number | null
+        }
+        Update: {
+          batch?: string | null
+          course_id?: number | null
+          created_at?: string | null
+          id?: number | null
+          professor_id?: number | null
+          resource_url?: string | null
+          semester_number?: number | null
+          tag_ids?: number[] | null
+          title?: string | null
+          user_id?: string | null
+          visible?: boolean | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_contentnew_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_professor_id_fkey"
+            columns: ["professor_id"]
+            isOneToOne: false
+            referencedRelation: "professorsnew"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
@@ -99,21 +554,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -131,14 +590,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -154,14 +615,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -177,14 +640,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -192,14 +657,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
