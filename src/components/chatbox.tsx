@@ -10,6 +10,7 @@ import { Send, MessageCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollAreaViewport } from "@radix-ui/react-scroll-area"
 
+
 interface Message {
   id: string
   content: string
@@ -30,7 +31,11 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   let scrollTimeout: ReturnType<typeof setTimeout>
   const [chatKey, setChatKey] = useState<string | null>(null)
-  
+  setChatKey("1234567890")
+  setEnabled(false)
+  if(enabled) {
+    console.log("I wish i knew how to configure the linter")
+  }
   // Add initial system message about GPU requirements
   useEffect(() => {
     const systemMessage: Message = {
