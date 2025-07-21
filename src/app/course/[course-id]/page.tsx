@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -59,7 +59,148 @@ export default function CourseViewPage({
   const [isPinned, setIsPinned] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [recentlyViewed, setRecentlyViewed] = useState<EnhancedContent[]>([])
+  const [showRecentlyViewed, setShowRecentlyViewed] = useState(false)
   const supabase = createClient()
+
+  // Debouncing refs for interaction logging
+  const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const loggedInteractions = useRef<Set<string>>(new Set())
+
+  // Debounced logging function to prevent excessive interaction logs
+  const logUserInteraction = useCallback(async (
+    interactionType: string, 
+    contentId?: number,
+    debounceMs: number = 5000 // 5 second debounce by default
+  ) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Create a unique key for this interaction
+      const interactionKey = `${user.id}-${courseId}-${contentId || 'course'}-${interactionType}`
+      
+      // Clear existing timeout for this interaction
+      const existingTimeout = logTimeouts.current.get(interactionKey)
+      if (existingTimeout) {
+        clearTimeout(existingTimeout)
+      }
+
+      // Set new timeout for debounced logging
+      const timeoutId = setTimeout(async () => {
+        // Check if we've already logged this exact interaction recently
+        if (loggedInteractions.current.has(interactionKey)) {
+          return
+        }
+
+        try {
+          await supabase
+            .from("user_course_interaction")
+            .insert({
+              user_id: user.id,
+              course_id: courseId,
+              content_id: contentId || null,
+              interaction_type: interactionType
+            })
+
+          // Mark this interaction as logged
+          loggedInteractions.current.add(interactionKey)
+          
+          // Clean up the logged interaction after some time to allow future logging
+          setTimeout(() => {
+            loggedInteractions.current.delete(interactionKey)
+          }, 30000) // Clean up after 30 seconds
+
+        } catch (error) {
+          console.error("Error logging user interaction:", error)
+        } finally {
+          // Clean up timeout reference
+          logTimeouts.current.delete(interactionKey)
+        }
+      }, debounceMs)
+
+      // Store the timeout reference
+      logTimeouts.current.set(interactionKey, timeoutId)
+
+    } catch (error) {
+      console.error("Error in logUserInteraction:", error)
+    }
+  }, [courseId, supabase])
+
+  // Fetch recently viewed content for authenticated user
+  const fetchRecentlyViewed = useCallback(async () => {
+    if (!currentUserId) {
+      setRecentlyViewed([])
+      return
+    }
+
+    try {
+      // Get recent content interactions for this user
+      const { data: recentInteractions } = await supabase
+        .from("user_course_interaction")
+        .select("content_id, created_at")
+        .eq("user_id", currentUserId)
+        .eq("interaction_type", "view")
+        .not("content_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(15)
+
+      if (recentInteractions) {
+        // Get unique content IDs to avoid duplicates
+        const seenContentIds = new Set()
+        const uniqueContentIds = recentInteractions
+          .map(interaction => interaction.content_id)
+          .filter(contentId => {
+            if (seenContentIds.has(contentId)) {
+              return false
+            }
+            seenContentIds.add(contentId)
+            return true
+          })
+          .slice(0, 10)
+
+        // Get content details for these IDs
+        const { data: contentData } = await supabase
+          .from("course_contentnew_user")
+          .select("*")
+          .in("id", uniqueContentIds)
+
+        if (contentData) {
+          // Enhance with professor and tag info
+          const enhanced = contentData.map(item => {
+            const professor = professors.find(p => p.id === item.professor_id)
+            const itemTags = item.tag_ids ? 
+              tags.filter((tag: Tag) => item.tag_ids!.includes(tag.id)).map(tag => tag.name) : 
+              []
+            
+            return {
+              ...item,
+              professor_name: professor?.name,
+              tag_names: itemTags,
+              semester_display: getSemesterDisplay(item.semester_number)
+            }
+          })
+          
+          setRecentlyViewed(enhanced as EnhancedContent[])
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching recently viewed content:", error)
+      setRecentlyViewed([])
+    }
+  }, [currentUserId, supabase, professors, tags])
+
+  // Cleanup timeouts on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Clear all pending timeouts
+      logTimeouts.current.forEach((timeout) => {
+        clearTimeout(timeout)
+      })
+      logTimeouts.current.clear()
+      loggedInteractions.current.clear()
+    }
+  }, [])
 
   // Check if device is mobile
   useEffect(() => {
@@ -99,26 +240,9 @@ export default function CourseViewPage({
         const isAuthenticated = !!user
         setCurrentUserId(user?.id || null)
 
-        // Log user course interaction if authenticated
+        // Log user course interaction if authenticated (debounced)
         if (isAuthenticated && user) {
-          try {
-            await supabase
-              .from("user_course_interaction")
-              .insert({
-                user_id: user.id,
-                course_id: courseId,
-                interaction_type: 'view'
-              })
-          } catch (error) {
-            // Log detailed error information for debugging
-            console.error("Error logging user course interaction:", error)
-            console.error("Attempted to insert:", {
-              user_id: user.id,
-              course_id: courseId,
-              interaction_type: 'course_view',
-              created_at: new Date().toISOString()
-            })
-          }
+          logUserInteraction('view')
         }
 
         // Fetch course data
@@ -205,6 +329,13 @@ export default function CourseViewPage({
     checkPinnedStatus()
   }, [courseId, supabase])
 
+  // Fetch recently viewed when user/professors/tags change
+  useEffect(() => {
+    if (currentUserId && professors.length > 0 && tags.length > 0) {
+      fetchRecentlyViewed()
+    }
+  }, [currentUserId, professors, tags, fetchRecentlyViewed])
+
   // Toggle pin status
   const togglePin = async () => {
     try {
@@ -255,7 +386,88 @@ export default function CourseViewPage({
     }
   }, [sortBy])
 
-  if (!course) return null
+  if (!course) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
+        <div className="fixed top-4 right-4 z-10 flex items-center gap-2">
+          <div className="h-10 w-32 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+          <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto">
+          {/* Header Skeleton */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+            <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+            <div>
+              <div className="h-8 w-96 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse mb-2"></div>
+              <div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Search and Filters Skeleton */}
+          <div className="mb-6 space-y-4">
+            <div className="h-10 w-full bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="h-8 w-32 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+              <div className="flex gap-2">
+                <div className="h-6 w-16 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                <div className="h-6 w-20 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                <div className="h-6 w-18 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recently Viewed Skeleton */}
+          {currentUserId && (
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-5 w-5 bg-blue-300 dark:bg-blue-700 rounded animate-pulse"></div>
+                <div className="h-6 w-48 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                <div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+              </div>
+            </div>
+          )}
+
+          {/* Content Grid Skeleton */}
+          <div className="space-y-6">
+            {Array.from({ length: 3 }).map((_, groupIndex) => (
+              <div
+                key={groupIndex}
+                className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 bg-indigo-300 dark:bg-indigo-700 rounded animate-pulse"></div>
+                    <div className="h-6 w-64 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <div className="flex gap-4 pb-2 min-w-min">
+                    {Array.from({ length: 4 }).map((_, itemIndex) => (
+                      <div
+                        key={itemIndex}
+                        className="w-64 flex-shrink-0 p-3 rounded-lg border bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700"
+                      >
+                        <div className="space-y-2">
+                          <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                          <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 animate-pulse"></div>
+                          <div className="flex gap-1">
+                            <div className="h-5 w-12 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                            <div className="h-5 w-16 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const filteredContent = enhancedContent.filter(item => {
     const matchesSearch = 
@@ -306,6 +518,13 @@ export default function CourseViewPage({
     if (!item.resource_url) {
       setShowLoginDialog(true)
       return
+    }
+    
+    // Log content interaction (debounced)
+    if (item.id) {
+      console.log("Logging content interaction for item:", item.id)
+      logUserInteraction('view', item.id)
+
     }
     
     if (isMobile || useNativeViewer) {
@@ -408,6 +627,99 @@ export default function CourseViewPage({
             </div>
           </div>
         </div>
+
+        {/* Recently Viewed Section */}
+        {currentUserId && recentlyViewed.length > 0 && (
+          <div className="mb-8">
+            <div 
+              className="flex items-center gap-3 mb-4 cursor-pointer group"
+              onClick={() => setShowRecentlyViewed(!showRecentlyViewed)}
+            >
+              <Clock className="h-5 w-5 text-blue-500" />
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                Recently Viewed ({recentlyViewed.length})
+              </h2>
+              {showRecentlyViewed ? (
+                <ChevronUp className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
+              )}
+            </div>
+            
+            {showRecentlyViewed && (
+              <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="overflow-x-auto">
+                  <div className="flex gap-4 pb-2 min-w-min">
+                    {recentlyViewed.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`group flex flex-col w-64 flex-shrink-0 p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                          item.visible === false
+                            ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
+                            : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-700"
+                        }`}
+                        onClick={() => handleContentClick(item)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1">
+                              {item.title || "Untitled Resource"}
+                            </h4>
+                            {(() => {
+                              const hiddenLabel = getHiddenLabel(item)
+                              if (!hiddenLabel) return null
+                              return hiddenLabel.icon === "clock" ? (
+                                <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                              ) : (
+                                <EyeOff className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                              )
+                            })()}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                            <Calendar className="h-4 w-4" />
+                            <span>{item.year} - {item.semester_display} ({item.batch})</span>
+                            {item.professor_name && (
+                              <>
+                                <User className="h-4 w-4 ml-2" />
+                                <span className="truncate">{item.professor_name}</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap justify-between gap-2 mt-2">
+                            <div className="flex flex-wrap gap-1">
+                              {(() => {
+                                const hiddenLabel = getHiddenLabel(item)
+                                if (!hiddenLabel) return null
+                                return (
+                                  <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                    hiddenLabel.icon === "clock" 
+                                      ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                                      : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+                                  }`}>
+                                    {hiddenLabel.text}
+                                  </span>
+                                )
+                              })()}
+                              {item.tag_names?.map((tag: string, index: number) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                            <FileText className="h-5 w-5 text-zinc-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Content Grid */}
         <div className="space-y-6">

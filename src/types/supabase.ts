@@ -282,6 +282,7 @@ export type Database = {
       }
       user_course_interaction: {
         Row: {
+          content_id: number | null
           course_id: number
           created_at: string | null
           id: number
@@ -289,6 +290,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          content_id?: number | null
           course_id: number
           created_at?: string | null
           id?: number
@@ -296,6 +298,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          content_id?: number | null
           course_id?: number
           created_at?: string | null
           id?: number
@@ -303,6 +306,34 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_course_interaction_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_course_interaction_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_anon"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_course_interaction_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_course_interaction_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_user"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_course_interaction_course_id_fkey"
             columns: ["course_id"]
