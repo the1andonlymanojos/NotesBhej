@@ -27,7 +27,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-      //add manifest.json
       <link rel="manifest" href="/manifest.json" />
 
       <script defer src="https://cloud.umami.is/script.js" data-website-id="04566490-d0d4-46b4-a7f0-2df6cb40e5f1"></script>
