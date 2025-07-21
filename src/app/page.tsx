@@ -6,7 +6,7 @@ import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
-import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, ChevronUp, Shield } from "lucide-react"
+import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, ChevronUp, Shield, X } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
@@ -28,6 +28,7 @@ export default function HomePage() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [courses, setCourses] = useState<CourseNew[]>([])
   const [allCourses, setAllCourses] = useState<CourseNew[]>([]) // For search dialog
   const [user, setUser] = useState<SupabaseUser | null>(null)
@@ -261,11 +262,15 @@ export default function HomePage() {
         e.preventDefault()
         setOpen((open) => !open)
       }
+      if (e.key === "Escape" && mobileSearchOpen) {
+        setMobileSearchOpen(false)
+        setSearch("")
+      }
     }
 
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [])
+  }, [mobileSearchOpen])
 
   const filteredCourses = allCourses.filter((course) => {
     return course.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -289,7 +294,7 @@ export default function HomePage() {
             </h1>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <div className="hidden sm:block">
               <Button
                 onClick={() => setOpen(true)}
@@ -311,11 +316,11 @@ export default function HomePage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="relative h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm"
+                    className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
                   >
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 sm:gap-2">
                       {user.user_metadata?.avatar_url ? (
-                        <div className="relative w-6 h-6 rounded-full overflow-hidden">
+                        <div className="relative w-4 h-4 sm:w-6 sm:h-6 rounded-full overflow-hidden">
                           <Image
                             src={user.user_metadata.avatar_url}
                             alt="User avatar"
@@ -324,12 +329,15 @@ export default function HomePage() {
                           />
                         </div>
                       ) : (
-                        <User className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-600 dark:text-zinc-400" />
                       )}
-                      <span className="text-sm">
+                      <span className="text-xs sm:text-sm hidden sm:block">
                         Hi, {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                       </span>
-                      <ChevronDown className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                      <span className="text-xs sm:text-sm sm:hidden">
+                        {(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User').split(' ')[0]}
+                      </span>
+                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-600 dark:text-zinc-400" />
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
@@ -368,7 +376,7 @@ export default function HomePage() {
             ) : (
               <Button
                 onClick={() => router.push('/login')}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm"
               >
                 Sign in
               </Button>
@@ -378,41 +386,15 @@ export default function HomePage() {
             {user && !roleLoading && isAdmin(userRole) && (
               <Button
                 onClick={() => router.push('/admin/content-moderation')}
-                className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
               >
-                <Shield className="w-4 h-4 mr-2" />
-                Admin Panel
+                <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Admin Panel</span>
+                <span className="sm:hidden">Admin</span>
               </Button>
             )}
             
             <ThemeToggle />
-          </div>
-        </div>
-
-        {/* Hero/Description Section */}
-        <div className="text-center mb-12">
-          <div className="max-w-3xl mx-auto">
-            <p className="text-lg sm:text-xl text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed">
-              Your go-to platform for discovering and sharing course notes. Connect with fellow students, 
-              access comprehensive study materials, and build your academic knowledge base.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-              <div className="bg-white/60 dark:bg-zinc-900/60 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
-                <BookOpen className="h-6 w-6 text-indigo-500 dark:text-indigo-400 mx-auto mb-2" />
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Discover Courses</h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Browse through hundreds of courses and find the notes you need</p>
-              </div>
-              <div className="bg-white/60 dark:bg-zinc-900/60 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
-                <Heart className="h-6 w-6 text-red-500 mx-auto mb-2" />
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Save Favorites</h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Pin your favorite courses for quick access anytime</p>
-              </div>
-              <div className="bg-white/60 dark:bg-zinc-900/60 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
-                <Plus className="h-6 w-6 text-green-500 dark:text-green-400 mx-auto mb-2" />
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Contribute</h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Share your own notes and help make IIITM great again</p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -423,15 +405,45 @@ export default function HomePage() {
               Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCourses)} of {totalCourses} courses
             </div>
             <Button
-              onClick={() => setOpen(true)}
+              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
               variant="outline"
               size="sm"
-              className="sm:hidden bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+              className="sm:hidden bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 h-8 px-3 text-xs"
             >
-              <Search className="mr-2 h-4 w-4" />
-              Search courses
+              <Search className="mr-1 h-3 w-3" />
+              Search
             </Button>
           </div>
+          
+          {/* Mobile Search Input */}
+          {mobileSearchOpen && (
+            <div className="sm:hidden mb-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search courses..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  autoFocus
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-0.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <X className="h-3 w-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" />
+                  </button>
+                )}
+              </div>
+              {search && (
+                <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  {filteredCourses.length} course{filteredCourses.length === 1 ? '' : 's'} found
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Pinned Courses Section */}
@@ -468,7 +480,13 @@ export default function HomePage() {
                   <div
                     key={course.id}
                     className="bg-white/90 dark:bg-zinc-900/90 rounded-lg p-4 border border-red-200 dark:border-red-700 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group hover:border-red-300 dark:hover:border-red-600 transform hover:scale-[1.02] hover:-translate-y-1 relative"
-                    onClick={() => router.push(`/course/${course.id}`)}
+                    onClick={() => {
+                      if (mobileSearchOpen) {
+                        setMobileSearchOpen(false)
+                        setSearch("")
+                      }
+                      router.push(`/course/${course.id}`)
+                    }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0 pr-3">
@@ -517,11 +535,20 @@ export default function HomePage() {
               </div>
             ))
           ) : (
-            courses.filter(course => !pinnedCourseIds.has(course.id)).map((course) => (
+            // Show filtered results on mobile when searching, regular paginated results otherwise
+            (search && mobileSearchOpen ? filteredCourses : courses)
+              .filter(course => !pinnedCourseIds.has(course.id))
+              .map((course) => (
               <div
                 key={course.id}
                 className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group hover:border-indigo-300 dark:hover:border-indigo-600 transform hover:scale-[1.02] hover:-translate-y-1 relative"
-                onClick={() => router.push(`/course/${course.id}`)}
+                onClick={() => {
+                  if (mobileSearchOpen) {
+                    setMobileSearchOpen(false)
+                    setSearch("")
+                  }
+                  router.push(`/course/${course.id}`)
+                }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 pr-3">
@@ -561,7 +588,7 @@ export default function HomePage() {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {totalPages > 1 && !(search && mobileSearchOpen) && (
           <div className="flex items-center justify-center gap-2 mb-8">
             <Button
               onClick={() => goToPage(currentPage - 1)}
@@ -637,18 +664,23 @@ export default function HomePage() {
         )}
 
         {/* Empty State */}
-        {!loading && courses.length === 0 && (
+        {!loading && (
+          (search && mobileSearchOpen ? filteredCourses : courses)
+            .filter(course => !pinnedCourseIds.has(course.id)).length === 0
+        ) && (
           <div className="text-center py-12 col-span-full bg-white/30 dark:bg-zinc-900/30 rounded-xl border border-zinc-200 dark:border-zinc-800">
             <BookOpen className="h-12 w-12 text-zinc-400 dark:text-zinc-600 mx-auto mb-4" />
             <p className="text-zinc-500 dark:text-zinc-400 text-lg mb-4">
-              No courses found.
+              {search && mobileSearchOpen ? 'No courses found matching your search.' : 'No courses found.'}
             </p>
-            <Button 
-              className="bg-indigo-500 hover:bg-indigo-600 text-white"
-              onClick={() => router.push('/create-course')}
-            >
-              Create your first course
-            </Button>
+            {!(search && mobileSearchOpen) && (
+              <Button 
+                className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                onClick={() => router.push('/create-course')}
+              >
+                Create your first course
+              </Button>
+            )}
           </div>
         )}
 

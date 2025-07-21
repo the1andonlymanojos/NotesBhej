@@ -1,3 +1,6 @@
+Need to install the following packages:
+supabase@2.31.8
+Ok to proceed? (y) 
 export type Json =
   | string
   | number
@@ -345,21 +348,36 @@ export type Database = {
       }
       user_meta: {
         Row: {
+          admin_request: boolean
+          batch: string | null
           created_at: string | null
+          full_name: string | null
           id: number
+          profile_picture_url: string | null
           role: string
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          admin_request?: boolean
+          batch?: string | null
           created_at?: string | null
+          full_name?: string | null
           id?: number
+          profile_picture_url?: string | null
           role: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          admin_request?: boolean
+          batch?: string | null
           created_at?: string | null
+          full_name?: string | null
           id?: number
+          profile_picture_url?: string | null
           role?: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: []
