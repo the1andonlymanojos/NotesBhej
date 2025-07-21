@@ -285,7 +285,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2 sm:gap-3">
             <BookOpen className="text-indigo-500 dark:text-indigo-300 h-6 w-6 sm:h-8 sm:w-8" />
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent">
-              Course Hub
+              NotesBhej
             </h1>
           </div>
           
@@ -386,6 +386,33 @@ export default function HomePage() {
             )}
             
             <ThemeToggle />
+          </div>
+        </div>
+
+        {/* Hero/Description Section */}
+        <div className="text-center mb-12">
+          <div className="max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed">
+              Your go-to platform for discovering and sharing course notes. Connect with fellow students, 
+              access comprehensive study materials, and build your academic knowledge base.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <div className="bg-white/60 dark:bg-zinc-900/60 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+                <BookOpen className="h-6 w-6 text-indigo-500 dark:text-indigo-400 mx-auto mb-2" />
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Discover Courses</h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">Browse through hundreds of courses and find the notes you need</p>
+              </div>
+              <div className="bg-white/60 dark:bg-zinc-900/60 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+                <Heart className="h-6 w-6 text-red-500 mx-auto mb-2" />
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Save Favorites</h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">Pin your favorite courses for quick access anytime</p>
+              </div>
+              <div className="bg-white/60 dark:bg-zinc-900/60 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+                <Plus className="h-6 w-6 text-green-500 dark:text-green-400 mx-auto mb-2" />
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Contribute</h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">Share your own notes and help make IIITM great again</p>
+              </div>
+            </div>
           </div>
         </div>
 
