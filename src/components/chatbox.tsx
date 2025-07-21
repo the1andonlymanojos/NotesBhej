@@ -25,19 +25,21 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [enabled, setEnabled] = useState(true)
+  const [enabled, setEnabled] = useState(false) // Disabled due to GPU requirements
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   let scrollTimeout: ReturnType<typeof setTimeout>
   const [chatKey, setChatKey] = useState<string | null>(null)
+  
+  // Add initial system message about GPU requirements
   useEffect(() => {
-    const fetchChatKey = async () => {
-      const response = await fetch("/api/get-chat-key")
-      const data = await response.json()
-      console.log("Chat key", data)
-      setChatKey(data.jwt)
+    const systemMessage: Message = {
+      id: "system-notice",
+      content: "🚨 Context-Aware Help Assistant Temporarily Unavailable\n\nThis is an AI-powered help assistant that provides context-aware answers about your course content. However, it requires significant GPU compute resources to run.\n\nUnfortunately, until I can afford an NVIDIA GPU with enough VRAM (and let's be honest, even selling kidneys won't get you a decent card these days thanks to Ngreedia's pricing), this feature will remain disabled.\n\nStay tuned for when we can sort out the hardware requirements! 🎮💸",
+      isUser: false,
+      timestamp: new Date(),
     }
-    fetchChatKey()
+    setMessages([systemMessage])
   }, [])
 
   useEffect(() => {
@@ -49,6 +51,10 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
   }, [messages])
 
   const handleSend = () => {
+    // Disabled due to GPU requirements
+    alert("Context-aware chat is currently disabled due to GPU hardware requirements. See the message above for more details.")
+    return
+    
     if (isLoading) return
     setIsLoading(true)
     setEnabled(false)
@@ -189,10 +195,12 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
                         "rounded-lg px-4 py-2 max-w-[80%]",
                         message.isUser
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
+                          : message.id === "system-notice" 
+                            ? "bg-yellow-100 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200"
+                            : "bg-muted"
                       )}
                     >
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm whitespace-pre-line">{message.content}</p>
                       <span className="text-xs opacity-70">
                         {message.timestamp.toLocaleTimeString()}
                       </span>
@@ -207,13 +215,13 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
               <div className="flex gap-2">
                 <Input
                   value={input}
-                  disabled = {!enabled}
+                  disabled={true} // Disabled due to GPU requirements
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Type your message..."
+                  placeholder="Context-aware chat disabled (GPU required) - See notice above"
                   className="flex-1" 
                 />
-                <Button onClick={handleSend} size="icon" disabled={!enabled}>
+                <Button onClick={handleSend} size="icon" disabled={true}>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

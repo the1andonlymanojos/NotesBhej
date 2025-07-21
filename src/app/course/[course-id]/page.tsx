@@ -387,6 +387,22 @@ export default function CourseViewPage({
     }
   }
 
+  // Handle add content navigation with auth check
+  const handleAddContent = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setShowLoginDialog(true)
+        return
+      }
+      
+      router.push(`/add-content/${courseId}`)
+    } catch (error) {
+      console.error("Error checking auth for add content:", error)
+      setShowLoginDialog(true)
+    }
+  }
+
   // Sort enhanced content when sortBy changes
   useEffect(() => {
     if (enhancedContent.length > 0) {
@@ -859,7 +875,7 @@ export default function CourseViewPage({
             (Object.entries(groupedContent) as [string, EnhancedContent[]][]).map(([key, items]) => {
               const [year, semester, batch, instructor] = key.split('*')
               const isExpanded = expandedGroups.has(key)
-              const displayItems = isExpanded ? items : items.slice(0, 3)
+              const displayItems = isExpanded ? items : items
               
               return (
                 <div
@@ -1090,7 +1106,7 @@ export default function CourseViewPage({
         {/* Add Content Button */}
         <div className="fixed bottom-6 right-6 flex items-center justify-center gap-4">
           <Button
-            onClick={() => router.push(`/add-content/${courseId}`)}
+            onClick={handleAddContent}
             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-md sm:px-4 sm:py-2 flex items-center justify-center"
           >
             <Plus className="h-5 w-5 sm:mr-2" />
