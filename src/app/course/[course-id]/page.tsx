@@ -883,7 +883,8 @@ export default function CourseViewPage({
                   className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg"
                 >
                   <div className="flex items-center justify-between mb-4">
-                                      <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500" />
                     <h3 className="text-sm sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                       {year} - <span className="sm:hidden">{getSemesterText(semester).mobile}</span><span className="hidden sm:inline">{getSemesterText(semester).desktop}</span> ({batch})
@@ -906,12 +907,12 @@ export default function CourseViewPage({
                           {isExpanded ? (
                             <>
                               <ChevronUp className="h-4 w-4 mr-2" />
-                              Show Less
+                              
                             </>
                           ) : (
                             <>
                               <ChevronDown className="h-4 w-4 mr-2" />
-                              View All ({items.length})
+                              ({items.length})
                             </>
                           )}
                         </Button>

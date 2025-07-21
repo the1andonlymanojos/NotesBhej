@@ -521,56 +521,59 @@ function ContributionEditForm({ contribution, onSave, onCancel }: ContributionEd
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <div>
-          <Label htmlFor="edit-title">Title</Label>
+          <Label htmlFor="edit-title" className="text-sm">Title</Label>
           <Input
             id="edit-title"
             value={formData.title}
             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
             placeholder="Content title"
+            className="text-sm"
           />
         </div>
         <div>
-          <Label htmlFor="edit-batch">Batch</Label>
+          <Label htmlFor="edit-batch" className="text-sm">Batch</Label>
           <Input
             id="edit-batch"
             value={formData.batch}
             onChange={(e) => setFormData(prev => ({ ...prev, batch: e.target.value }))}
             placeholder="Batch"
+            className="text-sm"
           />
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="edit-year">Year</Label>
+          <Label htmlFor="edit-year" className="text-sm">Year</Label>
           <Input
             id="edit-year"
             type="number"
             value={formData.year}
             onChange={(e) => setFormData(prev => ({ ...prev, year: parseInt(e.target.value) }))}
             placeholder="Year"
+            className="text-sm"
           />
         </div>
         <div>
-          <Label htmlFor="edit-semester">Semester</Label>
+          <Label htmlFor="edit-semester" className="text-sm">Semester</Label>
           <Input
             id="edit-semester"
             type="number"
             value={formData.semester_number}
             onChange={(e) => setFormData(prev => ({ ...prev, semester_number: parseInt(e.target.value) }))}
             placeholder="Semester"
+            className="text-sm"
           />
         </div>
-
       </div>
 
-      <div className="flex gap-2 pt-2">
-        <Button type="submit" size="sm">
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <Button type="submit" size="sm" className="text-xs sm:text-sm">
           Save Changes
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+        <Button type="button" variant="outline" size="sm" onClick={onCancel} className="text-xs sm:text-sm">
           Cancel
         </Button>
       </div>
@@ -608,12 +611,12 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
         <p className="text-xs text-gray-500 mb-3">
           Choose tags to apply to all selected contributions. This will replace existing tags.
         </p>
-        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+        <div className="flex flex-wrap gap-1 sm:gap-2 max-h-32 sm:max-h-40 overflow-y-auto">
           {availableTags.map((tag) => (
             <button
               key={tag.id}
               onClick={() => toggleTag(tag.id)}
-              className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+              className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
                 selectedTags.includes(tag.id)
                   ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700"
                   : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
@@ -625,11 +628,12 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
         </div>
       </div>
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
         <Button 
           onClick={handleSave} 
           disabled={updating}
           size="sm"
+          className="text-xs sm:text-sm"
         >
           {updating ? "Updating..." : "Update Tags"}
         </Button>
@@ -639,6 +643,7 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
           onClick={onCancel}
           disabled={updating}
           size="sm"
+          className="text-xs sm:text-sm"
         >
           Cancel
         </Button>
@@ -648,80 +653,82 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
 }
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen p-2 sm:p-4 md:p-8">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <Button
               onClick={() => router.push('/')}
               variant="ghost"
-              className="text-4xl font-bold bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent hover:bg-gray-50 dark:hover:bg-gray-800 p-2 sm:p-4"
             >
               NotesBhej
             </Button>
             <Button
               onClick={() => supabase.auth.signOut()}
               variant="outline"
+              size="sm"
+              className="w-fit self-start sm:self-auto"
             >
               Sign Out
             </Button>
           </div>
-          <h1 className="text-3xl ml-4 font-bold">Profile</h1>
+          <h1 className="text-2xl sm:text-3xl ml-2 sm:ml-4 font-bold">Profile</h1>
         </div>
 
         {/* Profile Picture and Basic Info */}
         <Card>
-          <CardHeader>
-            <CardTitle>Profile Picture & Basic Info</CardTitle>
-            <CardDescription>Your account details and profile picture</CardDescription>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg sm:text-xl">Profile Picture & Basic Info</CardTitle>
+            <CardDescription className="text-sm">Your account details and profile picture</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <div className="relative">
+          <CardContent className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4 sm:gap-6">
+              <div className="relative flex-shrink-0">
                 {userMeta?.profile_picture_url ? (
                   <Image 
                     src={userMeta.profile_picture_url} 
                     alt="Profile picture"
-                    width={120}
-                    height={120}
-                    className="rounded-full object-cover border-4 border-gray-200 dark:border-gray-700"
+                    width={100}
+                    height={100}
+                    className="w-20 h-20 sm:w-[120px] sm:h-[120px] rounded-full object-cover border-4 border-gray-200 dark:border-gray-700"
                   />
                 ) : (
-                  <div className="w-[120px] h-[120px] rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                    <span className="text-4xl font-semibold text-gray-600 dark:text-gray-300">
+                  <div className="w-20 h-20 sm:w-[120px] sm:h-[120px] rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                    <span className="text-2xl sm:text-4xl font-semibold text-gray-600 dark:text-gray-300">
                       {formData.full_name.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || '?'}
                     </span>
                   </div>
                 )}
                 {uploadingPfp && (
                   <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white"></div>
                   </div>
                 )}
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="profile-picture">Profile Picture</Label>
+              <div className="space-y-2 w-full">
+                <Label htmlFor="profile-picture" className="text-sm font-medium">Profile Picture</Label>
                 <input
                   id="profile-picture"
                   type="file"
                   accept="image/*"
                   onChange={handleFileSelect}
                   disabled={uploadingPfp}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  className="block w-full text-xs sm:text-sm text-gray-500 file:mr-2 sm:file:mr-4 file:py-1 sm:file:py-2 file:px-2 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
-                <p className="text-sm text-gray-500">Upload a new profile picture - will be automatically cropped to square and resized to 400x400px</p>
+                <p className="text-xs sm:text-sm text-gray-500">Upload a new profile picture - will be automatically cropped to square and resized to 400x400px</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label>Email</Label>
-                <Input value={user?.email || ""} disabled className="bg-gray-50 dark:bg-gray-800" />
+                <Label className="text-sm">Email</Label>
+                <Input value={user?.email || ""} disabled className="bg-gray-50 dark:bg-gray-800 text-sm" />
               </div>
               <div>
-                <Label>User ID</Label>
-                <Input value={user?.id || ""} disabled className="bg-gray-50 dark:bg-gray-800" />
+                <Label className="text-sm">User ID</Label>
+                <Input value={user?.id || ""} disabled className="bg-gray-50 dark:bg-gray-800 text-sm break-all" />
               </div>
             </div>
           </CardContent>
@@ -729,17 +736,18 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
 
         {/* Profile Details */}
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <CardTitle>Profile Details</CardTitle>
-                <CardDescription>Manage your profile information</CardDescription>
+                <CardTitle className="text-lg sm:text-xl">Profile Details</CardTitle>
+                <CardDescription className="text-sm">Manage your profile information</CardDescription>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {editing ? (
                   <>
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => {
                         setEditing(false)
                         // Reset form data
@@ -756,12 +764,13 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                     <Button
                       onClick={handleSave}
                       disabled={saving}
+                      size="sm"
                     >
                       {saving ? "Saving..." : "Save Changes"}
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={() => setEditing(true)}>
+                  <Button onClick={() => setEditing(true)} size="sm">
                     Edit Profile
                   </Button>
                 )}
@@ -770,53 +779,55 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
           </CardHeader>
           {editing && (
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <Label htmlFor="full_name">Full Name</Label>
+                  <Label htmlFor="full_name" className="text-sm">Full Name</Label>
                   <Input
                     id="full_name"
                     value={formData.full_name}
                     onChange={(e) => handleInputChange("full_name", e.target.value)}
                     disabled={!editing}
                     placeholder="Enter your full name"
+                    className="text-sm"
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="batch">Batch</Label>
+                  <Label htmlFor="batch" className="text-sm">Batch</Label>
                   <Input
                     id="batch"
                     value={formData.batch}
                     onChange={(e) => handleInputChange("batch", e.target.value)}
                     disabled={!editing}
                     placeholder="e.g., 2024, B.Tech 2021-2025"
+                    className="text-sm"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <Label>Role</Label>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={userMeta?.role === 'admin' ? 'default' : 'secondary'}>
+                  <Label className="text-sm">Role</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant={userMeta?.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
                       {userMeta?.role || 'user'}
                     </Badge>
-                    <span className="text-sm text-gray-500">(Cannot be edited)</span>
+                    <span className="text-xs text-gray-500">(Cannot be edited)</span>
                   </div>
                 </div>
 
                 <div>
-                  <Label>Admin Request</Label>
-                  <div className="flex items-center gap-2 mt-2">
+                  <Label className="text-sm">Admin Request</Label>
+                  <div className="flex items-start gap-2 mt-2">
                     <input
                       type="checkbox"
                       id="admin_request"
                       checked={formData.admin_request}
                       onChange={(e) => handleInputChange("admin_request", e.target.checked)}
                       disabled={!editing}
-                      className="rounded"
+                      className="rounded mt-0.5"
                     />
-                    <Label htmlFor="admin_request" className="text-sm">
+                    <Label htmlFor="admin_request" className="text-xs sm:text-sm leading-relaxed">
                       I am willing to help with the moderation of the platform    
                     </Label>
                   </div>
@@ -825,13 +836,13 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <div className="grid grid-cols-1 gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                 <div>
-                  <Label>Account Created</Label>
+                  <Label className="text-sm">Account Created</Label>
                   <p>{userMeta?.created_at ? new Date(userMeta.created_at).toLocaleDateString() : 'N/A'}</p>
                 </div>
                 <div>
-                  <Label>Last Updated</Label>
+                  <Label className="text-sm">Last Updated</Label>
                   <p>{userMeta?.updated_at ? new Date(userMeta.updated_at).toLocaleDateString() : 'N/A'}</p>
                 </div>
               </div>
@@ -841,43 +852,44 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
 
         {/* User Contributions */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5" />
               My Contributions
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Documents and resources you&apos;ve contributed to the platform
             </CardDescription>
           </CardHeader>
           <CardContent>
             {loadingContributions ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
-                <span className="ml-2">Loading contributions...</span>
+                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+                <span className="ml-2 text-sm">Loading contributions...</span>
               </div>
             ) : contributions.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No contributions yet</p>
-                <p className="text-sm">Start by adding content to courses!</p>
+                <Users className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm sm:text-base">No contributions yet</p>
+                <p className="text-xs sm:text-sm">Start by adding content to courses!</p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     Total contributions: {contributions.length}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {selectedContributions.size > 0 && (
                       <>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                           {selectedContributions.size} selected
                         </span>
                         <Button
                           size="sm"
                           onClick={() => setShowBatchEdit(true)}
                           disabled={updatingTags}
+                          className="text-xs"
                         >
                           Edit Tags
                         </Button>
@@ -885,6 +897,7 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                           size="sm"
                           variant="outline"
                           onClick={() => setSelectedContributions(new Set())}
+                          className="text-xs"
                         >
                           Clear
                         </Button>
@@ -895,9 +908,9 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
 
                 {/* Batch Tag Edit Dialog */}
                 {showBatchEdit && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-                      <h3 className="text-lg font-semibold mb-4">
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+                      <h3 className="text-base sm:text-lg font-semibold mb-4">
                         Edit Tags for {selectedContributions.size} Contribution{selectedContributions.size > 1 ? 's' : ''}
                       </h3>
                       <BatchTagSelector
@@ -914,28 +927,28 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                   <div key={courseId} className="border rounded-lg">
                     <button
                       onClick={() => toggleCourseExpansion(courseId)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      className="w-full p-3 sm:p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                         {expandedCourses.has(courseId) ? (
-                          <ChevronDown className="h-4 w-4" />
+                          <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                         ) : (
-                          <ChevronRight className="h-4 w-4" />
+                          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                         )}
-                        <div className="text-left">
-                          <h3 className="font-semibold">
+                        <div className="text-left min-w-0 flex-1">
+                          <h3 className="font-semibold text-sm sm:text-base truncate">
                             {course?.title || "Unknown Course"}
                           </h3>
                           {course?.code && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                               {course.code}
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {courseContributions.length} contribution{courseContributions.length !== 1 ? 's' : ''}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="secondary" className="text-xs">
+                          {courseContributions.length}
                         </Badge>
                         {expandedCourses.has(courseId) && (
                           <Button
@@ -945,7 +958,7 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                               e.stopPropagation()
                               selectAllInCourse(courseContributions)
                             }}
-                            className="text-xs"
+                            className="text-xs p-1 sm:p-2 hidden sm:inline-flex"
                           >
                             Select All
                           </Button>
@@ -955,8 +968,19 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                     
                     {expandedCourses.has(courseId) && (
                       <div className="border-t">
+                        {/* Mobile Select All Button */}
+                        <div className="p-3 border-b bg-gray-50 dark:bg-gray-800 sm:hidden">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => selectAllInCourse(courseContributions)}
+                            className="text-xs w-full"
+                          >
+                            Select All in This Course
+                          </Button>
+                        </div>
                         {courseContributions.map((contribution) => (
-                          <div key={contribution.id} className="p-4 border-b last:border-b-0">
+                          <div key={contribution.id} className="p-3 sm:p-4 border-b last:border-b-0">
                             {editingContribution === contribution.id ? (
                               <ContributionEditForm
                                 contribution={contribution}
@@ -964,23 +988,23 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                                 onCancel={() => setEditingContribution(null)}
                               />
                             ) : (
-                              <div className="flex items-start gap-4">
+                              <div className="flex items-start gap-3 sm:gap-4">
                                 <input
                                   type="checkbox"
                                   checked={selectedContributions.has(contribution.id)}
                                   onChange={() => toggleContributionSelection(contribution.id)}
-                                  className="mt-1 rounded"
+                                  className="mt-1 rounded flex-shrink-0"
                                 />
-                                <div className="flex-1">
-                                  <h4 className="font-medium">{contribution.title}</h4>
-                                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-sm sm:text-base">{contribution.title}</h4>
+                                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="h-3 w-3" />
                                       {new Date(contribution.created_at).toLocaleDateString()}
                                     </span>
                                     <span>Batch: {contribution.batch}</span>
                                     <span>Year: {contribution.year}</span>
-                                    <span>Semester: {contribution.semester_number}</span>
+                                    <span>Sem: {contribution.semester_number}</span>
                                   </div>
                                   {/* Display current tags */}
                                   {contribution.tag_ids && contribution.tag_ids.length > 0 && (
@@ -1003,7 +1027,7 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                                       href={contribution.resource_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                                      className="inline-flex items-center gap-1 mt-2 text-blue-600 hover:text-blue-800 text-xs sm:text-sm"
                                     >
                                       <ExternalLink className="h-3 w-3" />
                                       View Resource
@@ -1014,8 +1038,9 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setEditingContribution(contribution.id)}
+                                  className="flex-shrink-0"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                               </div>
                             )}
@@ -1032,19 +1057,19 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
 
         {/* Account Information */}
         <Card>
-          <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>Additional account details</CardDescription>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg sm:text-xl">Account Information</CardTitle>
+            <CardDescription className="text-sm">Additional account details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label>Last Sign In</Label>
-                <p className="text-sm">{user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'N/A'}</p>
+                <Label className="text-sm">Last Sign In</Label>
+                <p className="text-xs sm:text-sm">{user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'N/A'}</p>
               </div>
               <div>
-                <Label>Email Confirmed</Label>
-                <p className="text-sm">{user?.email_confirmed_at ? 'Yes' : 'No'}</p>
+                <Label className="text-sm">Email Confirmed</Label>
+                <p className="text-xs sm:text-sm">{user?.email_confirmed_at ? 'Yes' : 'No'}</p>
               </div>
             </div>
           </CardContent>
