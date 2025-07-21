@@ -146,7 +146,7 @@ export default function CourseViewPage({
         .eq("interaction_type", "view")
         .not("content_id", "is", null)
         .order("created_at", { ascending: false })
-        .limit(15)
+        .limit(5)
 
       if (recentInteractions) {
         // Get unique content IDs to avoid duplicates
@@ -223,7 +223,22 @@ export default function CourseViewPage({
   // Helper function to get semester display name
   const getSemesterDisplay = (semesterNumber: number) => {
     const semesters = ['', 'Spring', 'Summer', 'Fall']
-    return semesters[semesterNumber] || `Semester ${semesterNumber}`
+    return semesters[semesterNumber] || `Sem ${semesterNumber}`
+  }
+
+  // Helper function to get responsive semester text
+  const getSemesterText = (semesterDisplay: string) => {
+    if (semesterDisplay.startsWith('Semester ')) {
+      const number = semesterDisplay.replace('Semester ', '')
+      return {
+        mobile: `Sem ${number}`,
+        desktop: semesterDisplay
+      }
+    }
+    return {
+      mobile: semesterDisplay,
+      desktop: semesterDisplay
+    }
   }
 
   // Helper function to get hidden content label
@@ -713,7 +728,9 @@ export default function CourseViewPage({
                           </div>
                           <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                             <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span className="truncate">{item.year} - {item.semester_display} ({item.batch})</span>
+                            <span className="truncate">
+                              {item.year} - <span className="sm:hidden">{getSemesterText(item.semester_display || '').mobile}</span><span className="hidden sm:inline">{getSemesterText(item.semester_display || '').desktop}</span> ({item.batch})
+                            </span>
                             {item.professor_name && (
                               <>
                                 <User className="hidden sm:block h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
@@ -805,7 +822,9 @@ export default function CourseViewPage({
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="truncate">{item.year} - {item.semester_display} ({item.batch})</span>
+                      <span className="truncate">
+                        {item.year} - <span className="sm:hidden">{getSemesterText(item.semester_display || '').mobile}</span><span className="hidden sm:inline">{getSemesterText(item.semester_display || '').desktop}</span> ({item.batch})
+                      </span>
                       {item.professor_name && (
                         <>
                           <User className="hidden sm:block h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
@@ -851,7 +870,7 @@ export default function CourseViewPage({
                                       <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500" />
                     <h3 className="text-sm sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                      {year} - {semester} ({batch})
+                      {year} - <span className="sm:hidden">{getSemesterText(semester).mobile}</span><span className="hidden sm:inline">{getSemesterText(semester).desktop}</span> ({batch})
                     </h3>
                     {instructor && instructor !== 'Unknown' && (
                       <div className="flex items-center gap-1 sm:gap-2 ml-2">

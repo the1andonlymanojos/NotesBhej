@@ -32,6 +32,21 @@ export default function PDFViewer({ files, onClose, initialFileId }: PDFViewerPr
   const [ref, isHovered] = useHover()
   const [showBar, setShowBar] = useState(false)
 
+  // Helper function to get responsive semester text
+  const getSemesterText = (semesterDisplay: string) => {
+    if (semesterDisplay.startsWith('Semester ')) {
+      const number = semesterDisplay.replace('Semester ', '')
+      return {
+        mobile: `Sem ${number}`,
+        desktop: semesterDisplay
+      }
+    }
+    return {
+      mobile: semesterDisplay,
+      desktop: semesterDisplay
+    }
+  }
+
   // Sort files alphabetically by title
   const sortedFiles = [...files].sort((a, b) => 
     a.title.toLowerCase().localeCompare(b.title.toLowerCase())
@@ -102,7 +117,7 @@ export default function PDFViewer({ files, onClose, initialFileId }: PDFViewerPr
                             {file.title}
                           </span>
                           <span className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 break-words w-full">
-                            {file.year} • {file.semester}
+                            {file.year} • <span className="sm:hidden">{getSemesterText(file.semester).mobile}</span><span className="hidden sm:inline">{getSemesterText(file.semester).desktop}</span>
                             {file.instructor && (
                               <>
                                 <br />
