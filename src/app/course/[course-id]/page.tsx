@@ -6,20 +6,20 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, Lock, AlertTriangle, Coffee, Heart, EyeOff, Clock, ChevronDown, ChevronUp } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
 import Chatbox from "@/components/chatbox"
 
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
-type Course_Contentnew = Database["public"]["Tables"]["course_contentnew"]["Row"]
+//type Course_Contentnew = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
 type Tag = Database["public"]["Tables"]["tags"]["Row"]
 type Course_content_anon = Database["public"]["Views"]["course_contentnew_safe"]["Row"]
 type Course_content_user = Database["public"]["Views"]["course_contentnew_user"]["Row"]
-type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
-type logbook = Database['public']['Tables']['user_course_interaction']['Row']
+//type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
+//type logbook = Database['public']['Tables']['user_course_interaction']['Row']
 
 // Enhanced content type with resolved professor and tags
 type EnhancedContent = (Course_content_anon | Course_content_user) & {
@@ -51,6 +51,7 @@ export default function CourseViewPage({
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [useNativeViewer, setUseNativeViewer] = useState(() => {
     if (typeof window !== 'undefined') {
+      console.log(content)
       const saved = localStorage.getItem('useNativeViewer')
       return saved ? JSON.parse(saved) : false
     }
@@ -88,6 +89,7 @@ export default function CourseViewPage({
 
       // Set new timeout for debounced logging
       const timeoutId = setTimeout(async () => {
+        console.log("Logging interaction:", selectedContent)
         // Check if we've already logged this exact interaction recently
         if (loggedInteractions.current.has(interactionKey)) {
           return
@@ -322,6 +324,7 @@ export default function CourseViewPage({
         setIsPinned(!!pinnedData)
       } catch (error) {
         // Not pinned or error, keep as false
+        console.log(error)
         setIsPinned(false)
       }
     }
@@ -957,7 +960,7 @@ export default function CourseViewPage({
                           <div className="flex items-center justify-center w-32 flex-shrink-0">
                             <div className="text-center text-zinc-500 dark:text-zinc-400">
                               <div className="text-sm font-medium">+{items.length - 3} more</div>
-                              <div className="text-xs">Click "View All"</div>
+                              <div className="text-xs">Click &quot;View All&quot;</div>
                             </div>
                           </div>
                         )}
@@ -1036,7 +1039,7 @@ export default function CourseViewPage({
                 <div className="flex items-start gap-3">
                   <div className="space-y-2">
                     <p className="text-zinc-700 dark:text-zinc-300 font-medium">
-                      Y'all keep uploading copyrighted stuff, so I need to ensure you're a student else I'll get DMCA'd.
+                      Y&apos;all keep uploading copyrighted stuff, so I need to ensure you&apos;re a student else I&apos;ll get DMCA&apos;d.
                     </p>
                   </div>
                 </div>
@@ -1058,7 +1061,7 @@ export default function CourseViewPage({
                 }}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
               >
-                Fine, I'll Login 
+                Fine, I&apos;ll Login 
               </Button>
               
             </div>

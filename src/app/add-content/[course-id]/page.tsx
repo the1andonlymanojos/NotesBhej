@@ -16,10 +16,10 @@ import { cn } from "@/lib/utils"
 import { Database } from "@/types/supabase"
 
 type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
-type CourseContentNew = Database["public"]["Tables"]["course_contentnew"]["Row"]
+//type CourseContentNew = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
 type Tag = Database["public"]["Tables"]["tags"]["Row"]
-type CourseContentTag = Database["public"]["Tables"]["course_content_tags"]["Row"]
+//type CourseContentTag = Database["public"]["Tables"]["course_content_tags"]["Row"]
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 10MB
 
 export default function AddContentPage({

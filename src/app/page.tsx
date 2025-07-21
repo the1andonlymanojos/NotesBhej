@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Command } from "cmdk"
 import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, ChevronUp, Shield } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -21,8 +20,12 @@ import {
 import { User as SupabaseUser } from "@supabase/supabase-js"
 
 type CourseNew = Database['public']['Tables']['coursenew']['Row']
-type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
-type logbook = Database['public']['Tables']['user_course_interaction']['Row']
+type PinnedCourseData = {
+  course_id: number
+  coursenew: CourseNew[]
+}
+//type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
+//type logbook = Database['public']['Tables']['user_course_interaction']['Row']
 const ITEMS_PER_PAGE = 12
 
 export default function HomePage() {
@@ -118,12 +121,13 @@ export default function HomePage() {
         .eq("user_id", user.id)
 
       if (pinnedData) {
-        const courses = pinnedData
-          .map((item: any) => item.coursenew)
-          .filter((course: any) => course !== null) as CourseNew[]
+        const typedPinnedData = pinnedData as PinnedCourseData[]
+        const courses = typedPinnedData
+          .map((item: PinnedCourseData) => item.coursenew[0])
+          .filter((course: CourseNew | undefined): course is CourseNew => course !== undefined)
         
         setPinnedCourses(courses)
-        setPinnedCourseIds(new Set(pinnedData.map((item: any) => item.course_id)))
+        setPinnedCourseIds(new Set(typedPinnedData.map((item: PinnedCourseData) => item.course_id)))
       }
     } catch (error) {
       console.error("Error fetching pinned courses:", error)

@@ -33,7 +33,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -49,9 +49,9 @@ import {
   Eye, 
   Calendar, 
   User, 
-  ExternalLink,
+  
   Search,
-  Filter,
+ 
   Shield,
   Clock,
   AlertTriangle,
@@ -65,8 +65,20 @@ import { toast } from "sonner"
 type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Course = Database["public"]["Tables"]["coursenew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
-type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
+//type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
 type Tag = Database["public"]["Tables"]["tags"]["Row"]
+
+// Type for content with joined course and professor data
+type ContentWithJoins = CourseContent & {
+  coursenew: {
+    title: string
+    code: string
+  } | null
+  professorsnew: {
+    name: string
+  } | null
+}
+
 // Enhanced content type with course and professor info
 type EnhancedContent = CourseContent & {
   course_name?: string
@@ -206,7 +218,7 @@ export default function ContentModerationPage() {
       }
 
       // Transform the data to include course and professor names
-      const enhancedData: EnhancedContent[] = (data || []).map((item: any) => ({
+      const enhancedData: EnhancedContent[] = (data || []).map((item: ContentWithJoins) => ({
         ...item,
         course_name: item.coursenew?.title,
         course_code: item.coursenew?.code,
@@ -545,7 +557,7 @@ export default function ContentModerationPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Approve Content</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to approve "{content.title}"? This will make it visible to all users.
+                                Are you sure you want to approve &quote;{content.title}&quote;? This will make it visible to all users.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -575,7 +587,7 @@ export default function ContentModerationPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Deny Content</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to deny "{content.title}"? This will permanently remove the content.
+                                Are you sure you want to deny &quote;{content.title}&quote;? This will permanently remove the content.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
