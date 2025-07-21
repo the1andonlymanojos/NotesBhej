@@ -8,10 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { FileInput } from "@/components/ui/file-input"
 import { Database } from "@/types/supabase"
 import { ChevronDown, ChevronRight, Edit, ExternalLink, Calendar, Users } from "lucide-react"
 
@@ -283,6 +281,7 @@ export default function ProfilePage() {
     const grouped = contributions.reduce((acc, contribution) => {
       const courseId = contribution.course_id || 0
       const courseName = contribution.course?.title || "Unknown Course"
+      console.log(courseName)
       
       if (!acc[courseId]) {
         acc[courseId] = {
@@ -848,7 +847,7 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
               My Contributions
             </CardTitle>
             <CardDescription>
-              Documents and resources you've contributed to the platform
+              Documents and resources you&apos;ve contributed to the platform
             </CardDescription>
           </CardHeader>
           <CardContent>

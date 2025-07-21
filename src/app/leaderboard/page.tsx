@@ -7,9 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Trophy, Medal, Award, Users, ArrowLeft } from "lucide-react"
-import { Database } from "@/types/supabase"
-
-type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
 
 interface LeaderboardEntry {
   user_id: string
@@ -213,7 +210,7 @@ export default function LeaderboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {leaderboard.map((entry, index) => (
+                {leaderboard.map((entry) => (
                   <div
                     key={entry.user_id}
                     className={`p-4 rounded-lg border transition-all hover:shadow-md ${getRankColor(entry.rank)}`}

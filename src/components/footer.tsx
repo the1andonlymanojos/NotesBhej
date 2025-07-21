@@ -3,6 +3,7 @@
 import { Heart, BookOpen, Code, Coffee, Users, Mail, MapPin, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import Link from "next/link"
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
@@ -39,24 +40,24 @@ export function Footer() {
             </h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="/" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                <Link href="/" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"> 
                   Home
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/create-course" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                <Link href="/create-course" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                   Create Course
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/profile" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                <Link href="/profile" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                   Profile
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/leaderboard" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                <Link href="/leaderboard" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                   Leaderboard
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -104,10 +105,10 @@ export function Footer() {
                 className="justify-start text-xs h-8 bg-white/50 dark:bg-zinc-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border-zinc-300 dark:border-zinc-700"
                 asChild
               >
-                <a href="mailto:mshivagange@gmail.com" className="flex items-center gap-2">
+                <Link href="mailto:mshivagange@gmail.com" className="flex items-center gap-2">
                   <Mail className="h-3 w-3" />
                   Get in touch
-                </a>
+                </Link>
               </Button>
             </div>
           </div>
@@ -136,7 +137,7 @@ export function Footer() {
           {/* Fun message */}
           <div className="mt-4 text-center">
             <p className="text-xs text-zinc-500 dark:text-zinc-500 italic">
-              "Sharing knowledge is the greatest gift one can give to another" 🎯
+              &quot;Sharing knowledge is the greatest gift one can give to another&quot; 🎯
             </p>
           </div>
         </div>
