@@ -137,11 +137,12 @@ export default function CourseViewPage({
     }
 
     try {
-      // Get recent content interactions for this user
+      // Get recent content interactions for this user in the current course
       const { data: recentInteractions } = await supabase
         .from("user_course_interaction")
         .select("content_id, created_at")
         .eq("user_id", currentUserId)
+        .eq("course_id", courseId)
         .eq("interaction_type", "view")
         .not("content_id", "is", null)
         .order("created_at", { ascending: false })
@@ -556,69 +557,101 @@ export default function CourseViewPage({
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            onClick={() => router.push("/")}
-            variant="ghost"
-            className="hover:bg-white/50 dark:hover:bg-zinc-800/50"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Button
-            onClick={togglePin}
-            variant="ghost"
-            className={`hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-colors ${
-              isPinned 
-                ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300" 
-                : "text-zinc-600 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
-            }`}
-          >
-            <Heart className={`h-5 w-5 transition-all ${isPinned ? "fill-current" : ""}`} />
-          </Button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-              {course.code} - {course.title}
-            </h1>
-            {course.abbreviation && (
-              <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-                {course.abbreviation}
-              </p>
-            )}
+        <div className="mb-4 sm:mb-6">
+          {/* Mobile: Stacked layout */}
+          <div className="flex flex-col sm:hidden">
+            <div className="flex items-center gap-2 mb-3">
+              <Button
+                onClick={() => router.push("/")}
+                variant="ghost"
+                className="hover:bg-white/50 dark:hover:bg-zinc-800/50 p-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={togglePin}
+                variant="ghost"
+                className={`hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-colors p-2 ${
+                  isPinned 
+                    ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300" 
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+                }`}
+              >
+                <Heart className={`h-4 w-4 transition-all ${isPinned ? "fill-current" : ""}`} />
+              </Button>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight break-words">
+                {course.title}
+              </h1>
+            </div>
+          </div>
+
+          {/* Desktop: Horizontal layout */}
+          <div className="hidden sm:flex items-center gap-4">
+            <Button
+              onClick={() => router.push("/")}
+              variant="ghost"
+              className="hover:bg-white/50 dark:hover:bg-zinc-800/50 p-3"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              onClick={togglePin}
+              variant="ghost"
+              className={`hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-colors p-3 ${
+                isPinned 
+                  ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300" 
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+              }`}
+            >
+              <Heart className={`h-5 w-5 transition-all ${isPinned ? "fill-current" : ""}`} />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl lg:text-3xl font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
+                {course.code} - {course.title}
+              </h1>
+              {course.abbreviation && (
+                <p className="text-zinc-600 dark:text-zinc-400 mt-1 text-base">
+                  {course.abbreviation}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Search and Filters */}
-        <div className="mb-6 space-y-4">
+        <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             <Input
               placeholder="Search content..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
+              className="pl-10 border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition text-sm sm:text-base"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">Sort by:</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Filter className="h-3 w-3 sm:h-4 sm:w-4 text-zinc-500 dark:text-zinc-400" />
+              <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">Sort by:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as "year" | "professor_name")}
-                className="bg-white dark:bg-zinc-900 border-2 border-indigo-200 dark:border-indigo-700 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-400 transition"
+                className="bg-white dark:bg-zinc-900 border-2 border-indigo-200 dark:border-indigo-700 rounded-md px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs sm:text-sm focus:ring-2 focus:ring-indigo-400 transition"
               >
                 <option value="year">Year</option>
                 <option value="professor_name">Instructor</option>
               </select>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1 sm:gap-2">
               {availableTags.map((tag) => (
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
-                  className={`px-2 py-1 rounded-full text-xs transition-colors ${
+                  className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs transition-colors ${
                     selectedTags.includes(tag)
                       ? "bg-indigo-500 text-white"
                       : "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800"
@@ -635,17 +668,17 @@ export default function CourseViewPage({
         {currentUserId && recentlyViewed.length > 0 && (
           <div className="mb-8">
             <div 
-              className="flex items-center gap-3 mb-4 cursor-pointer group"
+              className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 cursor-pointer group"
               onClick={() => setShowRecentlyViewed(!showRecentlyViewed)}
             >
-              <Clock className="h-5 w-5 text-blue-500" />
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+              <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                 Recently Viewed ({recentlyViewed.length})
               </h2>
               {showRecentlyViewed ? (
-                <ChevronUp className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
+                <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
+                <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
               )}
             </div>
             
@@ -656,7 +689,7 @@ export default function CourseViewPage({
                     {recentlyViewed.map((item) => (
                       <div
                         key={item.id}
-                        className={`group flex flex-col w-64 flex-shrink-0 p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                        className={`group flex flex-col w-52 sm:w-64 flex-shrink-0 p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
                           item.visible === false
                             ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
                             : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-700"
@@ -664,37 +697,37 @@ export default function CourseViewPage({
                         onClick={() => handleContentClick(item)}
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1">
+                          <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                            <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
                               {item.title || "Untitled Resource"}
                             </h4>
                             {(() => {
                               const hiddenLabel = getHiddenLabel(item)
                               if (!hiddenLabel) return null
                               return hiddenLabel.icon === "clock" ? (
-                                <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
                               ) : (
-                                <EyeOff className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
                               )
                             })()}
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                            <Calendar className="h-4 w-4" />
-                            <span>{item.year} - {item.semester_display} ({item.batch})</span>
+                          <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+                            <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="truncate">{item.year} - {item.semester_display} ({item.batch})</span>
                             {item.professor_name && (
                               <>
-                                <User className="h-4 w-4 ml-2" />
-                                <span className="truncate">{item.professor_name}</span>
+                                <User className="hidden sm:block h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+                                <span className="hidden sm:block truncate">{item.professor_name}</span>
                               </>
                             )}
                           </div>
-                          <div className="flex flex-wrap justify-between gap-2 mt-2">
+                          <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
                             <div className="flex flex-wrap gap-1">
                               {(() => {
                                 const hiddenLabel = getHiddenLabel(item)
                                 if (!hiddenLabel) return null
                                 return (
-                                  <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${
                                     hiddenLabel.icon === "clock" 
                                       ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
                                       : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
@@ -703,16 +736,21 @@ export default function CourseViewPage({
                                   </span>
                                 )
                               })()}
-                              {item.tag_names?.map((tag: string, index: number) => (
+                              {item.tag_names?.slice(0, 2).map((tag: string, index: number) => (
                                 <span
                                   key={index}
-                                  className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
+                                  className="px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
                                 >
                                   {tag}
                                 </span>
                               ))}
+                              {item.tag_names && item.tag_names.length > 2 && (
+                                <span className="px-1.5 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-full">
+                                  +{item.tag_names.length - 2}
+                                </span>
+                              )}
                             </div>
-                            <FileText className="h-5 w-5 text-zinc-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                            <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
                           </div>
                         </div>
                       </div>
@@ -728,11 +766,11 @@ export default function CourseViewPage({
         <div className="space-y-6">
           {search ? (
             // Flat list view when searching
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filteredContent.map((item) => (
                 <div
                   key={item.id}
-                  className={`group flex flex-col p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                  className={`group flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
                     item.visible === false
                       ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
                       : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
@@ -740,8 +778,8 @@ export default function CourseViewPage({
                   onClick={() => handleContentClick(item)}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1">
+                    <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                      <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
                         {item.title || "Untitled Resource"}
                       </h4>
                       {(() => {
@@ -750,11 +788,11 @@ export default function CourseViewPage({
                         return (
                           <div className="flex items-center gap-1">
                             {hiddenLabel.icon === "clock" ? (
-                              <Clock className="h-4 w-4 text-blue-500" />
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
                             ) : (
-                              <EyeOff className="h-4 w-4 text-amber-500" />
+                              <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500" />
                             )}
-                            <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            <span className={`px-1.5 py-0.5 text-xs rounded-full ${
                               hiddenLabel.icon === "clock" 
                                 ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
                                 : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
@@ -765,26 +803,33 @@ export default function CourseViewPage({
                         )
                       })()}
                     </div>
-                    <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                      <Calendar className="h-4 w-4" />
-                      <span>{item.year} - {item.semester_display} ({item.batch})</span>
+                    <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="truncate">{item.year} - {item.semester_display} ({item.batch})</span>
                       {item.professor_name && (
                         <>
-                          <User className="h-4 w-4 ml-2" />
-                          <span>{item.professor_name}</span>
+                          <User className="hidden sm:block h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+                          <span className="hidden sm:block truncate">{item.professor_name}</span>
                         </>
                       )}
                     </div>
-                    <div className="flex flex-wrap justify-between gap-2 mt-2">
-                      {item.tag_names?.map((tag: string, index: number) => (
-                        <span
-                          key={index}
-                          className="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      <FileText className="h-5 w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors" />
+                    <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
+                      <div className="flex flex-wrap gap-1">
+                        {item.tag_names?.slice(0, 2).map((tag: string, index: number) => (
+                          <span
+                            key={index}
+                            className="px-1.5 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {item.tag_names && item.tag_names.length > 2 && (
+                          <span className="px-1.5 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-full">
+                            +{item.tag_names.length - 2}
+                          </span>
+                        )}
+                      </div>
+                      <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors" />
                     </div>
                   </div>
                 </div>
@@ -803,17 +848,17 @@ export default function CourseViewPage({
                   className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-indigo-500" />
-                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                        {year} - {semester} ({batch})
-                      </h3>
-                      {instructor && instructor !== 'Unknown' && (
-                        <div className="flex items-center gap-2 ml-2">
-                          <User className="h-4 w-4 text-zinc-500" />
-                          <span className="text-zinc-600 dark:text-zinc-400">{instructor}</span>
-                        </div>
-                      )}
+                                      <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500" />
+                    <h3 className="text-sm sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      {year} - {semester} ({batch})
+                    </h3>
+                    {instructor && instructor !== 'Unknown' && (
+                      <div className="flex items-center gap-1 sm:gap-2 ml-2">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-zinc-500" />
+                        <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 truncate">{instructor}</span>
+                      </div>
+                    )}
                     </div>
                     <div className="flex items-center gap-2">
                       {items.length > 3 && (
@@ -846,7 +891,7 @@ export default function CourseViewPage({
                       {items.map((item: EnhancedContent) => (
                         <div
                           key={item.id}
-                          className={`group flex flex-col p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                          className={`group flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
                             item.visible === false
                               ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
                               : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
@@ -854,27 +899,27 @@ export default function CourseViewPage({
                           onClick={() => handleContentClick(item)}
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2">
+                            <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                              <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
                                 {item.title || "Untitled Resource"}
                               </h4>
                               {(() => {
                                 const hiddenLabel = getHiddenLabel(item)
                                 if (!hiddenLabel) return null
                                 return hiddenLabel.icon === "clock" ? (
-                                  <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
                                 ) : (
-                                  <EyeOff className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                  <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
                                 )
                               })()}
                             </div>
-                            <div className="flex flex-wrap justify-between gap-2 mt-2">
+                            <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
                               <div className="flex flex-wrap gap-1">
                                 {(() => {
                                   const hiddenLabel = getHiddenLabel(item)
                                   if (!hiddenLabel) return null
                                   return (
-                                    <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                    <span className={`px-1.5 py-0.5 text-xs rounded-full ${
                                       hiddenLabel.icon === "clock" 
                                         ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
                                         : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
@@ -883,16 +928,21 @@ export default function CourseViewPage({
                                     </span>
                                   )
                                 })()}
-                                {item.tag_names?.map((tag: string, index: number) => (
+                                {item.tag_names?.slice(0, 2).map((tag: string, index: number) => (
                                   <span
                                     key={index}
-                                    className="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                                    className="px-1.5 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
                                   >
                                     {tag}
                                   </span>
                                 ))}
+                                {item.tag_names && item.tag_names.length > 2 && (
+                                  <span className="px-1.5 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-full">
+                                    +{item.tag_names.length - 2}
+                                  </span>
+                                )}
                               </div>
-                              <FileText className="h-5 w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
+                              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
                             </div>
                           </div>
                         </div>
@@ -905,7 +955,7 @@ export default function CourseViewPage({
                         {displayItems.map((item: EnhancedContent) => (
                           <div
                             key={item.id}
-                            className={`group flex flex-col w-64 flex-shrink-0 p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                            className={`group flex flex-col w-52 sm:w-64 flex-shrink-0 p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
                               item.visible === false
                                 ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
                                 : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
@@ -913,27 +963,27 @@ export default function CourseViewPage({
                             onClick={() => handleContentClick(item)}
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1">
+                              <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                                <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
                                   {item.title || "Untitled Resource"}
                                 </h4>
                                 {(() => {
                                   const hiddenLabel = getHiddenLabel(item)
                                   if (!hiddenLabel) return null
                                   return hiddenLabel.icon === "clock" ? (
-                                    <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
                                   ) : (
-                                    <EyeOff className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                    <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
                                   )
                                 })()}
                               </div>
-                              <div className="flex flex-wrap justify-between gap-2 mt-2">
+                              <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
                                 <div className="flex flex-wrap gap-1">
                                   {(() => {
                                     const hiddenLabel = getHiddenLabel(item)
                                     if (!hiddenLabel) return null
                                     return (
-                                      <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                      <span className={`px-1.5 py-0.5 text-xs rounded-full ${
                                         hiddenLabel.icon === "clock" 
                                           ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
                                           : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
@@ -942,16 +992,21 @@ export default function CourseViewPage({
                                       </span>
                                     )
                                   })()}
-                                  {item.tag_names?.map((tag: string, index: number) => (
+                                  {item.tag_names?.slice(0, 2).map((tag: string, index: number) => (
                                     <span
                                       key={index}
-                                      className="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
+                                      className="px-1.5 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
                                     >
                                       {tag}
                                     </span>
                                   ))}
+                                  {item.tag_names && item.tag_names.length > 2 && (
+                                    <span className="px-1.5 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-full">
+                                      +{item.tag_names.length - 2}
+                                    </span>
+                                  )}
                                 </div>
-                                <FileText className="h-5 w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
+                                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
                               </div>
                             </div>
                           </div>
@@ -1035,16 +1090,16 @@ export default function CourseViewPage({
                 <AlertTriangle className="h-5 w-5" />
                 Hold Up There, Partner! 🤠
               </DialogTitle>
-              <DialogDescription className="space-y-3 pt-2">
-                <div className="flex items-start gap-3">
-                  <div className="space-y-2">
-                    <p className="text-zinc-700 dark:text-zinc-300 font-medium">
-                      Y&apos;all keep uploading copyrighted stuff, so I need to ensure you&apos;re a student else I&apos;ll get DMCA&apos;d.
-                    </p>
-                  </div>
-                </div>
+              <DialogDescription className="space-y-3 pt-2 text-zinc-700 dark:text-zinc-300">
+                This feature requires you to login or authenticate first.
               </DialogDescription>
             </DialogHeader>
+            
+            <div className="space-y-3">
+              <p className="text-zinc-700 dark:text-zinc-300 font-medium">
+                Y&apos;all keep uploading copyrighted stuff, so I need to ensure you&apos;re a student else I&apos;ll get DMCA&apos;d.
+              </p>
+            </div>
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <Button 
