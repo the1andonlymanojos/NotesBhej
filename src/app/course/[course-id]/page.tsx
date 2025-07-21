@@ -10,6 +10,7 @@ import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangl
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
+import Chatbox from "@/components/chatbox"
 
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
 //type Course_Contentnew = Database["public"]["Tables"]["course_contentnew"]["Row"]
@@ -1111,6 +1112,7 @@ export default function CourseViewPage({
             <Plus className="h-5 w-5 sm:mr-2" />
             <span className="hidden sm:inline">Add Content</span>
           </Button>
+          <Chatbox />
         </div>
 
         {/* Sassy Login Dialog */}

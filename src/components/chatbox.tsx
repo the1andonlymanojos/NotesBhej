@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Send, MessageCircle } from "lucide-react"
 
 interface Message {
@@ -44,7 +44,9 @@ export default function Chatbox() {
             <MessageCircle className="h-7 w-7" />
           </Button>
         </DialogTrigger>
+       
         <DialogContent className="p-0 border-none bg-transparent max-w-full w-[95vw] sm:w-[400px] shadow-2xl">
+        <DialogTitle> </DialogTitle>
           <Card className="w-full h-[600px] flex flex-col gap-0">
             <div className="p-4 border-b">
               <h2 className="text-lg font-semibold">Context-Aware Chat Assistant</h2>
