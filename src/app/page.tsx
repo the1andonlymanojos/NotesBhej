@@ -20,10 +20,6 @@ import {
 import { User as SupabaseUser } from "@supabase/supabase-js"
 
 type CourseNew = Database['public']['Tables']['coursenew']['Row']
-type PinnedCourseData = {
-  course_id: number
-  coursenew: CourseNew[]
-}
 //type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
 //type logbook = Database['public']['Tables']['user_course_interaction']['Row']
 const ITEMS_PER_PAGE = 12
@@ -106,28 +102,50 @@ export default function HomePage() {
   // Fetch pinned courses for authenticated user
   const fetchPinnedCourses = async () => {
     if (!user) {
+      console.log("No user found, clearing pinned courses")
       setPinnedCourses([])
       setPinnedCourseIds(new Set())
       return
     }
 
+    console.log("Fetching pinned courses for user:", user.id)
+
     try {
-      const { data: pinnedData } = await supabase
+      // Use a simpler approach: get pinned course IDs first, then fetch the courses
+      const { data: pinnedData, error: pinnedError } = await supabase
         .from("user_pinned_courses")
-        .select(`
-          course_id,
-          coursenew (*)
-        `)
+        .select("course_id")
         .eq("user_id", user.id)
 
-      if (pinnedData) {
-        const typedPinnedData = pinnedData as PinnedCourseData[]
-        const courses = typedPinnedData
-          .map((item: PinnedCourseData) => item.coursenew[0])
-          .filter((course: CourseNew | undefined): course is CourseNew => course !== undefined)
+      console.log("Pinned data response:", { pinnedData, pinnedError })
+
+      if (pinnedError) {
+        console.error("Supabase error fetching pinned courses:", pinnedError)
+        return
+      }
+
+      if (pinnedData && pinnedData.length > 0) {
+        const courseIds = pinnedData.map(item => item.course_id)
         
-        setPinnedCourses(courses)
-        setPinnedCourseIds(new Set(typedPinnedData.map((item: PinnedCourseData) => item.course_id)))
+        // Fetch the actual course data
+        const { data: coursesData, error: coursesError } = await supabase
+          .from("coursenew")
+          .select("*")
+          .in("id", courseIds)
+
+        if (coursesError) {
+          console.error("Error fetching course details:", coursesError)
+          return
+        }
+
+        console.log("Fetched pinned courses:", coursesData)
+        
+        setPinnedCourses(coursesData || [])
+        setPinnedCourseIds(new Set(courseIds))
+      } else {
+        console.log("No pinned data returned")
+        setPinnedCourses([])
+        setPinnedCourseIds(new Set())
       }
     } catch (error) {
       console.error("Error fetching pinned courses:", error)
@@ -390,6 +408,16 @@ export default function HomePage() {
         </div>
 
         {/* Pinned Courses Section */}
+        {(() => {
+          console.log("Pinned courses debug:", { 
+            user: !!user, 
+            userEmail: user?.email,
+            pinnedCoursesLength: pinnedCourses.length, 
+            pinnedCourses: pinnedCourses,
+            showPinnedSection: showPinnedSection 
+          });
+          return null;
+        })()}
         {user && pinnedCourses.length > 0 && (
           <div className="mb-8">
             <div 
