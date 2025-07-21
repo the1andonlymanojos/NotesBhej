@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Send, MessageCircle } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 interface Message {
   id: string
@@ -16,11 +15,7 @@ interface Message {
   timestamp: Date
 }
 
-interface ChatboxProps {
-  courseCode: string
-}
-
-export default function Chatbox({ courseCode }: ChatboxProps) {
+export default function Chatbox() {
   const [messages, setMessages] = useState<Message[]>([])
 
   useEffect(() => {
@@ -39,7 +34,6 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
 
   return (
     <div>
-      {/* Floating Chat Button */}
       <Dialog>
         <DialogTrigger asChild>
           <Button
@@ -58,16 +52,8 @@ export default function Chatbox({ courseCode }: ChatboxProps) {
             <ScrollArea className="flex-1 p-4 h-[400px]">
               <div className="space-y-4">
                 {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className="flex w-full justify-start"
-                  >
-                    <div
-                      className={cn(
-                        "rounded-lg px-4 py-2 max-w-[90%]",
-                        "bg-yellow-100 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200"
-                      )}
-                    >
+                  <div key={message.id} className="flex w-full justify-start">
+                    <div className="rounded-lg px-4 py-2 max-w-[90%] bg-yellow-100 border border-yellow-300 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200">
                       <p className="text-sm whitespace-pre-line">{message.content}</p>
                       <span className="text-xs opacity-70">
                         {message.timestamp.toLocaleTimeString()}

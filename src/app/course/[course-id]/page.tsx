@@ -1112,9 +1112,6 @@ export default function CourseViewPage({
             <Plus className="h-5 w-5 sm:mr-2" />
             <span className="hidden sm:inline">Add Content</span>
           </Button>
-          <div>
-            <Chatbox courseCode={course.code}/>
-          </div>
         </div>
 
         {/* Sassy Login Dialog */}
