@@ -10,7 +10,6 @@ import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangl
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
-import Chatbox from "@/components/chatbox"
 
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
 //type Course_Contentnew = Database["public"]["Tables"]["course_contentnew"]["Row"]
