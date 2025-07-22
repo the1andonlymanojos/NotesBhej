@@ -271,11 +271,26 @@ export default function CourseViewPage({
           .single()
 
         // Fetch content data based on authentication status
-        const { data: contentData } = await supabase
-          .from(isAuthenticated ? "course_contentnew_user" : "course_contentnew_safe")
-          .select("*")
-          .eq("course_id", courseId)
-          .order("year", { ascending: true })
+        let contentData, contentError
+        if (isAuthenticated) {
+          ({ data: contentData, error: contentError } = await supabase
+            .from("course_contentnew_user")
+            .select("*")
+            .eq("course_id", courseId)
+            .order("year", { ascending: true })
+          )
+        } else {
+          // Use the new function for public content
+          const { data, error } = await supabase
+            .rpc("get_public_course_content", { target_course_id: courseId })
+          contentData = data 
+          contentError = error
+          console.log(data)
+        }
+
+        if (contentError) {
+          console.error("Error fetching content data:", contentError)
+        }
 
         // Fetch all professors
         const { data: professorsData } = await supabase
@@ -294,7 +309,7 @@ export default function CourseViewPage({
 
         // Create enhanced content with resolved professor names and tags
         if (contentData && professorsData && tagsData) {
-          const enhanced = contentData.map(item => {
+          const enhanced = contentData.map((item: Course_content_anon | Course_content_user) => {
             const professor = professorsData.find(p => p.id === item.professor_id)
             const itemTags = item.tag_ids ? 
               tagsData.filter((tag: Tag) => item.tag_ids!.includes(tag.id)).map(tag => tag.name) : 
@@ -304,14 +319,14 @@ export default function CourseViewPage({
               ...item,
               professor_name: professor?.name,
               tag_names: itemTags,
-              semester_display: getSemesterDisplay(item.semester_number)
+              semester_display: getSemesterDisplay(item.semester_number || 0)
             }
           })
           setEnhancedContent(enhanced)
           
           // Extract unique tag names for filtering
           const uniqueTags = new Set<string>()
-          enhanced.forEach(item => {
+          enhanced.forEach((item: any) => {
             item.tag_names?.forEach((tag: string) => uniqueTags.add(tag))
           })
           setAvailableTags(Array.from(uniqueTags))
