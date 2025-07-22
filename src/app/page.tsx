@@ -23,7 +23,50 @@ import { User as SupabaseUser } from "@supabase/supabase-js"
 type CourseNew = Database['public']['Tables']['coursenew']['Row']
 //type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
 //type logbook = Database['public']['Tables']['user_course_interaction']['Row']
-const ITEMS_PER_PAGE = 12
+
+// Add type for professor course data
+type ProfessorCourse = {
+  professor_id: number
+  professor_name: string
+  professor_email: string
+  course_id: number
+  course_title: string
+  course_code: string
+}
+
+type GroupedProfessorCourses = {
+  professor_id: number
+  professor_name: string
+  professor_email: string
+  courses: Array<{
+    course_id: number
+    course_title: string
+    course_code: string
+  }>
+}
+
+const ITEMS_PER_PAGE = 6
+
+// LocalStorage utility functions
+const getLocalStorageItem = (key: string, defaultValue: any) => {
+  if (typeof window === 'undefined') return defaultValue
+  try {
+    const item = localStorage.getItem(key)
+    return item ? JSON.parse(item) : defaultValue
+  } catch (error) {
+    console.error(`Error reading localStorage key "${key}":`, error)
+    return defaultValue
+  }
+}
+
+const setLocalStorageItem = (key: string, value: any) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.error(`Error setting localStorage key "${key}":`, error)
+  }
+}
 
 export default function HomePage() {
   const router = useRouter()
@@ -43,9 +86,21 @@ export default function HomePage() {
   const [showPinnedSection, setShowPinnedSection] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
 
+  // Add new state for professor courses
+  const [professorCourses, setProfessorCourses] = useState<GroupedProfessorCourses[]>([])
+  const [professorCoursesLoading, setProfessorCoursesLoading] = useState(false)
+  const [expandedProfessors, setExpandedProfessors] = useState<Set<number>>(new Set())
+  const [professorCurrentPage, setProfessorCurrentPage] = useState(1)
+  const [totalProfessorEntries, setTotalProfessorEntries] = useState(0)
+
+  // Add view mode state (will be hydrated from localStorage after mount)
+  const [viewMode, setViewMode] = useState<'list' | 'professor'>('list')
+
   const totalPages = Math.ceil(totalCourses / ITEMS_PER_PAGE)
+  const totalProfessorPages = Math.ceil(totalProfessorEntries / ITEMS_PER_PAGE)
 
   const isAdmin = (role: string | null) => {
     if (!role) return false
@@ -220,6 +275,86 @@ export default function HomePage() {
     fetchPinnedCourses()
   }, [user, supabase])
 
+  // Add function to fetch professor courses
+  const fetchProfessorCourses = async () => {
+    setProfessorCoursesLoading(true)
+    try {
+      // Get total count first
+      const { data: countData, error: countError } = await supabase.rpc('professor_course_list', {
+        limit_count: 10000, // Large number to get total count
+        offset_count: 0
+      })
+
+      if (countError) {
+        console.error("Error fetching professor course count:", countError)
+        return
+      }
+
+      setTotalProfessorEntries(countData?.length || 0)
+
+      // Get paginated data
+      const { data, error } = await supabase.rpc('professor_course_list', {
+        limit_count: ITEMS_PER_PAGE,
+        offset_count: (professorCurrentPage - 1) * ITEMS_PER_PAGE
+      })
+
+      if (error) {
+        console.error("Error fetching professor courses:", error)
+        return
+      }
+
+      // Group courses by professor
+      const grouped = data?.reduce((acc: GroupedProfessorCourses[], item: ProfessorCourse) => {
+        const existingProf = acc.find(p => p.professor_id === item.professor_id)
+        
+        if (existingProf) {
+          existingProf.courses.push({
+            course_id: item.course_id,
+            course_title: item.course_title,
+            course_code: item.course_code
+          })
+        } else {
+          acc.push({
+            professor_id: item.professor_id,
+            professor_name: item.professor_name,
+            professor_email: item.professor_email,
+            courses: [{
+              course_id: item.course_id,
+              course_title: item.course_title,
+              course_code: item.course_code
+            }]
+          })
+        }
+        
+        return acc
+      }, []) || []
+
+      setProfessorCourses(grouped)
+    } catch (error) {
+      console.error("Error fetching professor courses:", error)
+    } finally {
+      setProfessorCoursesLoading(false)
+    }
+  }
+
+  // Fetch professor courses on component mount
+  useEffect(() => {
+    fetchProfessorCourses()
+  }, [supabase, professorCurrentPage])
+
+  // Toggle professor section collapse
+  const toggleProfessorCollapse = (professorId: number) => {
+    setExpandedProfessors(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(professorId)) {
+        newSet.delete(professorId)
+      } else {
+        newSet.add(professorId)
+      }
+      return newSet
+    })
+  }
+
   useEffect(() => {
     const fetchCourses = async () => {
       setLoading(true)
@@ -289,6 +424,47 @@ export default function HomePage() {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  const goToProfessorPage = (page: number) => {
+    setProfessorCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Save view mode to localStorage when it changes
+  useEffect(() => {
+    if (mounted) {
+      setLocalStorageItem('viewMode', viewMode)
+    }
+  }, [viewMode, mounted])
+
+  // Save pinned section state to localStorage when it changes
+  useEffect(() => {
+    if (mounted) {
+      setLocalStorageItem('showPinnedSection', showPinnedSection)
+    }
+  }, [showPinnedSection, mounted])
+
+  // Helper function to change view mode and reset pagination
+  const changeViewMode = (newMode: 'list' | 'professor') => {
+    setViewMode(newMode)
+    if (newMode === 'list') {
+      setProfessorCurrentPage(1) // Reset professor page when switching to list
+    } else {
+      setCurrentPage(1) // Reset course page when switching to professor
+    }
+  }
+
+  // Hydrate localStorage values after component mounts (client-side only)
+  useEffect(() => {
+    setMounted(true)
+    
+    // Load saved preferences from localStorage
+    const savedViewMode = getLocalStorageItem('viewMode', 'list')
+    const savedPinnedSection = getLocalStorageItem('showPinnedSection', true)
+    
+    setViewMode(savedViewMode)
+    setShowPinnedSection(savedPinnedSection)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-3 sm:p-4">
@@ -409,7 +585,10 @@ export default function HomePage() {
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div className="text-sm text-zinc-600 dark:text-zinc-400">
-              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCourses)} of {totalCourses} courses
+              {viewMode === 'list' 
+                ? `Showing ${((currentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalCourses)} of ${totalCourses} courses`
+                : `Showing ${((professorCurrentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(professorCurrentPage * ITEMS_PER_PAGE, totalProfessorEntries)} of ${totalProfessorEntries} professor entries`
+              }
             </div>
             <Button
               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
@@ -420,6 +599,37 @@ export default function HomePage() {
               <Search className="mr-1 h-3 w-3" />
               Search
             </Button>
+          </div>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm text-zinc-600 dark:text-zinc-400 mr-2">View:</span>
+            <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
+
+
+              <button
+                onClick={() => changeViewMode('list')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                }`}
+              >
+                <BookOpen className="h-4 w-4 mr-1.5 inline" />
+                List All
+              </button>
+              <button
+                onClick={() => changeViewMode('professor')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'professor'
+                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                }`}
+              >
+                <User className="h-4 w-4 mr-1.5 inline" />
+                Sort by Prof
+              </button>
+            </div>
           </div>
           
           {/* Mobile Search Input */}
@@ -526,8 +736,90 @@ export default function HomePage() {
           </div>
         )}
 
+
+
         {/* Course Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
+
+        {/* Professor View */}
+        {viewMode === 'professor' && professorCourses.length > 0 && (
+          <div className="col-span-full">
+            <div className="space-y-4">
+              {professorCoursesLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-zinc-600 dark:text-zinc-400">Loading professors...</span>
+                </div>
+              ) : (
+                professorCourses.map((professor) => (
+                  <div
+                    key={professor.professor_id}
+                    className="bg-white/90 dark:bg-zinc-900/90 rounded-lg border border-blue-200 dark:border-blue-700 shadow-sm"
+                  >
+                    <div
+                      className="flex items-center justify-between p-4 cursor-pointer group hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-colors"
+                      onClick={() => toggleProfessorCollapse(professor.professor_id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                          <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {professor.professor_name}
+                          </h3>
+                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                            {professor.professor_email}
+                          </p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                            {professor.courses.length} course{professor.courses.length === 1 ? '' : 's'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {expandedProfessors.has(professor.professor_id) ? (
+                          <ChevronUp className="h-4 w-4 text-zinc-500 group-hover:text-blue-500 transition-colors" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-blue-500 transition-colors" />
+                        )}
+                      </div>
+                    </div>
+                    
+                    {expandedProfessors.has(professor.professor_id) && (
+                      <div className="px-4 pb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-3">
+                          {professor.courses.map((course) => (
+                            <div
+                              key={course.course_id}
+                              className="bg-white dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group hover:border-blue-300 dark:hover:border-blue-600"
+                              onClick={() => router.push(`/course/${course.course_id}`)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0 pr-2">
+                                  <h4 className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight mb-1 truncate text-sm">
+                                    {course.course_title}
+                                  </h4>
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 font-mono">
+                                    {course.course_code}
+                                  </p>
+                                </div>
+                                <ArrowRight className="h-3 w-3 text-zinc-400 group-hover:text-blue-500 transition-all duration-300 group-hover:translate-x-1 flex-shrink-0" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Regular Course Grid */}
+        {viewMode === 'list' && (
+          <>
           {loading ? (
             Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
               <div
@@ -592,14 +884,17 @@ export default function HomePage() {
               </div>
             ))
           )}
+          </>
+        )}
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && !(search && mobileSearchOpen) && (
+        {((viewMode === 'list' && totalPages > 1 && !(search && mobileSearchOpen)) || 
+          (viewMode === 'professor' && totalProfessorPages > 1)) && (
           <div className="flex items-center justify-center gap-2 mb-8">
             <Button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => viewMode === 'list' ? goToPage(currentPage - 1) : goToProfessorPage(professorCurrentPage - 1)}
+              disabled={viewMode === 'list' ? currentPage === 1 : professorCurrentPage === 1}
               variant="outline"
               size="sm"
               className="h-9 px-3"
@@ -610,29 +905,31 @@ export default function HomePage() {
             
             <div className="flex items-center gap-1">
               {/* First page */}
-              {currentPage > 3 && (
+              {(viewMode === 'list' ? currentPage : professorCurrentPage) > 3 && (
                 <>
                   <Button
-                    onClick={() => goToPage(1)}
-                    variant={1 === currentPage ? "default" : "outline"}
+                    onClick={() => viewMode === 'list' ? goToPage(1) : goToProfessorPage(1)}
+                    variant={1 === (viewMode === 'list' ? currentPage : professorCurrentPage) ? "default" : "outline"}
                     size="sm"
                     className="h-9 w-9"
                   >
                     1
                   </Button>
-                  {currentPage > 4 && <span className="px-2 text-zinc-500">...</span>}
+                  {(viewMode === 'list' ? currentPage : professorCurrentPage) > 4 && <span className="px-2 text-zinc-500">...</span>}
                 </>
               )}
               
               {/* Current page and surrounding pages */}
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
-                if (page > totalPages) return null
+              {Array.from({ length: Math.min(5, viewMode === 'list' ? totalPages : totalProfessorPages) }, (_, i) => {
+                const activePage = viewMode === 'list' ? currentPage : professorCurrentPage
+                const maxPages = viewMode === 'list' ? totalPages : totalProfessorPages
+                const page = Math.max(1, Math.min(maxPages - 4, activePage - 2)) + i
+                if (page > maxPages) return null
                 return (
                   <Button
                     key={page}
-                    onClick={() => goToPage(page)}
-                    variant={page === currentPage ? "default" : "outline"}
+                    onClick={() => viewMode === 'list' ? goToPage(page) : goToProfessorPage(page)}
+                    variant={page === activePage ? "default" : "outline"}
                     size="sm"
                     className="h-9 w-9"
                   >
@@ -642,24 +939,27 @@ export default function HomePage() {
               })}
               
               {/* Last page */}
-              {currentPage < totalPages - 2 && (
+              {(viewMode === 'list' ? currentPage : professorCurrentPage) < (viewMode === 'list' ? totalPages : totalProfessorPages) - 2 && (
                 <>
-                  {currentPage < totalPages - 3 && <span className="px-2 text-zinc-500">...</span>}
+                  {(viewMode === 'list' ? currentPage : professorCurrentPage) < (viewMode === 'list' ? totalPages : totalProfessorPages) - 3 && <span className="px-2 text-zinc-500">...</span>}
                   <Button
-                    onClick={() => goToPage(totalPages)}
-                    variant={totalPages === currentPage ? "default" : "outline"}
+                    onClick={() => {
+                      const lastPage = viewMode === 'list' ? totalPages : totalProfessorPages
+                      return viewMode === 'list' ? goToPage(lastPage) : goToProfessorPage(lastPage)
+                    }}
+                    variant={(viewMode === 'list' ? totalPages : totalProfessorPages) === (viewMode === 'list' ? currentPage : professorCurrentPage) ? "default" : "outline"}
                     size="sm"
                     className="h-9 w-9"
                   >
-                    {totalPages}
+                    {viewMode === 'list' ? totalPages : totalProfessorPages}
                   </Button>
                 </>
               )}
             </div>
             
             <Button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => viewMode === 'list' ? goToPage(currentPage + 1) : goToProfessorPage(professorCurrentPage + 1)}
+              disabled={viewMode === 'list' ? currentPage === totalPages : professorCurrentPage === totalProfessorPages}
               variant="outline"
               size="sm"
               className="h-9 px-3"
@@ -671,7 +971,7 @@ export default function HomePage() {
         )}
 
         {/* Empty State */}
-        {!loading && (
+        {viewMode === 'list' && !loading && (
           (search && mobileSearchOpen ? filteredCourses : courses)
             .filter(course => !pinnedCourseIds.has(course.id)).length === 0
         ) && (
@@ -871,7 +1171,8 @@ export default function HomePage() {
                       className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2"
                     >
                       <Plus className="h-3 w-3 mr-1" />
-                      Create &quot;{search}&quot; course
+                      Create 
+                      &quot;{search}&quot; course
                     </Button>
                   )}
                 </Command.Empty>
