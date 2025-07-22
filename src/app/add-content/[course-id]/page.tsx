@@ -174,7 +174,7 @@ export default function AddContentPage({
           user_id: userId,
           professor_id: selectedProfessorId,
           year: parseInt(year as string),
-          batch: batch,
+          batch: batch.toUpperCase(),
           semester_number: parseInt(semesterNumber as string),
           resource_url: pair.publicUrl,
           tag_ids: fileTagIds[pair.fileName] ? [fileTagIds[pair.fileName]] : null,
@@ -478,7 +478,6 @@ export default function AddContentPage({
                                 .filter(professor =>
                                   professor.name?.toLowerCase().includes(selectedProfessorName.toLowerCase())
                                 )
-                                .slice(0, 5)
                                 .map((professor) => (
                                 <CommandItem
                                   key={professor.id}
@@ -511,7 +510,9 @@ export default function AddContentPage({
                     </label>
                     <Input
                       placeholder="e.g., 2022 (for 2022IMT batch)"
-                      type="number"
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={year}
                       onChange={(e) => setYear(e.target.value)}
                       disabled={loading}
