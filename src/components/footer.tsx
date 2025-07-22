@@ -59,6 +59,16 @@ export function Footer() {
                   Leaderboard
                 </Link>
               </li>
+              <li>
+                <Link href="/pp" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/tos" className="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  Terms of Service
+                </Link>
+              </li>
             </ul>
           </div>
 
