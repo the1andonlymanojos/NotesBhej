@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
 import { User as SupabaseUser } from "@supabase/supabase-js"
 
 type CourseNew = Database['public']['Tables']['coursenew']['Row']
@@ -27,8 +28,10 @@ const ITEMS_PER_PAGE = 12
 export default function HomePage() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [courseComboboxOpen, setCourseComboboxOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [mobileActionOpen, setMobileActionOpen] = useState(false)
   const [courses, setCourses] = useState<CourseNew[]>([])
   const [allCourses, setAllCourses] = useState<CourseNew[]>([]) // For search dialog
   const [user, setUser] = useState<SupabaseUser | null>(null)
@@ -266,11 +269,15 @@ export default function HomePage() {
         setMobileSearchOpen(false)
         setSearch("")
       }
+      if (e.key === "Escape" && courseComboboxOpen) {
+        setCourseComboboxOpen(false)
+        setSearch("")
+      }
     }
 
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [mobileSearchOpen])
+  }, [mobileSearchOpen, courseComboboxOpen])
 
   const filteredCourses = allCourses.filter((course) => {
     return course.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -686,17 +693,53 @@ export default function HomePage() {
 
         {/* Create Course Button */}
         <div className="fixed bottom-6 right-6">
-          <Button
-            onClick={() => router.push('/create-course')}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-md sm:px-4 sm:py-2 flex items-center justify-center"
-          >
-            <Plus className="h-5 w-5 sm:mr-2" />
-            <span className="hidden sm:inline">Create Course</span>
-          </Button>
+          <DropdownMenu open={mobileActionOpen} onOpenChange={setMobileActionOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-md sm:px-4 sm:py-2 flex items-center justify-center"
+              >
+                <Plus className="h-5 w-5 sm:mr-2" />
+                <span className="hidden sm:inline">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="end" 
+              side="top" 
+              className="w-56 mb-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl"
+            >
+              <DropdownMenuItem 
+                onClick={() => {
+                  setMobileActionOpen(false)
+                  router.push('/create-course')
+                }}
+                className="cursor-pointer"
+              >
+                <Plus className="w-4 h-4 mr-3 text-indigo-600 dark:text-indigo-400" />
+                <div>
+                  <div className="font-medium">Create Course</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">Start a new course from scratch</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => {
+                  setMobileActionOpen(false)
+                  setCourseComboboxOpen(true)
+                }}
+                className="cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4 mr-3 text-green-600 dark:text-green-400" />
+                <div>
+                  <div className="font-medium">Upload Content</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">Add content to existing course</div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Search Dialog */}
+      {/* Course Selection for Quick Search */}
       <Command.Dialog
         open={open}
         onOpenChange={setOpen}
@@ -722,9 +765,22 @@ export default function HomePage() {
             <Command.List className="max-h-[400px] overflow-y-auto p-2">
               {filteredCourses.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center py-12">
-                  <Search className="h-8 w-8 text-zinc-400 dark:text-zinc-500 mb-2 opacity-60" />
-                  <p className="text-zinc-500 dark:text-zinc-400 mb-1">No courses found</p>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">Try a different search term</p>
+                  <Search className="h-8 w-8 text-zinc-400 dark:text-zinc-500 mb-3 opacity-60" />
+                  <p className="text-zinc-500 dark:text-zinc-400 mb-1">No courses found{search && ` for "${search}"`}</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Try a different search term</p>
+                  {search && (
+                    <Button
+                      onClick={() => {
+                        router.push(`/create-course?name=${encodeURIComponent(search)}`);
+                        setOpen(false);
+                        setSearch("");
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create &quot;{search}&quot; course
+                    </Button>
+                  )}
                 </div>
               ) : (
                 filteredCourses.map((course) => (
@@ -773,6 +829,83 @@ export default function HomePage() {
           </Command>
         </div>
       </Command.Dialog>
+
+      {/* Course Selection Combobox for Upload Content */}
+      {courseComboboxOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 dark:bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl rounded-lg overflow-hidden">
+            <Command className="rounded-lg">
+              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-3 py-3 bg-zinc-50 dark:bg-zinc-800/50">
+                <div className="flex items-center">
+                  <BookOpen className="h-4 w-4 text-zinc-500 dark:text-zinc-400 mr-2 flex-shrink-0" />
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Select Course to Upload Content</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setCourseComboboxOpen(false);
+                    setSearch("");
+                  }}
+                  className="p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  <X className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                </button>
+              </div>
+              <Command.Input
+                placeholder="Search courses..."
+                className="h-10 px-3 py-2 text-sm bg-transparent border-none outline-none focus:ring-0 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
+                value={search}
+                onValueChange={setSearch}
+              />
+              <Command.List className="max-h-64 overflow-y-auto p-1">
+                <Command.Empty className="py-6 text-center">
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+                    No courses found{search && ` for "${search}"`}.
+                  </div>
+                  {search && (
+                    <Button
+                      onClick={() => {
+                        router.push(`/create-course?name=${encodeURIComponent(search)}`);
+                        setCourseComboboxOpen(false);
+                        setSearch("");
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Create &quot;{search}&quot; course
+                    </Button>
+                  )}
+                </Command.Empty>
+                {allCourses.map((course) => (
+                  <Command.Item
+                    key={course.id}
+                    value={`${course.title} ${course.code} ${course.abbreviation || ""}`}
+                    onSelect={() => {
+                      router.push(`/add-content/${course.id}`);
+                      setCourseComboboxOpen(false);
+                      setSearch("");
+                    }}
+                    className="flex items-center px-2 py-2 text-sm rounded-md cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 transition-colors"
+                  >
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 mr-3 flex-shrink-0">
+                      <BookOpen className="h-3 w-3" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{course.title}</div>
+                      <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs">
+                        {course.abbreviation && (
+                          <span className="truncate">{course.abbreviation}</span>
+                        )}
+                        {course.abbreviation && <span>•</span>}
+                        <span className="font-mono">{course.code}</span>
+                      </div>
+                    </div>
+                  </Command.Item>
+                ))}
+              </Command.List>
+            </Command>
+          </div>
+                 </div>
+       )}
     </div>
   );
 }

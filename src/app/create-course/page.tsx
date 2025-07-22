@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { createClient } from "@/utils/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles, BookOpen, ArrowLeft } from "lucide-react"
@@ -10,9 +10,10 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { LoginPopup } from "@/components/loginpopup"
 import { User } from "@supabase/supabase-js"
 
-export default function CreateCoursePage() {
+function CreateCourseForm() {
   const supabase = createClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState<User | null>(null)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [title, setTitle] = useState("")
@@ -23,6 +24,14 @@ export default function CreateCoursePage() {
 
   // Validation check
   const isFormValid = title.trim() !== "" && code.trim() !== "" && description.trim() !== ""
+
+  // Pre-fill title from URL query parameter
+  useEffect(() => {
+    const nameParam = searchParams.get('name')
+    if (nameParam) {
+      setTitle(decodeURIComponent(nameParam))
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const getUser = async () => {
@@ -113,6 +122,11 @@ export default function CreateCoursePage() {
         </div>
         <p className="mb-6 text-zinc-600 dark:text-zinc-300 text-lg">
           <span className="font-semibold">Step 1:</span> Fill in the details below to create your course.
+          {searchParams.get('name') && (
+            <span className="block mt-2 text-sm text-indigo-600 dark:text-indigo-400 font-medium">
+              💡 Course title pre-filled from your search
+            </span>
+          )}
         </p>
 
         <div className="space-y-4">
@@ -121,7 +135,7 @@ export default function CreateCoursePage() {
               Course Title (full name please) <span className="text-red-500">*</span>
             </label>
             <Input
-              placeholder="e.g., Software Engineering"
+              placeholder={searchParams.get('name') ? "Title pre-filled from search" : "e.g., Software Engineering"}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
@@ -178,5 +192,20 @@ export default function CreateCoursePage() {
         </Button>
       </div>
     </div>
+  )
+}
+
+export default function CreateCoursePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500">
+        <div className="flex items-center gap-3">
+          <Sparkles className="animate-pulse text-indigo-500" size={24} />
+          <p className="text-lg text-zinc-600 dark:text-zinc-300">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CreateCourseForm />
+    </Suspense>
   )
 }
