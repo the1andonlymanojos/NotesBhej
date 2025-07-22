@@ -69,8 +69,8 @@ function CreateCourseForm() {
     // By default, Supabase insert does not return the inserted row(s) unless you chain .select() after .insert().
     // So, we need to add .select() to get the inserted row(s) back.
     const { data, error } = await supabase
-      .from("course")
-      .insert([{ title: title.trim(), code: code.trim(), description: description.trim() }])
+      .from("coursenew")
+      .insert([{ title: title.trim(), code: code.trim(), abbreviation: description.trim() }])
       .select() // This will return the inserted row(s)
     console.log(data)
     console.log(error)
