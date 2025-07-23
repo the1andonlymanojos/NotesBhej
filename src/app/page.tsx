@@ -45,7 +45,7 @@ type GroupedProfessorCourses = {
   }>
 }
 
-const ITEMS_PER_PAGE = 6
+const ITEMS_PER_PAGE = 12
 
 // LocalStorage utility functions
 const getLocalStorageItem = (key: string, defaultValue: any) => {
