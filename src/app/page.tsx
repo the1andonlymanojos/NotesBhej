@@ -715,9 +715,7 @@ export default function HomePage() {
                             {course.abbreviation}
                           </p>
                         )}
-                        <p className="text-xs text-zinc-500 dark:text-zinc-500 font-mono">
-                          {course.code}
-                        </p>
+
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
@@ -799,9 +797,7 @@ export default function HomePage() {
                                   <h4 className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight mb-1 truncate text-sm">
                                     {course.course_title}
                                   </h4>
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 font-mono">
-                                    {course.course_code}
-                                  </p>
+
                                 </div>
                                 <ArrowRight className="h-3 w-3 text-zinc-400 group-hover:text-blue-500 transition-all duration-300 group-hover:translate-x-1 flex-shrink-0" />
                               </div>
@@ -859,9 +855,7 @@ export default function HomePage() {
                         {course.abbreviation}
                       </p>
                     )}
-                    <p className="text-xs text-zinc-500 dark:text-zinc-500 font-mono">
-                      {course.code}
-                    </p>
+                    
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {user && (
@@ -1102,8 +1096,6 @@ export default function HomePage() {
                           {course.abbreviation && (
                             <span className="truncate">{course.abbreviation}</span>
                           )}
-                          <span className="text-zinc-400 dark:text-zinc-500">•</span>
-                          <span className="font-mono">{course.code}</span>
                         </div>
                       </div>
                     </div>
@@ -1196,8 +1188,6 @@ export default function HomePage() {
                         {course.abbreviation && (
                           <span className="truncate">{course.abbreviation}</span>
                         )}
-                        {course.abbreviation && <span>•</span>}
-                        <span className="font-mono">{course.code}</span>
                       </div>
                     </div>
                   </Command.Item>
