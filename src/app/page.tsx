@@ -10,6 +10,7 @@ import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -671,17 +672,7 @@ export default function HomePage() {
         </div>
 
         {/* Pinned Courses Section */}
-        {(() => {
-          console.log("Pinned courses debug:", { 
-            user: !!user, 
-            userEmail: user?.email,
-            pinnedCoursesLength: pinnedCourses.length, 
-            pinnedCourses: pinnedCourses,
-            showPinnedSection: showPinnedSection 
-          });
-          return null;
-        })()}
-        {user && pinnedCourses.length > 0 && (
+        {user && (
           <div className="mb-8">
             <div 
               className="flex items-center gap-3 mb-4 cursor-pointer group"
@@ -691,53 +682,92 @@ export default function HomePage() {
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                 Pinned Courses ({pinnedCourses.length})
               </h2>
-              {showPinnedSection ? (
-                <ChevronUp className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
-              ) : (
+              <motion.div
+                animate={{ rotate: showPinnedSection ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
                 <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
-              )}
+              </motion.div>
             </div>
             
-            {showPinnedSection && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 p-4 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
-                {pinnedCourses.map((course) => (
-                  <div
-                    key={course.id}
-                    className="bg-white/90 dark:bg-zinc-900/90 rounded-lg p-4 border border-red-200 dark:border-red-700 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group hover:border-red-300 dark:hover:border-red-600 transform hover:scale-[1.02] hover:-translate-y-1 relative"
-                    onClick={() => {
-                      if (mobileSearchOpen) {
-                        setMobileSearchOpen(false)
-                        setSearch("")
-                      }
-                      router.push(`/course/${course.id}`)
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0 pr-3">
-                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors leading-tight mb-1 truncate">
-                          {course.title}
-                        </h3>
-                        {course.abbreviation && (
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1 truncate">
-                            {course.abbreviation}
-                          </p>
-                        )}
-
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={(e) => togglePin(course.id, e)}
-                          className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors z-10"
+            <AnimatePresence>
+              {showPinnedSection && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 p-4 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                    {pinnedCourses.length > 0 ? (
+                      pinnedCourses.map((course, index) => (
+                        <motion.div
+                          key={course.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ 
+                            duration: 0.2, 
+                            delay: index * 0.03,
+                            ease: "easeOut"
+                          }}
+                          whileHover={{ 
+                            scale: 1.02, 
+                            y: -2,
+                            transition: { duration: 0.15 }
+                          }}
+                          className="bg-white/90 dark:bg-zinc-900/90 rounded-lg p-4 border border-red-200 dark:border-red-700 shadow-sm hover:shadow-lg cursor-pointer group hover:border-red-300 dark:hover:border-red-600 relative"
+                          onClick={() => {
+                            if (mobileSearchOpen) {
+                              setMobileSearchOpen(false)
+                              setSearch("")
+                            }
+                            router.push(`/course/${course.id}`)
+                          }}
                         >
-                          <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-                        </button>
-                        <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-red-500 transition-all duration-300 group-hover:translate-x-1" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0 pr-3">
+                              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors leading-tight mb-1 truncate">
+                                {course.title}
+                              </h3>
+                              {course.abbreviation && (
+                                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1 truncate">
+                                  {course.abbreviation}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.95 }}
+                                transition={{ duration: 0.1 }}
+                                onClick={(e) => togglePin(course.id, e)}
+                                className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors z-10"
+                              >
+                                <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                              </motion.button>
+                              <motion.div
+                                whileHover={{ x: 3 }}
+                                transition={{ duration: 0.15 }}
+                              >
+                                <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
+                              </motion.div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="col-span-full text-center py-8">
+                        <Heart className="h-8 w-8 text-red-300 dark:text-red-600 mx-auto mb-2" />
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                          No pinned courses yet. Pin your favorite courses to see them here!
+                        </p>
                       </div>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -747,144 +777,269 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
 
         {/* Professor View */}
-        {viewMode === 'professor' && professorCourses.length > 0 && (
+        {viewMode === 'professor' && (
           <div className="col-span-full">
-            <div className="space-y-4">
+            <AnimatePresence mode="wait">
               {professorCoursesLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  <span className="ml-3 text-zinc-600 dark:text-zinc-400">Loading professors...</span>
-                </div>
-              ) : (
-                professorCourses.map((professor) => (
-                  <div
-                    key={professor.professor_id}
-                    className="bg-white/90 dark:bg-zinc-900/90 rounded-lg border border-blue-200 dark:border-blue-700 shadow-sm"
-                  >
-                    <div
-                      className="flex items-center justify-between p-4 cursor-pointer group hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-colors"
-                      onClick={() => toggleProfessorCollapse(professor.professor_id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                          <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {professor.professor_name}
-                          </h3>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            {professor.professor_email}
-                          </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                            {professor.courses.length} course{professor.courses.length === 1 ? '' : 's'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {expandedProfessors.has(professor.professor_id) ? (
-                          <ChevronUp className="h-4 w-4 text-zinc-500 group-hover:text-blue-500 transition-colors" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-blue-500 transition-colors" />
-                        )}
-                      </div>
-                    </div>
-                    
-                    {expandedProfessors.has(professor.professor_id) && (
-                      <div className="px-4 pb-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-3">
-                          {professor.courses.map((course) => (
-                            <div
-                              key={course.course_id}
-                              className="bg-white dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group hover:border-blue-300 dark:hover:border-blue-600"
-                              onClick={() => router.push(`/course/${course.course_id}`)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0 pr-2">
-                                  <h4 className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight mb-1 truncate text-sm">
-                                    {course.course_title}
-                                  </h4>
-
-                                </div>
-                                <ArrowRight className="h-3 w-3 text-zinc-400 group-hover:text-blue-500 transition-all duration-300 group-hover:translate-x-1 flex-shrink-0" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                <motion.div
+                  key="professor-loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-center py-12"
+                >
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ 
+                        duration: 0.8, 
+                        repeat: Infinity, 
+                        ease: "linear" 
+                      }}
+                      className="w-6 h-6 border-2 border-blue-200 border-t-blue-500 rounded-full"
+                    />
+                    <span className="text-zinc-600 dark:text-zinc-400 text-sm">
+                      Loading professors...
+                    </span>
                   </div>
-                ))
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="professor-content"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                                     {professorCourses.map((professor, index) => (
+                     <motion.div
+                       key={professor.professor_id}
+                       initial={{ opacity: 0, y: 10 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       transition={{ 
+                         duration: 0.2, 
+                         delay: index * 0.05,
+                         ease: "easeOut"
+                       }}
+                       whileHover={{ 
+                         scale: 1.01,
+                         transition: { duration: 0.15 }
+                       }}
+                       className="bg-white/90 dark:bg-zinc-900/90 rounded-lg border border-blue-200 dark:border-blue-700 shadow-sm"
+                     >
+                      <div
+                        className="flex items-center justify-between p-4 cursor-pointer group hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-colors"
+                        onClick={() => toggleProfessorCollapse(professor.professor_id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <motion.div 
+                            whileHover={{ scale: 1.05 }}
+                            transition={{ duration: 0.2 }}
+                            className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"
+                          >
+                            <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </motion.div>
+                          <div>
+                            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                              {professor.professor_name}
+                            </h3>
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                              {professor.professor_email}
+                            </p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                              {professor.courses.length} course{professor.courses.length === 1 ? '' : 's'}
+                            </p>
+                          </div>
+                        </div>
+                        <motion.div 
+                                                     animate={{ 
+                             rotate: expandedProfessors.has(professor.professor_id) ? 180 : 0 
+                           }}
+                           transition={{ duration: 0.15 }}
+                          className="flex items-center gap-2"
+                        >
+                          <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-blue-500 transition-colors" />
+                        </motion.div>
+                      </div>
+                      
+                      <AnimatePresence>
+                        {expandedProfessors.has(professor.professor_id) && (
+                                                     <motion.div
+                             initial={{ opacity: 0, height: 0 }}
+                             animate={{ opacity: 1, height: "auto" }}
+                             exit={{ opacity: 0, height: 0 }}
+                             transition={{ duration: 0.2, ease: "easeInOut" }}
+                             className="overflow-hidden"
+                           >
+                            <div className="px-4 pb-4">
+                              <motion.div 
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-3"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.1 }}
+                              >
+                                                                 {professor.courses.map((course, courseIndex) => (
+                                   <motion.div
+                                     key={course.course_id}
+                                     initial={{ opacity: 0, y: 8 }}
+                                     animate={{ opacity: 1, y: 0 }}
+                                     transition={{ 
+                                       duration: 0.2, 
+                                       delay: courseIndex * 0.03,
+                                       ease: "easeOut"
+                                     }}
+                                     whileHover={{ 
+                                       scale: 1.01, 
+                                       y: -1,
+                                       transition: { duration: 0.15 }
+                                     }}
+                                    className="bg-white dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md cursor-pointer group hover:border-blue-300 dark:hover:border-blue-600"
+                                    onClick={() => router.push(`/course/${course.course_id}`)}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1 min-w-0 pr-2">
+                                        <h4 className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight mb-1 truncate text-sm">
+                                          {course.course_title}
+                                        </h4>
+                                      </div>
+                                                                             <motion.div
+                                         whileHover={{ x: 2 }}
+                                         transition={{ duration: 0.15 }}
+                                       >
+                                        <ArrowRight className="h-3 w-3 text-zinc-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                                      </motion.div>
+                                    </div>
+                                  </motion.div>
+                                ))}
+                              </motion.div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </div>
         )}
 
         {/* Regular Course Grid */}
         {viewMode === 'list' && (
           <>
-          {loading ? (
-            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm animate-pulse"
+          <AnimatePresence mode="wait">
+            {loading ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="col-span-full"
               >
-                <div className="space-y-2">
-                  <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
-                  <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4"></div>
-                  <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2"></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ 
+                        duration: 0.2, 
+                        delay: i * 0.02,
+                        ease: "easeOut"
+                      }}
+                      className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm"
+                    >
+                      <div className="space-y-2">
+                        <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
+                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 animate-pulse" />
+                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2 animate-pulse" />
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-              </div>
-            ))
-          ) : (
-            // Show filtered results on mobile when searching, regular paginated results otherwise
-            (search && mobileSearchOpen ? filteredCourses : courses)
-              .filter(course => !pinnedCourseIds.has(course.id))
-              .map((course) => (
-              <div
-                key={course.id}
-                className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group hover:border-indigo-300 dark:hover:border-indigo-600 transform hover:scale-[1.02] hover:-translate-y-1 relative"
-                onClick={() => {
-                  if (mobileSearchOpen) {
-                    setMobileSearchOpen(false)
-                    setSearch("")
-                  }
-                  router.push(`/course/${course.id}`)
-                }}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="col-span-full"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0 pr-3">
-                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight mb-1 truncate">
-                      {course.title}
-                    </h3>
-                    {course.abbreviation && (
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1 truncate">
-                        {course.abbreviation}
-                      </p>
-                    )}
-                    
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {user && (
-                      <button
-                        onClick={(e) => togglePin(course.id, e)}
-                        className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-10"
-                      >
-                        <Heart 
-                          className={`h-4 w-4 transition-colors ${
-                            pinnedCourseIds.has(course.id) 
-                              ? "text-red-500 fill-red-500" 
-                              : "text-zinc-400 hover:text-red-400"
-                          }`} 
-                        />
-                      </button>
-                    )}
-                    <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-indigo-500 transition-all duration-300 group-hover:translate-x-1" />
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {(search && mobileSearchOpen ? filteredCourses : courses)
+                    .filter(course => !pinnedCourseIds.has(course.id))
+                    .map((course, index) => (
+                    <motion.div
+                      key={course.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ 
+                        duration: 0.2, 
+                        delay: index * 0.02,
+                        ease: "easeOut"
+                      }}
+                      whileHover={{ 
+                        scale: 1.01, 
+                        y: -2,
+                        transition: { duration: 0.15 }
+                      }}
+                      className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-lg cursor-pointer group hover:border-indigo-300 dark:hover:border-indigo-600 relative"
+                      onClick={() => {
+                        if (mobileSearchOpen) {
+                          setMobileSearchOpen(false)
+                          setSearch("")
+                        }
+                        router.push(`/course/${course.id}`)
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight mb-1 truncate">
+                            {course.title}
+                          </h3>
+                          {course.abbreviation && (
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1 truncate">
+                              {course.abbreviation}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {user && (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.95 }}
+                              transition={{ duration: 0.1 }}
+                              onClick={(e) => togglePin(course.id, e)}
+                              className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-10"
+                            >
+                              <Heart 
+                                className={`h-4 w-4 transition-colors ${
+                                  pinnedCourseIds.has(course.id) 
+                                    ? "text-red-500 fill-red-500" 
+                                    : "text-zinc-400 hover:text-red-400"
+                                }`} 
+                              />
+                            </motion.button>
+                          )}
+                          <motion.div
+                            whileHover={{ x: 3 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-indigo-500 transition-colors" />
+                          </motion.div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-              </div>
-            ))
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
           </>
         )}
         </div>
