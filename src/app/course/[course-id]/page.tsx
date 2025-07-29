@@ -655,7 +655,7 @@ export default function CourseViewPage({
             </Button>
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl lg:text-3xl font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
-                {course.code} - {course.title}
+                {course.title}
               </h1>
               {course.abbreviation && (
                 <p className="text-zinc-600 dark:text-zinc-400 mt-1 text-base">

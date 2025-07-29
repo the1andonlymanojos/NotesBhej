@@ -17,13 +17,12 @@ function CreateCourseForm() {
   const [user, setUser] = useState<User | null>(null)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [title, setTitle] = useState("")
-  const [code, setCode] = useState("")
   const [description, setDescription] = useState("")
   const [loading, setLoading] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
 
   // Validation check
-  const isFormValid = title.trim() !== "" && code.trim() !== "" && description.trim() !== ""
+  const isFormValid = title.trim() !== "" && description.trim() !== ""
 
   // Pre-fill title from URL query parameter
   useEffect(() => {
@@ -70,7 +69,7 @@ function CreateCourseForm() {
     // So, we need to add .select() to get the inserted row(s) back.
     const { data, error } = await supabase
       .from("coursenew")
-      .insert([{ title: title.trim(), code: code.trim(), abbreviation: description.trim() }])
+      .insert([{ title: title.trim(), code: "NA", abbreviation: description.trim() }])
       .select() // This will return the inserted row(s)
     console.log(data)
     console.log(error)
@@ -142,17 +141,7 @@ function CreateCourseForm() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Course Code (What it says in the course of study) <span className="text-red-500">*</span>
-            </label>
-            <Input
-              placeholder="e.g., ITIT-3103"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
-            />
-          </div>
+
 
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
