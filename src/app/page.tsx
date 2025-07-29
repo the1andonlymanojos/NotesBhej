@@ -478,6 +478,23 @@ export default function HomePage() {
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Admin button and its placeholder */}
+{user && roleLoading && (
+  // This placeholder reserves space while the role is loading, preventing layout shift.
+  // It's styled to have the same dimensions as the final button.
+  <div className="h-8 w-[60px] sm:h-10 sm:w-[110px] rounded-md" />
+)}
+
+{user && !roleLoading && isAdmin(userRole) && (
+  <Button
+    onClick={() => router.push('/admin/content-moderation')}
+    className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm animate-in fade-in"
+  >
+    <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+    <span className="hidden sm:inline">Admin Panel</span>
+    <span className="sm:hidden">Admin</span>
+  </Button>
+)}
             <div className="hidden sm:block">
               <Button
                 onClick={() => setOpen(true)}
@@ -565,17 +582,7 @@ export default function HomePage() {
               </Button>
             )}
             
-            {/* Admin button - show prominently when user is admin */}
-            {user && !roleLoading && isAdmin(userRole) && (
-              <Button
-                onClick={() => router.push('/admin/content-moderation')}
-                className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
-              >
-                <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Admin Panel</span>
-                <span className="sm:hidden">Admin</span>
-              </Button>
-            )}
+            
             
             <ThemeToggle />
           </div>
