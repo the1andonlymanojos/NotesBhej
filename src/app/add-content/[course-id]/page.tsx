@@ -429,6 +429,9 @@ export default function AddContentPage({
                       className="p-3 sm:p-4 bg-white/50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all"
                     >
                       <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                        {content.title || 'Untitled Content'}
+                      </p>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
                         {content.year} - {content.batch} - Semester {content.semester_number}
                         {content.professor_id && (
                           <span> - {professors.find(p => p.id === content.professor_id)?.name || 'Unknown Professor'}</span>
