@@ -64,7 +64,6 @@ export default function CourseViewPage({
   const [recentlyViewed, setRecentlyViewed] = useState<EnhancedContent[]>([])
   const [showRecentlyViewed, setShowRecentlyViewed] = useState(false)
   const [isContentReady, setIsContentReady] = useState(false)
-  const [hasMinimumLoadTime, setHasMinimumLoadTime] = useState(false)
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -373,23 +372,14 @@ export default function CourseViewPage({
     }
   }, [currentUserId, professors, tags, fetchRecentlyViewed])
 
-  // Set minimum load time and content ready state
+  // Set content as ready after a delay to allow animations to complete
   useEffect(() => {
-    // Always show loading for at least 1 second
-    const minimumTimer = setTimeout(() => {
-      setHasMinimumLoadTime(true)
-    }, 1000)
-    
-    // Set content as ready after minimum time and data is loaded
-    const contentTimer = setTimeout(() => {
-      if (course && enhancedContent.length > 0) {
+    if (course && enhancedContent.length > 0) {
+      const timer = setTimeout(() => {
         setIsContentReady(true)
-      }
-    }, 1000) // Always wait at least 1 second for consistent experience
+      }, 100) // Wait 1 second for animations to settle
       
-    return () => {
-      clearTimeout(minimumTimer)
-      clearTimeout(contentTimer)
+      return () => clearTimeout(timer)
     }
   }, [course, enhancedContent])
 
@@ -459,7 +449,7 @@ export default function CourseViewPage({
     }
   }, [sortBy])
 
-  if (!course || !hasMinimumLoadTime) {
+  if (!course) {
     return (
       <motion.div 
         initial={{ opacity: 0 }}
@@ -486,7 +476,7 @@ export default function CourseViewPage({
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.1, ease: "easeOut" }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
             className="flex flex-col items-center justify-center min-h-[60vh] text-center"
           >
             <motion.div
@@ -495,7 +485,7 @@ export default function CourseViewPage({
                 rotate: [0, 5, -5, 0]
               }}
               transition={{ 
-                duration: 1,
+                duration: 2,
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
@@ -507,7 +497,7 @@ export default function CourseViewPage({
             <motion.h2 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 }}
+              transition={{ delay: 0.3 }}
               className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2"
             >
               Loading Course Content
@@ -516,7 +506,7 @@ export default function CourseViewPage({
             <motion.p 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
+              transition={{ delay: 0.5 }}
               className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base"
             >
               Gathering all the good stuff for you...
@@ -525,7 +515,7 @@ export default function CourseViewPage({
             <motion.div 
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.35 }}
+              transition={{ delay: 0.7 }}
               className="mt-6"
             >
               <div className="flex space-x-1">
