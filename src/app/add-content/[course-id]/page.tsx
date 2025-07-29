@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, ChangeEvent, use } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,7 @@ export default function AddContentPage({
   params: Promise<{ "course-id": string }>
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const courseId = use(params)["course-id"]
   const [step, setStep] = useState(1)
   const [files, setFiles] = useState<File[]>([])
@@ -76,6 +77,42 @@ export default function AddContentPage({
     }
     if (courseId) fetchData()
   }, [courseId, supabase])
+
+  // Handle query parameters for default values
+  useEffect(() => {
+    // Set default values from query parameters
+    const professorID = searchParams.get('professor_id')
+    const yearParam = searchParams.get('year')
+    const batchParam = searchParams.get('batch')
+    const semesterParam = searchParams.get('semester')
+
+    if (professorID) {
+      const professorId = parseInt(professorID)
+      if (!isNaN(professorId)) {
+        setSelectedProfessorId(professorId)
+        
+        // Find the professor name if professors are already loaded
+        if (professors.length > 0) {
+          const foundProfessor = professors.find(p => p.id === professorId)
+          if (foundProfessor) {
+            setSelectedProfessorName(foundProfessor.name || '')
+          }
+        }
+      }
+    }
+    
+    if (yearParam) {
+      setYear(yearParam)
+    }
+    
+    if (batchParam) {
+      setBatch(decodeURIComponent(batchParam))
+    }
+    
+    if (semesterParam) {
+      setSemesterNumber(semesterParam)
+    }
+  }, [searchParams, professors])
 
   // Check if all files have the same tag
   const getAllFilesTagStatus = () => {

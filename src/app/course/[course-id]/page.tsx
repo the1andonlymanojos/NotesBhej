@@ -974,6 +974,45 @@ export default function CourseViewPage({
                     )}
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const { data: { user } } = await supabase.auth.getUser()
+                            if (!user) {
+                              setShowLoginDialog(true)
+                              return
+                            }
+                            
+                            // Get professor ID from the first item in the group
+                            const professorId = items[0]?.professor_id
+                            const professorName = items[0]?.professor_name
+                            
+                            // Build query params
+                            const params = new URLSearchParams({
+                              year: year,
+                              semester: String(items[0]?.semester_number),
+                              batch: batch
+                            })
+                            
+                            if (professorId) {
+                              params.append('professor_id', professorId.toString())
+                            }
+                            if (professorName) {
+                              params.append('professor_name', professorName)
+                            }
+                            
+                            router.push(`/add-content/${courseId}?${params.toString()}`)
+                          } catch (error) {
+                            console.error("Error navigating to add content:", error)
+                            setShowLoginDialog(true)
+                          }
+                        }}
+                        className="hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
                       {items.length > 3 && (
                         <Button
                           variant="ghost"
