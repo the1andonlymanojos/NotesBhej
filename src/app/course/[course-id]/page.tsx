@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
 import Chatbox from "@/components/chatbox"
+import { motion, AnimatePresence } from "framer-motion"
 
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
 //type Course_Contentnew = Database["public"]["Tables"]["course_contentnew"]["Row"]
@@ -62,6 +63,8 @@ export default function CourseViewPage({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [recentlyViewed, setRecentlyViewed] = useState<EnhancedContent[]>([])
   const [showRecentlyViewed, setShowRecentlyViewed] = useState(false)
+  const [isContentReady, setIsContentReady] = useState(false)
+  const [hasMinimumLoadTime, setHasMinimumLoadTime] = useState(false)
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -370,6 +373,26 @@ export default function CourseViewPage({
     }
   }, [currentUserId, professors, tags, fetchRecentlyViewed])
 
+  // Set minimum load time and content ready state
+  useEffect(() => {
+    // Always show loading for at least 1 second
+    const minimumTimer = setTimeout(() => {
+      setHasMinimumLoadTime(true)
+    }, 1000)
+    
+    // Set content as ready after minimum time and data is loaded
+    const contentTimer = setTimeout(() => {
+      if (course && enhancedContent.length > 0) {
+        setIsContentReady(true)
+      }
+    }, 1000) // Always wait at least 1 second for consistent experience
+      
+    return () => {
+      clearTimeout(minimumTimer)
+      clearTimeout(contentTimer)
+    }
+  }, [course, enhancedContent])
+
   // Toggle pin status
   const togglePin = async () => {
     try {
@@ -436,86 +459,96 @@ export default function CourseViewPage({
     }
   }, [sortBy])
 
-  if (!course) {
+  if (!course || !hasMinimumLoadTime) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6"
+      >
         <div className="fixed top-4 right-4 z-10 flex items-center gap-2">
-          <div className="h-10 w-32 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-          <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="h-10 w-32 bg-zinc-200 dark:bg-zinc-700 rounded"
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded"
+          />
         </div>
 
         <div className="max-w-7xl mx-auto">
-          {/* Header Skeleton */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-            <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-            <div>
-              <div className="h-8 w-96 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse mb-2"></div>
-              <div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-            </div>
-          </div>
-
-          {/* Search and Filters Skeleton */}
-          <div className="mb-6 space-y-4">
-            <div className="h-10 w-full bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="h-8 w-32 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-              <div className="flex gap-2">
-                <div className="h-6 w-16 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
-                <div className="h-6 w-20 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
-                <div className="h-6 w-18 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recently Viewed Skeleton */}
-          {currentUserId && (
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-5 w-5 bg-blue-300 dark:bg-blue-700 rounded animate-pulse"></div>
-                <div className="h-6 w-48 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-                <div className="h-4 w-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-              </div>
-            </div>
-          )}
-
-          {/* Content Grid Skeleton */}
-          <div className="space-y-6">
-            {Array.from({ length: 3 }).map((_, groupIndex) => (
-              <div
-                key={groupIndex}
-                className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 bg-indigo-300 dark:bg-indigo-700 rounded animate-pulse"></div>
-                    <div className="h-6 w-64 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <div className="flex gap-4 pb-2 min-w-min">
-                    {Array.from({ length: 4 }).map((_, itemIndex) => (
-                      <div
-                        key={itemIndex}
-                        className="w-64 flex-shrink-0 p-3 rounded-lg border bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700"
-                      >
-                        <div className="space-y-2">
-                          <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-                          <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 animate-pulse"></div>
-                          <div className="flex gap-1">
-                            <div className="h-5 w-12 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
-                            <div className="h-5 w-16 bg-zinc-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
-                          </div>
-                        </div>
-                      </div>
+          {/* Simple Loading State */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.1, ease: "easeOut" }}
+            className="flex flex-col items-center justify-center min-h-[60vh] text-center"
+          >
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ 
+                duration: 1,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="mb-6"
+            >
+              <FileText className="h-16 w-16 text-indigo-500 dark:text-indigo-400 mx-auto" />
+            </motion.div>
+            
+            <motion.h2 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.15 }}
+              className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2"
+            >
+              Loading Course Content
+            </motion.h2>
+            
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.25 }}
+              className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base"
+            >
+              Gathering all the good stuff for you...
+            </motion.p>
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.35 }}
+              className="mt-6"
+            >
+              <div className="flex space-x-1">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      opacity: [0.5, 1, 0.5]
+                    }}
+                    transition={{ 
+                      duration: 1.5,
+                      repeat: Infinity,
+                      delay: i * 0.2
+                    }}
+                    className="w-2 h-2 bg-indigo-500 dark:bg-indigo-400 rounded-full"
+                  />
                     ))}
                   </div>
+            </motion.div>
+          </motion.div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      </motion.div>
     )
   }
 
@@ -588,7 +621,12 @@ export default function CourseViewPage({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
-      <div className="fixed top-4 right-4 z-10 flex items-center gap-2">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.4 }}
+        className="fixed top-4 right-4 z-10 flex items-center gap-2"
+      >
         {!isMobile && (
           <Button
             variant="ghost"
@@ -599,11 +637,16 @@ export default function CourseViewPage({
           </Button>
         )}
         <ThemeToggle />
-      </div>
+      </motion.div>
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-4 sm:mb-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.4 }}
+          className="mb-4 sm:mb-6"
+        >
           {/* Mobile: Stacked layout */}
           <div className="flex flex-col sm:hidden">
             <div className="flex items-center gap-2 mb-3">
@@ -664,10 +707,15 @@ export default function CourseViewPage({
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Search and Filters */}
-        <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.4 }}
+          className="mb-4 sm:mb-6 space-y-3 sm:space-y-4"
+        >
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             <Input
@@ -693,9 +741,14 @@ export default function CourseViewPage({
             </div>
 
             <div className="flex flex-wrap gap-1 sm:gap-2">
-              {availableTags.map((tag) => (
-                <button
+              {availableTags.map((tag, index) => (
+                <motion.button
                   key={tag}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.6 + index * 0.05, duration: 0.3 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => toggleTag(tag)}
                   className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs transition-colors ${
                     selectedTags.includes(tag)
@@ -704,15 +757,22 @@ export default function CourseViewPage({
                   }`}
                 >
                   {tag}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Recently Viewed Section */}
-        {currentUserId && recentlyViewed.length > 0 && (
-          <div className="mb-8">
+        <AnimatePresence>
+          {currentUserId && recentlyViewed.length > 0 && isContentReady && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="mb-8"
+            >
             <div 
               className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 cursor-pointer group"
               onClick={() => setShowRecentlyViewed(!showRecentlyViewed)}
@@ -807,17 +867,29 @@ export default function CourseViewPage({
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* Content Grid */}
-        <div className="space-y-6">
+        <AnimatePresence>
+          {isContentReady && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-6"
+            >
           {search ? (
             // Flat list view when searching
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {filteredContent.map((item) => (
-                <div
+              {filteredContent.map((item, index) => (
+                <motion.div
                   key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
                   className={`group flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
                     item.visible === false
                       ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
@@ -882,7 +954,7 @@ export default function CourseViewPage({
                       <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors" />
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           ) : (
@@ -1095,7 +1167,9 @@ export default function CourseViewPage({
               </Button>
             </div>
           )}
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* PDF Viewer Modal */}
         {showViewer && (
@@ -1120,7 +1194,16 @@ export default function CourseViewPage({
         )}
 
         {/* Add Content Button */}
-        <div className="fixed bottom-6 right-6 flex items-center justify-center gap-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.8, duration: 0.4 }}
+          className="fixed bottom-6 right-6 flex items-center justify-center gap-4"
+        >
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
           <Button
             onClick={handleAddContent}
             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-md sm:px-4 sm:py-2 flex items-center justify-center"
@@ -1128,8 +1211,9 @@ export default function CourseViewPage({
             <Plus className="h-5 w-5 sm:mr-2" />
             <span className="hidden sm:inline">Add Content</span>
           </Button>
+          </motion.div>
           <Chatbox />
-        </div>
+        </motion.div>
 
         {/* Sassy Login Dialog */}
         <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
