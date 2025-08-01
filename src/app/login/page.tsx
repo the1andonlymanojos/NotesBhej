@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-
+import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -11,13 +10,7 @@ import { BookOpen } from "lucide-react"
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const searchParams = useSearchParams()
   const supabase = createClient()
-  // if(typeof window !== "undefined") {
-  //   const redirectTo = new URLSearchParams(window.location.search).get("redirect") || "/";
-  //   console.log("redirectTo", redirectTo)
-  // }
-  console.log("redirectto :", searchParams.get("redirect") )
 
   const handleGoogleLogin = async () => {
     try {
@@ -25,7 +18,9 @@ export default function LoginPage() {
       
       // Get redirect parameter from URL query params
       // Get the "redirect" parameter from the URL query params, default to "/"
-      const redirectTo = searchParams.get("redirect") || "/";
+      const redirectTo = typeof window !== "undefined"
+        ? (new URLSearchParams(window.location.search).get("redirect") || "/")
+        : "/";
 
         
       
