@@ -6,15 +6,16 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
 import Chatbox from "@/components/chatbox"
+import EditContentDialog from "@/components/edit-content-dialog"
 import { motion, AnimatePresence } from "framer-motion"
 
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
-//type Course_Contentnew = Database["public"]["Tables"]["course_contentnew"]["Row"]
+type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
 type Tag = Database["public"]["Tables"]["tags"]["Row"]
 type Course_content_anon = Database["public"]["Views"]["course_contentnew_safe"]["Row"]
@@ -65,6 +66,8 @@ export default function CourseViewPage({
   const [recentlyViewed, setRecentlyViewed] = useState<EnhancedContent[]>([])
   const [showRecentlyViewed, setShowRecentlyViewed] = useState(false)
   const [isContentReady, setIsContentReady] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingContent, setEditingContent] = useState<CourseContent | null>(null)
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -600,6 +603,64 @@ export default function CourseViewPage({
     }
   }
 
+  const handleEditClick = (e: React.MouseEvent, item: EnhancedContent) => {
+    e.stopPropagation()
+    setEditingContent(item as CourseContent)
+    setEditDialogOpen(true)
+  }
+
+  const handleEditSave = () => {
+    // Update the content in the state instead of reloading
+    if (editingContent) {
+      // Find and update the content in enhancedContent
+      setEnhancedContent(prev => 
+        prev.map(item => 
+          item.id === editingContent.id 
+            ? {
+                ...item,
+                title: editingContent.title,
+                year: editingContent.year,
+                batch: editingContent.batch,
+                semester_number: editingContent.semester_number,
+                professor_id: editingContent.professor_id,
+                tag_ids: editingContent.tag_ids,
+                resource_url: editingContent.resource_url,
+                visible: editingContent.visible,
+                // Update professor name if professor changed
+                professor_name: editingContent.professor_id 
+                  ? professors.find(p => p.id === editingContent.professor_id)?.name 
+                  : undefined,
+                // Update tag names if tags changed
+                tag_names: editingContent.tag_ids 
+                  ? tags.filter(tag => editingContent.tag_ids!.includes(tag.id)).map(tag => tag.name)
+                  : [],
+                semester_display: getSemesterDisplay(editingContent.semester_number || 0)
+              }
+            : item
+        )
+      )
+      
+      // Also update in the base content array
+      setContent(prev => 
+        prev.map(item => 
+          item.id === editingContent.id 
+            ? {
+                ...item,
+                title: editingContent.title,
+                year: editingContent.year,
+                batch: editingContent.batch,
+                semester_number: editingContent.semester_number,
+                professor_id: editingContent.professor_id,
+                tag_ids: editingContent.tag_ids,
+                resource_url: editingContent.resource_url,
+                visible: editingContent.visible
+              }
+            : item
+        )
+      )
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
       <motion.div 
@@ -788,15 +849,27 @@ export default function CourseViewPage({
                             <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
                               {item.title || "Untitled Resource"}
                             </h4>
-                            {(() => {
-                              const hiddenLabel = getHiddenLabel(item)
-                              if (!hiddenLabel) return null
-                              return hiddenLabel.icon === "clock" ? (
-                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
-                              ) : (
-                                <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
-                              )
-                            })()}
+                            <div className="flex items-center gap-1">
+                              {(() => {
+                                const hiddenLabel = getHiddenLabel(item)
+                                if (!hiddenLabel) return null
+                                return hiddenLabel.icon === "clock" ? (
+                                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                                ) : (
+                                  <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
+                                )
+                              })()}
+                              {currentUserId && item.user_id === currentUserId && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => handleEditClick(e, item)}
+                                  className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                             <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -883,26 +956,38 @@ export default function CourseViewPage({
                       <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
                         {item.title || "Untitled Resource"}
                       </h4>
-                      {(() => {
-                        const hiddenLabel = getHiddenLabel(item)
-                        if (!hiddenLabel) return null
-                        return (
-                          <div className="flex items-center gap-1">
-                            {hiddenLabel.icon === "clock" ? (
-                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
-                            ) : (
-                              <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500" />
-                            )}
-                            <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                              hiddenLabel.icon === "clock" 
-                                ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
-                                : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
-                            }`}>
-                              {hiddenLabel.text}
-                            </span>
-                          </div>
-                        )
-                      })()}
+                      <div className="flex items-center gap-1">
+                        {(() => {
+                          const hiddenLabel = getHiddenLabel(item)
+                          if (!hiddenLabel) return null
+                          return (
+                            <div className="flex items-center gap-1">
+                              {hiddenLabel.icon === "clock" ? (
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
+                              ) : (
+                                <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500" />
+                              )}
+                              <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                                hiddenLabel.icon === "clock" 
+                                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                                  : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+                              }`}>
+                                {hiddenLabel.text}
+                              </span>
+                            </div>
+                          )
+                        })()}
+                        {currentUserId && item.user_id === currentUserId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleEditClick(e, item)}
+                            className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1049,15 +1134,27 @@ export default function CourseViewPage({
                               <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
                                 {item.title || "Untitled Resource"}
                               </h4>
-                              {(() => {
-                                const hiddenLabel = getHiddenLabel(item)
-                                if (!hiddenLabel) return null
-                                return hiddenLabel.icon === "clock" ? (
-                                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
-                                ) : (
-                                  <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
-                                )
-                              })()}
+                              <div className="flex items-center gap-1">
+                                {(() => {
+                                  const hiddenLabel = getHiddenLabel(item)
+                                  if (!hiddenLabel) return null
+                                  return hiddenLabel.icon === "clock" ? (
+                                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                                  ) : (
+                                    <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
+                                  )
+                                })()}
+                                {currentUserId && item.user_id === currentUserId && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => handleEditClick(e, item)}
+                                    className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                             <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
                               <div className="flex flex-wrap gap-1">
@@ -1113,15 +1210,27 @@ export default function CourseViewPage({
                                 <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
                                   {item.title || "Untitled Resource"}
                                 </h4>
-                                {(() => {
-                                  const hiddenLabel = getHiddenLabel(item)
-                                  if (!hiddenLabel) return null
-                                  return hiddenLabel.icon === "clock" ? (
-                                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
-                                  ) : (
-                                    <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
-                                  )
-                                })()}
+                                <div className="flex items-center gap-1">
+                                  {(() => {
+                                    const hiddenLabel = getHiddenLabel(item)
+                                    if (!hiddenLabel) return null
+                                    return hiddenLabel.icon === "clock" ? (
+                                      <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                                    ) : (
+                                      <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
+                                    )
+                                  })()}
+                                  {currentUserId && item.user_id === currentUserId && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => handleEditClick(e, item)}
+                                      className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
                                 <div className="flex flex-wrap gap-1">
@@ -1278,6 +1387,16 @@ export default function CourseViewPage({
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Content Dialog */}
+        <EditContentDialog
+          content={editingContent}
+          isOpen={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
+          onSave={handleEditSave}
+          professors={professors}
+          tags={tags}
+        />
 
       </div>
     </div>
