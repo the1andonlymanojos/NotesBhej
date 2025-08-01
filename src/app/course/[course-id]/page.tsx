@@ -456,20 +456,7 @@ export default function CourseViewPage({
         animate={{ opacity: 1 }}
         className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6"
       >
-        <div className="fixed top-4 right-4 z-10 flex items-center gap-2">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="h-10 w-32 bg-zinc-200 dark:bg-zinc-700 rounded"
-          />
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded"
-          />
-        </div>
+        
 
         <div className="max-w-7xl mx-auto">
           {/* Simple Loading State */}

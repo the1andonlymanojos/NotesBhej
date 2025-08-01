@@ -6,7 +6,7 @@ import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
-import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X } from "lucide-react"
+import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
@@ -462,7 +462,7 @@ export default function HomePage() {
     // Small delay to show the loading animation
     setTimeout(() => {
       router.push(`/course/${courseId}`)
-    }, 300)
+    }, 150)
   }
 
   // Hydrate localStorage values after component mounts (client-side only)
@@ -482,17 +482,20 @@ export default function HomePage() {
       {/* Navigation Loading Overlay */}
       <AnimatePresence>
         {isNavigating && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="bg-white dark:bg-zinc-800 rounded-lg p-8 shadow-xl border border-zinc-200 dark:border-zinc-700"
+          <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6"
+        >
+        
+  
+          <div className="max-w-7xl mx-auto">
+            {/* Simple Loading State */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="flex flex-col items-center justify-center min-h-[60vh] text-center"
             >
               <motion.div
                 animate={{ 
@@ -504,34 +507,34 @@ export default function HomePage() {
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="mb-4"
+                className="mb-6"
               >
-                <BookOpen className="h-12 w-12 text-indigo-500 dark:text-indigo-400 mx-auto" />
+                <FileText className="h-16 w-16 text-indigo-500 dark:text-indigo-400 mx-auto" />
               </motion.div>
               
-              <motion.h3 
+              <motion.h2 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2 text-center"
+                transition={{ delay: 0.3 }}
+                className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2"
               >
-                Loading Course
-              </motion.h3>
+                Loading Course Content
+              </motion.h2>
               
               <motion.p 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-zinc-600 dark:text-zinc-400 text-sm text-center"
+                transition={{ delay: 0.5 }}
+                className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base"
               >
-                Preparing your course content...
+                Gathering all the good stuff for you...
               </motion.p>
               
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6 }}
-                className="mt-4 flex justify-center"
+                transition={{ delay: 0.7 }}
+                className="mt-6"
               >
                 <div className="flex space-x-1">
                   {[0, 1, 2].map((i) => (
@@ -548,11 +551,12 @@ export default function HomePage() {
                       }}
                       className="w-2 h-2 bg-indigo-500 dark:bg-indigo-400 rounded-full"
                     />
-                  ))}
-                </div>
+                      ))}
+                    </div>
               </motion.div>
             </motion.div>
-          </motion.div>
+                  </div>
+        </motion.div>
         )}
       </AnimatePresence>
       <div className="max-w-7xl mx-auto pt-10 sm:pt-6">
@@ -1080,7 +1084,7 @@ export default function HomePage() {
                           setMobileSearchOpen(false)
                           setSearch("")
                         }
-                        router.push(`/course/${course.id}`)
+                        handleCourseNavigation(course.id)
                       }}
                     >
                       <div className="flex items-center justify-between">
@@ -1329,8 +1333,8 @@ export default function HomePage() {
                   <Command.Item
                     key={course.id}
                     onSelect={() => {
-                      router.push(`/course/${course.id}`);
                       setOpen(false);
+                      handleCourseNavigation(course.id)
                     }}
                     className="flex items-center px-3 py-3 text-sm rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 text-zinc-700 dark:text-zinc-200 transition-colors relative group"
                   >
