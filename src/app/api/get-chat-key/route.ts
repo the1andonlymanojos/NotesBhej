@@ -3,15 +3,15 @@ import { createClient } from "@/utils/supabase/server"
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET as string
-const JWT_EXPIRES_IN = "24h" // or however long you want
+const JWT_EXPIRES_IN = "24h" 
 
 export async function GET(request: Request) {
   try {
-    // Extract redirect parameter from URL query params if needed
+    
     const url = new URL(request.url)
     const redirectParam = url.searchParams.get('redirect')
     
-    // Ensure user is logged in
+    
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
@@ -22,18 +22,18 @@ export async function GET(request: Request) {
       )
     }
 
-    // Generate your own custom JWT
+    
     const payload = {
       userId: user.id,
       email: user.email,
       iat: Math.floor(Date.now() / 1000),
-      // Add any other custom claims you want
+      
     }
 
     const customJWT = jwt.sign(payload, JWT_SECRET, { 
       expiresIn: JWT_EXPIRES_IN,
-      issuer: "your-app-name", // customize this
-      audience: "your-backend-service" // customize this
+      issuer: "your-app-name", 
+      audience: "your-backend-service" 
     })
 
     return NextResponse.json({
@@ -50,11 +50,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    // Extract redirect parameter from URL query params if needed
+   
     const url = new URL(request.url)
     const redirectParam = url.searchParams.get('redirect')
     
-    // Ensure user is logged in
+    
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
@@ -65,18 +65,18 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate your own custom JWT
+    
     const payload = {
       userId: user.id,
       email: user.email,
       iat: Math.floor(Date.now() / 1000),
-      // Add any other custom claims you want
+      
     }
 
     const customJWT = jwt.sign(payload, JWT_SECRET, { 
       expiresIn: JWT_EXPIRES_IN,
-      issuer: "your-app-name", // customize this
-      audience: "your-backend-service" // customize this
+      issuer: "your-app-name", 
+      audience: "your-backend-service" 
     })
 
     return NextResponse.json({

@@ -1,0 +1,112 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.course (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  code text NOT NULL,
+  abbreviation text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT course_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.course_content (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  course_id uuid,
+  user_id uuid,
+  instructor text,
+  year integer,
+  semester text,
+  resource_url text,
+  tags ARRAY DEFAULT '{}'::text[],
+  visible boolean DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  title text,
+  course_title text,
+  new_course_id bigint,
+  CONSTRAINT course_content_pkey PRIMARY KEY (id),
+  CONSTRAINT course_content_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.course(id),
+  CONSTRAINT course_content_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.course_content_tags (
+  course_content_id bigint NOT NULL,
+  tag_id bigint NOT NULL,
+  CONSTRAINT course_content_tags_pkey PRIMARY KEY (course_content_id, tag_id),
+  CONSTRAINT course_content_tags_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.tags(id),
+  CONSTRAINT course_content_tags_course_content_id_fkey FOREIGN KEY (course_content_id) REFERENCES public.course_contentnew(id)
+);
+CREATE TABLE public.course_contentnew (
+  id bigint NOT NULL DEFAULT nextval('course_contentnew_id_seq'::regclass),
+  course_id bigint,
+  user_id uuid,
+  professor_id bigint,
+  year integer NOT NULL,
+  batch text NOT NULL,
+  semester_number integer NOT NULL,
+  resource_url text NOT NULL,
+  title text NOT NULL,
+  tag_ids ARRAY DEFAULT '{}'::bigint[],
+  visible boolean DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT course_contentnew_pkey PRIMARY KEY (id),
+  CONSTRAINT course_contentnew_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.coursenew(id),
+  CONSTRAINT course_contentnew_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT course_contentnew_professor_id_fkey FOREIGN KEY (professor_id) REFERENCES public.professorsnew(id)
+);
+CREATE TABLE public.coursenew (
+  id bigint NOT NULL DEFAULT nextval('coursenew_id_seq'::regclass),
+  title text NOT NULL,
+  code text NOT NULL,
+  abbreviation text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT coursenew_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.professorsnew (
+  id bigint NOT NULL DEFAULT nextval('professorsnew_id_seq'::regclass),
+  name text NOT NULL,
+  designation text,
+  department text,
+  email text UNIQUE,
+  phone text,
+  address text,
+  research_interests text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT professorsnew_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tags (
+  id bigint NOT NULL DEFAULT nextval('tags_id_seq'::regclass),
+  name text NOT NULL UNIQUE,
+  CONSTRAINT tags_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.user_course_interaction (
+  id bigint NOT NULL DEFAULT nextval('user_course_interaction_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  course_id bigint NOT NULL,
+  interaction_type text NOT NULL CHECK (interaction_type = ANY (ARRAY['view'::text, 'pin'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  content_id bigint,
+  CONSTRAINT user_course_interaction_pkey PRIMARY KEY (id),
+  CONSTRAINT user_course_interaction_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT user_course_interaction_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.coursenew(id),
+  CONSTRAINT user_course_interaction_content_id_fkey FOREIGN KEY (content_id) REFERENCES public.course_contentnew(id)
+);
+CREATE TABLE public.user_meta (
+  id bigint NOT NULL DEFAULT nextval('user_meta_id_seq'::regclass),
+  user_id uuid UNIQUE,
+  role text NOT NULL CHECK (role = ANY (ARRAY['admin'::text, 'moderator'::text, 'student'::text, 'professor'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  full_name text,
+  batch text,
+  profile_picture_url text,
+  admin_request boolean NOT NULL DEFAULT false,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_meta_pkey PRIMARY KEY (id),
+  CONSTRAINT user_meta_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_pinned_courses (
+  user_id uuid NOT NULL,
+  course_id bigint NOT NULL,
+  pinned_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_pinned_courses_pkey PRIMARY KEY (user_id, course_id),
+  CONSTRAINT user_pinned_courses_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.coursenew(id),
+  CONSTRAINT user_pinned_courses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
