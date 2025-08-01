@@ -50,6 +50,7 @@ export default function CourseViewPage({
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [showLoginDialog, setShowLoginDialog] = useState(false)
+  const [redirectTo, setRedirectTo] = useState<string >("")
   const [useNativeViewer, setUseNativeViewer] = useState(() => {
     if (typeof window !== 'undefined') {
       console.log(content)
@@ -388,6 +389,7 @@ export default function CourseViewPage({
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
+        setRedirectTo(`/course/${courseId}`)
         setShowLoginDialog(true)
         return
       }
@@ -420,6 +422,7 @@ export default function CourseViewPage({
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
+        setRedirectTo(`/add-content/${courseId}`)
         setShowLoginDialog(true)
         return
       }
@@ -576,6 +579,7 @@ export default function CourseViewPage({
 
   const handleContentClick = (item: EnhancedContent) => {
     if (!item.resource_url) {
+      setRedirectTo(`/add-content/${courseId}`)
       setShowLoginDialog(true)
       return
     }
@@ -967,10 +971,7 @@ export default function CourseViewPage({
                         onClick={async () => {
                           try {
                             const { data: { user } } = await supabase.auth.getUser()
-                            if (!user) {
-                              setShowLoginDialog(true)
-                              return
-                            }
+                            
                             
                             // Get professor ID from the first item in the group
                             const professorId = items[0]?.professor_id
@@ -989,10 +990,16 @@ export default function CourseViewPage({
                             if (professorName) {
                               params.append('professor_name', professorName)
                             }
-                            
+                            if (!user) {
+                              setRedirectTo(`/add-content/${courseId}?${params.toString()}`)
+                              setShowLoginDialog(true)
+                              return
+                            }
                             router.push(`/add-content/${courseId}?${params.toString()}`)
+
                           } catch (error) {
                             console.error("Error navigating to add content:", error)
+                            alert("Error navigating to add content: " + error)
                             setShowLoginDialog(true)
                           }
                         }}
@@ -1261,7 +1268,7 @@ export default function CourseViewPage({
               <Button 
                 onClick={() => {
                   setShowLoginDialog(false)
-                  router.push('/login')
+                  router.push(`/login?redirect=${encodeURIComponent(redirectTo)}`)
                 }}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
               >
