@@ -96,6 +96,7 @@ export default function HomePage() {
   const [expandedProfessors, setExpandedProfessors] = useState<Set<number>>(new Set())
   const [professorCurrentPage, setProfessorCurrentPage] = useState(1)
   const [totalProfessorEntries, setTotalProfessorEntries] = useState(0)
+  const [isNavigating, setIsNavigating] = useState(false)
 
   // Add view mode state (will be hydrated from localStorage after mount)
   const [viewMode, setViewMode] = useState<'list' | 'professor'>('list')
@@ -455,6 +456,15 @@ export default function HomePage() {
     }
   }
 
+  // Handle course navigation with loading animation
+  const handleCourseNavigation = (courseId: string | number) => {
+    setIsNavigating(true)
+    // Small delay to show the loading animation
+    setTimeout(() => {
+      router.push(`/course/${courseId}`)
+    }, 300)
+  }
+
   // Hydrate localStorage values after component mounts (client-side only)
   useEffect(() => {
     setMounted(true)
@@ -469,6 +479,82 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-3 sm:p-4">
+      {/* Navigation Loading Overlay */}
+      <AnimatePresence>
+        {isNavigating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="bg-white dark:bg-zinc-800 rounded-lg p-8 shadow-xl border border-zinc-200 dark:border-zinc-700"
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="mb-4"
+              >
+                <BookOpen className="h-12 w-12 text-indigo-500 dark:text-indigo-400 mx-auto" />
+              </motion.div>
+              
+              <motion.h3 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2 text-center"
+              >
+                Loading Course
+              </motion.h3>
+              
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-zinc-600 dark:text-zinc-400 text-sm text-center"
+              >
+                Preparing your course content...
+              </motion.p>
+              
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6 }}
+                className="mt-4 flex justify-center"
+              >
+                <div className="flex space-x-1">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ 
+                        scale: [1, 1.2, 1],
+                        opacity: [0.5, 1, 0.5]
+                      }}
+                      transition={{ 
+                        duration: 1.5,
+                        repeat: Infinity,
+                        delay: i * 0.2
+                      }}
+                      className="w-2 h-2 bg-indigo-500 dark:bg-indigo-400 rounded-full"
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="max-w-7xl mx-auto pt-10 sm:pt-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -896,7 +982,7 @@ export default function HomePage() {
                                        transition: { duration: 0.15 }
                                      }}
                                     className="bg-white dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md cursor-pointer group hover:border-blue-300 dark:hover:border-blue-600"
-                                    onClick={() => router.push(`/course/${course.course_id}`)}
+                                    onClick={() => handleCourseNavigation(course.course_id)}
                                   >
                                     <div className="flex items-center justify-between">
                                       <div className="flex-1 min-w-0 pr-2">
