@@ -112,6 +112,7 @@ Here are some features we'd love to add:
 
 -  **Edit metadata for user's uploaded content** - Allow users to update file descriptions, tags, and other metadata
 -  **Past papers browser** - A dedicated view to browse through past years' papers with filtering options
+- **CRAIGSLIST page** - exactly what it sounds like.... i want a page where users can yk make posts about anything they wanna sell. much better than sending out mails with students@iiitm.ac.in
 - **RAG chatbot** - Need GPU and figure out the logistics of hosting the pipeline 
 - **DB schema** - Its a mess that barely works... need to fix it. 
 - **Advanced search** - Search by semester, subject, file type, etc.
