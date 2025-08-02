@@ -560,7 +560,7 @@ export default function HomePage() {
         )}
       </AnimatePresence>
       <div className="max-w-7xl mx-auto pt-10 sm:pt-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex  justify-between gap-4 mb-8">
           <div className="flex items-center gap-2 sm:gap-3">
             <BookOpen className="text-indigo-500 dark:text-indigo-300 h-6 w-6 sm:h-8 sm:w-8" />
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent">
@@ -570,22 +570,13 @@ export default function HomePage() {
           
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Admin button and its placeholder */}
-{user && roleLoading && (
+{/* {user && roleLoading && (
   // This placeholder reserves space while the role is loading, preventing layout shift.
   // It's styled to have the same dimensions as the final button.
   <div className="h-8 w-[60px] sm:h-10 sm:w-[110px] rounded-md" />
-)}
+)} */}
 
-{user && !roleLoading && isAdmin(userRole) && (
-  <Button
-    onClick={() => router.push('/admin/content-moderation')}
-    className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200 h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm animate-in fade-in"
-  >
-    <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-    <span className="hidden sm:inline">Admin Panel</span>
-    <span className="sm:hidden">Admin</span>
-  </Button>
-)}
+
             <div className="hidden sm:block">
               <Button
                 onClick={() => setOpen(true)}
@@ -622,12 +613,8 @@ export default function HomePage() {
                       ) : (
                         <User className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-600 dark:text-zinc-400" />
                       )}
-                      <span className="text-xs sm:text-sm hidden sm:block">
-                        Hi, {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
-                      </span>
-                      <span className="text-xs sm:text-sm sm:hidden">
-                        {(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User').split(' ')[0]}
-                      </span>
+                    
+                      
                       <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-600 dark:text-zinc-400" />
                     </span>
                   </Button>
@@ -667,9 +654,11 @@ export default function HomePage() {
             ) : (
               <Button
                 onClick={() => router.push('/login')}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white h-8 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm"
+                className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
               >
-                Sign in
+                <span className="text-zinc-600 dark:text-zinc-400">
+                  Sign in 
+                </span>
               </Button>
             )}
             

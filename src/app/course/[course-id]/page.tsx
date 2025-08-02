@@ -630,7 +630,7 @@ export default function CourseViewPage({
         >
           {/* Mobile: Stacked layout */}
           <div className="flex flex-col sm:hidden">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-1">
               <Button
                 onClick={() => router.push("/")}
                 variant="ghost"
@@ -649,11 +649,11 @@ export default function CourseViewPage({
               >
                 <Heart className={`h-4 w-4 transition-all ${isPinned ? "fill-current" : ""}`} />
               </Button>
-            </div>
-            <div>
+              <div>
               <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight break-words">
                 {course.title}
               </h1>
+            </div>
             </div>
           </div>
 
