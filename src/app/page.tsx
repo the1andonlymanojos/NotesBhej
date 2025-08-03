@@ -560,7 +560,7 @@ export default function HomePage() {
         )}
       </AnimatePresence>
       <div className="max-w-7xl mx-auto pt-10 sm:pt-6">
-        <div className="flex  justify-between gap-4 mb-8">
+        <div className="flex  justify-between gap-4 mb-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <BookOpen className="text-indigo-500 dark:text-indigo-300 h-6 w-6 sm:h-8 sm:w-8" />
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent">
@@ -671,12 +671,7 @@ export default function HomePage() {
         {/* Course Count and Search */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">
-              {viewMode === 'list' 
-                ? `Showing ${((currentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalCourses)} of ${totalCourses} courses`
-                : `Showing ${((professorCurrentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(professorCurrentPage * ITEMS_PER_PAGE, totalProfessorEntries)} of ${totalProfessorEntries} professor entries`
-              }
-            </div>
+            
             <Button
               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
               variant="outline"
@@ -690,31 +685,32 @@ export default function HomePage() {
           
           {/* View Mode Toggle */}
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-zinc-600 dark:text-zinc-400 mr-2">View:</span>
-            <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
-
+            <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mr-1 sm:mr-2">View:</span>
+            <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 sm:p-1">
 
               <button
                 onClick={() => changeViewMode('list')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+                className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
                   viewMode === 'list'
                     ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
                     : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
                 }`}
               >
-                <BookOpen className="h-4 w-4 mr-1.5 inline" />
-                List All
+                <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
+                <span className="hidden xs:inline">List All</span>
+                <span className="inline xs:hidden">List</span>
               </button>
               <button
                 onClick={() => changeViewMode('professor')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+                className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
                   viewMode === 'professor'
                     ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
                     : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
                 }`}
               >
-                <User className="h-4 w-4 mr-1.5 inline" />
-                Sort by Prof
+                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
+                <span className="hidden xs:inline">Sort by Prof</span>
+                <span className="inline xs:hidden">Prof</span>
               </button>
             </div>
           </div>
@@ -723,7 +719,7 @@ export default function HomePage() {
           {mobileSearchOpen && (
             <div className="sm:hidden mb-4 animate-in slide-in-from-top-2 duration-200">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-4 text-zinc-400" />
                 <input
                   type="text"
                   placeholder="Search courses..."
@@ -752,13 +748,13 @@ export default function HomePage() {
 
         {/* Pinned Courses Section */}
         {user && (
-          <div className="mb-8">
+          <div className="mb-2">
             <div 
               className="flex items-center gap-3 mb-4 cursor-pointer group"
               onClick={() => setShowPinnedSection(!showPinnedSection)}
             >
               <Heart className="h-5 w-5 text-red-500 fill-red-500" />
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-md font-semibold text-zinc-900 dark:text-zinc-100">
                 Pinned Courses ({pinnedCourses.length})
               </h2>
               <motion.div
@@ -778,7 +774,7 @@ export default function HomePage() {
                   transition={{ duration: 0.2, ease: "easeInOut" }}
                   className="overflow-hidden"
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 p-4 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-2 p-4 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
                     {pinnedCourses.length > 0 ? (
                       pinnedCourses.map((course, index) => (
                         <motion.div
@@ -1122,6 +1118,12 @@ export default function HomePage() {
           </>
         )}
         </div>
+        <div className="text-sm text-zinc-600 dark:text-zinc-400">
+              {viewMode === 'list' 
+                ? `Showing ${((currentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalCourses)} of ${totalCourses} courses`
+                : `Showing ${((professorCurrentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(professorCurrentPage * ITEMS_PER_PAGE, totalProfessorEntries)} of ${totalProfessorEntries} professor entries`
+              }
+            </div>
 
         {/* Pagination */}
         {((viewMode === 'list' && totalPages > 1 && !(search && mobileSearchOpen)) || 
