@@ -3,12 +3,19 @@
 
 import { createClient } from "@/utils/supabase/server";
 import HomeClientPage from "@/components/HomeClientPage"; // We will create this next
-
+import { cookies } from "next/headers";
 const ITEMS_PER_PAGE = 12;
 
 export default async function HomePage() {
   const supabase = await createClient();
-
+  const cookieStore = await  cookies();
+  const viewMode = cookieStore.get("viewMode")?.value || "list";
+  const showPinnedSectionRaw = cookieStore.get("showPinnedSection")?.value;
+  const showPinnedSection = showPinnedSectionRaw === undefined
+    ? true
+    : showPinnedSectionRaw === "true" || showPinnedSectionRaw === "1";
+  console.log(viewMode)
+  console.log(showPinnedSection)
   // --- 1. Fetch User Data ---
   const { data: { user }, error: authError } = await supabase.auth.getUser()
     console.log(authError)
@@ -83,6 +90,8 @@ export default async function HomePage() {
         total: initialProfessorData?.length || 0 // This is an approximation; adjust if needed
       }}
       allCourses={allCourses || []}
+      view_mode={viewMode}
+      show_PinnedSection={showPinnedSection}
     />
   );
 }

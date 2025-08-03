@@ -32,6 +32,7 @@ type ProfessorCourse = {
     course_id: number
     course_title: string
     course_code: string
+    view_mode: string
   }
   
   type GroupedProfessorCourses = {
@@ -76,6 +77,8 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
     initialCoursesData: { courses: CourseNew[], total: number };
     initialProfessorData: { courses: ProfessorCourse[], total: number };
     allCourses: CourseNew[];
+    view_mode: string;
+    show_PinnedSection: boolean;
   }
   
   export default function HomeClientPage({
@@ -86,6 +89,8 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
     initialCoursesData,
     initialProfessorData,
     allCourses,
+    view_mode,
+    show_PinnedSection,
   }: HomeClientPageProps) {
     const router = useRouter();
     const supabase = createClient();
@@ -115,8 +120,8 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
     const [professorCoursesLoading, setProfessorCoursesLoading] = useState(false);
     const [expandedProfessors, setExpandedProfessors] = useState<Set<number>>(new Set());
     // Hydrate preferences from localStorage after mount
-    const [viewMode, setViewMode] = useState<'list' | 'professor'>('list');
-    const [showPinnedSection, setShowPinnedSection] = useState(true);
+    const [viewMode, setViewMode] = useState<'list' | 'professor'>(view_mode as 'list' | 'professor');
+    const [showPinnedSection, setShowPinnedSection] = useState(show_PinnedSection as boolean);
 
     const totalPages = Math.ceil(totalCourses / ITEMS_PER_PAGE);
     const totalProfessorPages = Math.ceil(totalProfessorEntries / ITEMS_PER_PAGE);
@@ -273,6 +278,9 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
     // Helper function to change view mode and reset pagination
     const changeViewMode = (newMode: 'list' | 'professor') => {
       setViewMode(newMode);
+      // 2. Set the cookie to persist the preference for future server renders
+      document.cookie = `viewMode=${newMode}; path=/; max-age=31536000; SameSite=Lax`; // max-age is 1 year
+
       if (newMode === 'list') {
         setProfessorCurrentPage(1); // Reset professor page when switching to list
       } else {
@@ -370,12 +378,12 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
       useEffect(() => {
         setMounted(true);
         
-        // Load saved preferences from localStorage
-        const savedViewMode = getLocalStorageItem('viewMode', 'list');
-        const savedPinnedSection = getLocalStorageItem('showPinnedSection', true);
+        // // Load saved preferences from localStorage
+        // const savedViewMode = getLocalStorageItem('viewMode', 'list');
+        // const savedPinnedSection = getLocalStorageItem('showPinnedSection', true);
         
-        setViewMode(savedViewMode);
-        setShowPinnedSection(savedPinnedSection);
+        // setViewMode(savedViewMode);
+        // setShowPinnedSection(savedPinnedSection);
       }, []);
     
 
@@ -656,7 +664,9 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
               <div className="mb-2">
                 <div 
                   className="flex items-center gap-3 mb-4 cursor-pointer group"
-                  onClick={() => setShowPinnedSection(!showPinnedSection)}
+                  onClick={() => {setShowPinnedSection(!showPinnedSection)
+                    document.cookie = `showPinnedSection=${!showPinnedSection}; path=/; max-age=31536000; SameSite=Lax`;
+                  }}
                 >
                   <Heart className="h-5 w-5 text-red-500 fill-red-500" />
                   <h2 className="text-md font-semibold text-zinc-900 dark:text-zinc-100">
@@ -664,7 +674,7 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
                   </h2>
                   <motion.div
                     animate={{ rotate: showPinnedSection ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.05 }}
                   >
                     <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
                   </motion.div>
@@ -676,7 +686,7 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      transition={{ duration: 0.05, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-2 p-4 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
