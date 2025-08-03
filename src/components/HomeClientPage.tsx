@@ -48,26 +48,7 @@ type ProfessorCourse = {
   
   const ITEMS_PER_PAGE = 12
   
-  // LocalStorage utility functions
-const getLocalStorageItem = (key: string, defaultValue: any) => {
-    if (typeof window === 'undefined') return defaultValue
-    try {
-      const item = localStorage.getItem(key)
-      return item ? JSON.parse(item) : defaultValue
-    } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error)
-      return defaultValue
-    }
-  }
   
-  const setLocalStorageItem = (key: string, value: any) => {
-    if (typeof window === 'undefined') return
-    try {
-      localStorage.setItem(key, JSON.stringify(value))
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error)
-    }
-  }
 
   interface HomeClientPageProps {
     initialUser: SupabaseUser | null;
@@ -94,7 +75,6 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
   }: HomeClientPageProps) {
     const router = useRouter();
     const supabase = createClient();
-    const [mounted, setMounted] = useState(false);
     
     // --- Initialize state from server-provided props ---
     const user=initialUser
@@ -360,31 +340,8 @@ const getLocalStorageItem = (key: string, defaultValue: any) => {
         return () => document.removeEventListener("keydown", down);
       }, [mobileSearchOpen, courseComboboxOpen]);
 
-      // Save view mode to localStorage when it changes
-      useEffect(() => {
-        if (mounted) {
-          setLocalStorageItem('viewMode', viewMode);
-        }
-      }, [viewMode, mounted]);
 
-      // Save pinned section state to localStorage when it changes
-      useEffect(() => {
-        if (mounted) {
-          setLocalStorageItem('showPinnedSection', showPinnedSection);
-        }
-      }, [showPinnedSection, mounted]);
 
-      // Hydrate localStorage values after component mounts (client-side only)
-      useEffect(() => {
-        setMounted(true);
-        
-        // // Load saved preferences from localStorage
-        // const savedViewMode = getLocalStorageItem('viewMode', 'list');
-        // const savedPinnedSection = getLocalStorageItem('showPinnedSection', true);
-        
-        // setViewMode(savedViewMode);
-        // setShowPinnedSection(savedPinnedSection);
-      }, []);
     
 
 
