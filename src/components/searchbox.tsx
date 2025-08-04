@@ -12,11 +12,13 @@ export default function SearchBox({courses, open, setOpen}: {courses: CourseNew[
     
     const [search, setSearch] = useState("");
     const router = useRouter();
-    const filteredCourses = courses.filter((course) => {
-        const titleMatch = course.title.toLowerCase().includes(search.toLowerCase());
-        const abbreviationMatch = course.abbreviation?.toLowerCase().includes(search.toLowerCase());
-        return titleMatch || abbreviationMatch;
-    });
+    const filteredCourses = useMemo(() => 
+        courses.filter((course) => {
+            const titleMatch = course.title.toLowerCase().includes(search.toLowerCase());
+            const abbreviationMatch = course.abbreviation?.toLowerCase().includes(search.toLowerCase());
+            return titleMatch || abbreviationMatch;
+        })
+    , [courses, search]);
     const handleCourseNavigation = (courseId: number) => {
         router.push(`/course/${courseId}`);
     }
