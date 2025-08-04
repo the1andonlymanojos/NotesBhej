@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -14,5 +19,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-
-export default nextConfig;
+// Pass your config object into the withBundleAnalyzer function
+export default withBundleAnalyzer(nextConfig);
