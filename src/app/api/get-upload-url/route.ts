@@ -69,8 +69,7 @@ export async function POST(request: Request) {
     if (!fileName || !fileType) {
       return NextResponse.json({ error: "File name and type are required" }, { status: 400 })
     }
-    const formattedFileName = fileName.replace(/ /g, "_")
-    const uniqueFileName = `${uuidv4()}-${formattedFileName}`
+    const uniqueFileName = `${uuidv4()}`
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: uniqueFileName
