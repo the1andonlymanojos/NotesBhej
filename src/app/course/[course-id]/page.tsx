@@ -8,11 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
-import PDFViewer from "@/components/pdf-viewer"
 import { Database } from "@/types/supabase"
 import Chatbox from "@/components/chatbox"
 import { motion, AnimatePresence } from "framer-motion"
-
+import dynamic from "next/dynamic"
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
 //type Course_Contentnew = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
@@ -66,7 +65,7 @@ export default function CourseViewPage({
   const [showRecentlyViewed, setShowRecentlyViewed] = useState(false)
   const [isContentReady, setIsContentReady] = useState(false)
   const supabase = createClient()
-
+  const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
   // Debouncing refs for interaction logging
   const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const loggedInteractions = useRef<Set<string>>(new Set())
