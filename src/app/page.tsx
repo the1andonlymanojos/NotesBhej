@@ -96,7 +96,7 @@ export default function HomePage() {
   const [expandedProfessors, setExpandedProfessors] = useState<Set<number>>(new Set())
   const [professorCurrentPage, setProfessorCurrentPage] = useState(1)
   const [totalProfessorEntries, setTotalProfessorEntries] = useState(0)
-  const isNavigating = false;
+  const [isNavigating, setIsNavigating] = useState(false)
 
   // Add view mode state (will be hydrated from localStorage after mount)
   const [viewMode, setViewMode] = useState<'list' | 'professor'>('list')
@@ -458,9 +458,11 @@ export default function HomePage() {
 
   // Handle course navigation with loading animation
   const handleCourseNavigation = (courseId: string | number) => {
-    //setIsNavigating(true)
-    router.push(`/course/${courseId}`)
+    setIsNavigating(true)
     // Small delay to show the loading animation
+    setTimeout(() => {
+      router.push(`/course/${courseId}`)
+    }, 10)
   }
 
   // Hydrate localStorage values after component mounts (client-side only)
