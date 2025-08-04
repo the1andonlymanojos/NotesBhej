@@ -4,6 +4,7 @@
 import { createClient } from "@/utils/supabase/server";
 import HomeClientPage from "@/components/HomeClientPage"; // We will create this next
 import { cookies } from "next/headers";
+import { databaseService } from "@/lib/database";
 const ITEMS_PER_PAGE = 12;
 
 export default async function HomePage() {
@@ -25,53 +26,25 @@ export default async function HomePage() {
   let pinnedCourseIds = new Set();
   
   if (user) {
-    // Fetch role
-    const { data: roleData } = await supabase
-      .from("user_meta")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
-    userRole = roleData?.role || null;
+    // Use cached database service for user role
+    userRole = await databaseService.getUserRole(user.id);
 
-    // Fetch pinned courses
-    const { data: pinnedData } = await supabase
-      .from("user_pinned_courses")
-      .select("course_id")
-      .eq("user_id", user.id);
-      
-    if (pinnedData && pinnedData.length > 0) {
-      const courseIds = pinnedData.map(p => p.course_id);
-      pinnedCourseIds = new Set(courseIds);
-      const { data: courses } = await supabase
-        .from("coursenew")
-        .select("*")
-        .in("id", courseIds);
-      pinnedCourses = courses || [];
-    }
+    // Use cached database service for pinned courses
+    const pinnedData = await databaseService.getPinnedCourses(user.id);
+    pinnedCourses = pinnedData.courses;
+    pinnedCourseIds = new Set(pinnedData.courseIds);
   }
 
-  // --- 3. Fetch Initial Page Data (for both views) ---
+  // --- 3. Fetch Initial Page Data (for both views) with caching ---
   
-  // Fetch for 'list' view
-  const { data: initialCourses, count: totalCourses } = await supabase
-    .from("coursenew")
-    .select("*", { count: 'exact' })
-    .order('title')
-    .range(0, ITEMS_PER_PAGE - 1);
+  // Fetch for 'list' view with caching
+  const initialCoursesData = await databaseService.getInitialCourses(0, ITEMS_PER_PAGE);
 
-  // Fetch for 'professor' view
-  const { data: initialProfessorData, error: profError } = await supabase.rpc('professor_course_list', {
-    limit_count: ITEMS_PER_PAGE,
-    offset_count: 0
-  });
-  console.log(profError)
+  // Fetch for 'professor' view with caching
+  const professorData = await databaseService.getProfessorData(ITEMS_PER_PAGE, 0);
 
-  // --- 4. Fetch All Courses for Search Dialogs ---
-  const { data: allCourses } = await supabase
-    .from("coursenew")
-    .select("*")
-    .order('title');
-
+  // --- 4. Fetch All Courses for Search Dialogs with caching ---
+  const allCourses = await databaseService.getAllCourses();
 
   // --- 5. Pass everything as props to the Client Component ---
   return (
@@ -81,15 +54,14 @@ export default async function HomePage() {
       initialPinnedCourses={pinnedCourses}
       initialPinnedCourseIds={Array.from(pinnedCourseIds) as number[]} // Pass as array, convert back to Set on client
       initialCoursesData={{
-        courses: initialCourses || [],
-        total: totalCourses || 0,
+        courses: initialCoursesData.courses,
+        total: initialCoursesData.total,
       }}
       initialProfessorData={{
-        courses: initialProfessorData || [],
-        // You might need a separate RPC to get the total count more efficiently
-        total: initialProfessorData?.length || 0 // This is an approximation; adjust if needed
+        courses: professorData.courses,
+        total: professorData.total
       }}
-      allCourses={allCourses || []}
+      allCourses={allCourses}
       view_mode={viewMode}
       show_PinnedSection={showPinnedSection}
     />
