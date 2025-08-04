@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Command } from "cmdk"
 import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from "framer-motion"
 import {
   DropdownMenu,
@@ -85,7 +84,7 @@ type ProfessorCourse = {
     const [pinnedCourseIds, setPinnedCourseIds] = useState(new Set(initialPinnedCourseIds));
     const [professorCourses, setProfessorCourses] = useState<GroupedProfessorCourses[]>([]); // Will be populated by fetch
     const [totalProfessorEntries, setTotalProfessorEntries] = useState(initialProfessorData.total);
-  
+    const [initialFetch, setInitialFetch] = useState(false);
     // --- State that remains purely client-side ---
     const [open, setOpen] = useState(false);
     const [courseComboboxOpen, setCourseComboboxOpen] = useState(false);
@@ -105,6 +104,11 @@ type ProfessorCourse = {
 
     const totalPages = Math.ceil(totalCourses / ITEMS_PER_PAGE);
     const totalProfessorPages = Math.ceil(totalProfessorEntries / ITEMS_PER_PAGE);
+
+
+    const SearchBox = dynamic(() => import('@/components/searchbox'), { ssr: false }) 
+    const CourseSelectUpload = dynamic(() => import('@/components/courseselectupload'), { ssr: false })
+
 
     const isAdmin = (role: string | null) => {
       if (!role) return false;
@@ -298,7 +302,10 @@ type ProfessorCourse = {
       }, [supabase.auth, user, router]);
 
       useEffect(() => {
-        if (currentPage === 1) return; // Skip initial fetch
+        if (currentPage === 1 && !initialFetch) {
+          setInitialFetch(true);
+          return; // Skip initial fetch
+        }
         const fetchNewPage = async () => {
           setLoading(true);
           const from = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -1149,168 +1156,11 @@ type ProfessorCourse = {
           </div>
     
           {/* Course Selection for Quick Search */}
-          <Command.Dialog
-            open={open}
-            onOpenChange={setOpen}
-            className="fixed inset-0 z-50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-          >
-            <DialogTitle className="sr-only">Search Courses</DialogTitle>
-            <div className="fixed inset-0 bg-black/20 dark:bg-black/50" aria-hidden="true" />
-            <div className="fixed inset-0 flex items-center justify-center p-4 sm:p-6">
-              <Command className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-200">
-                <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
-                  <Search className="h-5 w-5 text-zinc-500 dark:text-zinc-400 mr-2 flex-shrink-0" />
-                  <Command.Input
-                    placeholder="Search courses..."
-                    value={search}
-                    onValueChange={setSearch}
-                    className="flex-1 bg-transparent outline-none text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
-                  />
-                  <kbd className="hidden sm:inline-flex h-6 items-center gap-1 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                    ESC
-                  </kbd>
-                </div>
-                
-                <Command.List className="max-h-[400px] overflow-y-auto p-2">
-                  {filteredCourses.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center text-center py-12">
-                      <Search className="h-8 w-8 text-zinc-400 dark:text-zinc-500 mb-3 opacity-60" />
-                      <p className="text-zinc-500 dark:text-zinc-400 mb-1">No courses found{search && ` for "${search}"`}</p>
-                      <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Try a different search term</p>
-                      {search && (
-                        <Button
-                          onClick={() => {
-                            router.push(`/create-course?name=${encodeURIComponent(search)}`);
-                            setOpen(false);
-                            setSearch("");
-                          }}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create &quot;{search}&quot; course
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    filteredCourses.map((course) => (
-                      <Command.Item
-                        key={course.id}
-                        onSelect={() => {
-                          setOpen(false);
-                          handleCourseNavigation(course.id)
-                        }}
-                        className="flex items-center px-3 py-3 text-sm rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 text-zinc-700 dark:text-zinc-200 transition-colors relative group"
-                      >
-                        <div className="flex items-center flex-1">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 mr-3 flex-shrink-0">
-                            <BookOpen className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{course.title}</div>
-                            <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">
-                              {course.abbreviation && (
-                                <span className="truncate">{course.abbreviation}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </Command.Item>
-                    ))
-                  )}
-                </Command.List>
-                
-                <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 py-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      {filteredCourses.length} course{filteredCourses.length === 1 ? '' : 's'} found
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span>Navigate</span>
-                      <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">↑↓</kbd>
-                      <span>Select</span>
-                      <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">↵</kbd>
-                    </div>
-                  </div>
-                </div>
-              </Command>
-            </div>
-          </Command.Dialog>
+          <SearchBox courses={allCourses} open={open} setOpen={setOpen} />
     
           {/* Course Selection Combobox for Upload Content */}
           {courseComboboxOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 dark:bg-black/50 backdrop-blur-sm">
-              <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl rounded-lg overflow-hidden">
-                <Command className="rounded-lg">
-                  <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-3 py-3 bg-zinc-50 dark:bg-zinc-800/50">
-                    <div className="flex items-center">
-                      <BookOpen className="h-4 w-4 text-zinc-500 dark:text-zinc-400 mr-2 flex-shrink-0" />
-                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Select Course to Upload Content</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setCourseComboboxOpen(false);
-                        setSearch("");
-                      }}
-                      className="p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                    >
-                      <X className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                    </button>
-                  </div>
-                  <Command.Input
-                    placeholder="Search courses..."
-                    className="h-10 px-3 py-2 text-sm bg-transparent border-none outline-none focus:ring-0 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
-                    value={search}
-                    onValueChange={setSearch}
-                  />
-                  <Command.List className="max-h-64 overflow-y-auto p-1">
-                    <Command.Empty className="py-6 text-center">
-                      <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-                        No courses found{search && ` for "${search}"`}.
-                      </div>
-                      {search && (
-                        <Button
-                          onClick={() => {
-                            router.push(`/create-course?name=${encodeURIComponent(search)}`);
-                            setCourseComboboxOpen(false);
-                            setSearch("");
-                          }}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2"
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Create 
-                          &quot;{search}&quot; course
-                        </Button>
-                      )}
-                    </Command.Empty>
-                    {allCourses.map((course) => (
-                      <Command.Item
-                        key={course.id}
-                        value={`${course.title} ${course.code} ${course.abbreviation || ""}`}
-                        onSelect={() => {
-                          router.push(`/add-content/${course.id}`);
-                          setCourseComboboxOpen(false);
-                          setSearch("");
-                        }}
-                        className="flex items-center px-2 py-2 text-sm rounded-md cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 transition-colors"
-                      >
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 mr-3 flex-shrink-0">
-                          <BookOpen className="h-3 w-3" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{course.title}</div>
-                          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs">
-                            {course.abbreviation && (
-                              <span className="truncate">{course.abbreviation}</span>
-                            )}
-                          </div>
-                        </div>
-                      </Command.Item>
-                    ))}
-                  </Command.List>
-                </Command>
-              </div>
-                     </div>
+            <CourseSelectUpload courses={allCourses} open={courseComboboxOpen} setOpen={setCourseComboboxOpen} />
            )}
         </div>
       );
