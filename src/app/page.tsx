@@ -50,7 +50,7 @@ export default async function HomePage() {
     }
   }
 
-  // --- 3. Fetch Initial Page Data (for both views) ---
+
   
   // Fetch for 'list' view
   const { data: initialCourses, count: totalCourses } = await supabase
