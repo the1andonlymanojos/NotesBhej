@@ -96,7 +96,7 @@ export default function HomePage() {
   const [expandedProfessors, setExpandedProfessors] = useState<Set<number>>(new Set())
   const [professorCurrentPage, setProfessorCurrentPage] = useState(1)
   const [totalProfessorEntries, setTotalProfessorEntries] = useState(0)
-  const [isNavigating, setIsNavigating] = useState(false)
+  const isNavigating = false;
 
   // Add view mode state (will be hydrated from localStorage after mount)
   const [viewMode, setViewMode] = useState<'list' | 'professor'>('list')
