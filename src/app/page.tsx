@@ -375,7 +375,7 @@ export default function HomePage() {
       const { data } = await supabase
         .from("coursenew")
         .select("*")
-        .order('title')
+        .order('created_at', { ascending: false })
         .range(from, to)
       
       setCourses(data || [])
