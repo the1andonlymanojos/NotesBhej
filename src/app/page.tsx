@@ -458,11 +458,9 @@ export default function HomePage() {
 
   // Handle course navigation with loading animation
   const handleCourseNavigation = (courseId: string | number) => {
-    setIsNavigating(true)
+    //setIsNavigating(true)
+    router.push(`/course/${courseId}`)
     // Small delay to show the loading animation
-    setTimeout(() => {
-      router.push(`/course/${courseId}`)
-    }, 150)
   }
 
   // Hydrate localStorage values after component mounts (client-side only)
