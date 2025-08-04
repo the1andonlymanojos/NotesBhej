@@ -3,7 +3,7 @@ import { DialogTitle } from "@radix-ui/react-dialog"
 import { Search, BookOpen, ArrowRight, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Database } from "@/types/supabase";
 
 type CourseNew = Database['public']['Tables']['coursenew']['Row']
