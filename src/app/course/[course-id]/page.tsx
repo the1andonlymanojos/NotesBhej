@@ -235,7 +235,14 @@ export default function CourseViewPage({
     if (semesterDisplay.startsWith('Semester ')) {
       const number = semesterDisplay.replace('Semester ', '')
       return {
-        mobile: `Sem ${number}`,
+        mobile: `${number}`,
+        desktop: `${number}`
+      }
+    }
+    if(semesterDisplay.startsWith('Sem ')){
+      const number = semesterDisplay.replace('Sem ', '')
+      return {
+        mobile: `${number}`,
         desktop: semesterDisplay
       }
     }
@@ -943,6 +950,7 @@ export default function CourseViewPage({
             // Grouped view when not searching
             (Object.entries(groupedContent) as [string, EnhancedContent[]][]).map(([key, items]) => {
               const [year, semester, batch, instructor] = key.split('*')
+              console.log(semester)
               const isExpanded = expandedGroups.has(key)
               const displayItems = isExpanded ? items : items
               
@@ -952,11 +960,11 @@ export default function CourseViewPage({
                   className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg"
                 >
                   <div className="flex items-center justify-between mb-4">
-                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <div className="flex sm:flex-row  items-center gap-2">
 
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500" />
-                    <h3 className="text-sm sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                      {year} - <span className="sm:hidden">{getSemesterText(semester).mobile}</span><span className="hidden sm:inline">{getSemesterText(semester).desktop}</span> ({batch})
+                    <h3 className="text-xs sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      {year} {batch} - <span className="sm:hidden">{getSemesterText(semester).mobile}</span><span className="hidden sm:inline">{getSemesterText(semester).desktop}</span> 
                     </h3>
                     {instructor && instructor !== 'Unknown' && (
                       <div className="flex items-center gap-1 sm:gap-2 ml-2">
@@ -1023,7 +1031,6 @@ export default function CourseViewPage({
                           ) : (
                             <>
                               <ChevronDown className="h-4 w-4 mr-2" />
-                              ({items.length})
                             </>
                           )}
                         </Button>
@@ -1047,7 +1054,7 @@ export default function CourseViewPage({
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                              <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
+                              <h4 className="text-xs sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
                                 {item.title || "Untitled Resource"}
                               </h4>
                               {(() => {
@@ -1060,37 +1067,7 @@ export default function CourseViewPage({
                                 )
                               })()}
                             </div>
-                            <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
-                              <div className="flex flex-wrap gap-1">
-                                {(() => {
-                                  const hiddenLabel = getHiddenLabel(item)
-                                  if (!hiddenLabel) return null
-                                  return (
-                                    <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                                      hiddenLabel.icon === "clock" 
-                                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
-                                        : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
-                                    }`}>
-                                      {hiddenLabel.text}
-                                    </span>
-                                  )
-                                })()}
-                                {item.tag_names?.slice(0, 2).map((tag: string, index: number) => (
-                                  <span
-                                    key={index}
-                                    className="px-1.5 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                                {item.tag_names && item.tag_names.length > 2 && (
-                                  <span className="px-1.5 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-full">
-                                    +{item.tag_names.length - 2}
-                                  </span>
-                                )}
-                              </div>
-                              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
-                            </div>
+                        
                           </div>
                         </div>
                       ))}
