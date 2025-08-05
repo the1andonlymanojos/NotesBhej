@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { User as SupabaseUser } from "@supabase/supabase-js"
-import { log } from "console"
 
 type CourseNew = Database['public']['Tables']['coursenew']['Row']
 //type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
