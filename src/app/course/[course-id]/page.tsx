@@ -603,7 +603,14 @@ export default function CourseViewPage({
     }
     
     if (isMobile || useNativeViewer) {
-      window.open(item.resource_url, '_blank')
+      console.log("Opening resource url:", item.filetype)
+      if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+        window.open(`https://view.officeapps.live.com/op/view.aspx?src=${item.resource_url}`, '_blank')
+      } 
+      else {
+        window.open(item.resource_url, '_blank')
+      }
+      //window.open(item.resource_url, '_blank')
     } else {
       setSelectedContent(item)
       setSelectedFileId(item.id)
@@ -1291,8 +1298,9 @@ export default function CourseViewPage({
                   .map(item => ({
                     id: item.id!.toString(),
                     title: item.title!,
+                    filetype: item.filetype!,
                     resource_url: item.resource_url!,
-                    year: item.year!,
+                    year: item.year!, 
                     semester: item.semester_display!,
                     instructor: item.professor_name || undefined
                   }))} 

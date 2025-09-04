@@ -188,9 +188,10 @@ export default function EditContentDialog({
         tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
       }
 
-      // Add new resource URL if file was uploaded
+      // Add new resource URL and filetype if file was uploaded
       if (newResourceUrl) {
         updateData.resource_url = newResourceUrl
+        updateData.filetype = newFile?.type || ""
         updateData.visible = shouldSetVisible
       }
 

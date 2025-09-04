@@ -16,6 +16,7 @@ import {
 interface PDFViewerProps {
   files: Array<{
     id: string
+    filetype: string
     title: string
     resource_url: string
     year: number
@@ -150,7 +151,17 @@ export default function PDFViewer({ files, onClose, initialFileId }: PDFViewerPr
         <div className="flex-1 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-auto bg-white dark:bg-zinc-800 mt-2 relative">
           {selectedFile ? (
             <div className="h-full w-full overflow-auto">
-              <PDFViewerComponent file={selectedFile.resource_url} />
+              {(selectedFile.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
+                selectedFile.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || 
+                selectedFile.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") ? (
+                <iframe
+                  src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(selectedFile.resource_url)}`}
+                  className="w-full h-full border-0"
+                  title={selectedFile.title}
+                />
+              ) : (
+                <PDFViewerComponent file={selectedFile.resource_url} />
+              )}
             </div>
           ) : (
             <div className="h-full flex items-center justify-center text-zinc-500 dark:text-zinc-400">

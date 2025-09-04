@@ -72,7 +72,8 @@ export async function POST(request: Request) {
     const uniqueFileName = `${uuidv4()}`
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
-      Key: uniqueFileName
+      Key: uniqueFileName,
+      ContentType: fileType
     })
 
     let signedUrl = ""

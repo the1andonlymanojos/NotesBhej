@@ -197,7 +197,7 @@ export default function AddContentPage({
           })
           console.log({publicUrl, title: fileTitles[file.name]})
 
-          return {publicUrl, title: fileTitles[file.name], fileName: file.name}
+          return {publicUrl, title: fileTitles[file.name], fileName: file.name, fileType: file.type}
         })
       )
 
@@ -208,6 +208,7 @@ export default function AddContentPage({
       const { error } = await supabase.from("course_contentnew").insert(
         uploadedUrls.map((pair) => ({
           course_id: courseId,
+          filetype: pair.fileType,
           user_id: userId,
           professor_id: selectedProfessorId,
           year: parseInt(year as string),

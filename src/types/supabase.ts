@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -150,6 +150,7 @@ export type Database = {
           batch: string
           course_id: number | null
           created_at: string
+          filetype: string | null
           id: number
           professor_id: number | null
           resource_url: string
@@ -164,6 +165,7 @@ export type Database = {
           batch: string
           course_id?: number | null
           created_at?: string
+          filetype?: string | null
           id?: number
           professor_id?: number | null
           resource_url: string
@@ -178,6 +180,7 @@ export type Database = {
           batch?: string
           course_id?: number | null
           created_at?: string
+          filetype?: string | null
           id?: number
           professor_id?: number | null
           resource_url?: string
@@ -412,6 +415,7 @@ export type Database = {
           batch: string | null
           course_id: number | null
           created_at: string | null
+          filetype: string | null
           id: number | null
           professor_id: number | null
           resource_url: string | null
@@ -426,6 +430,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          filetype?: string | null
           id?: number | null
           professor_id?: number | null
           resource_url?: never
@@ -440,6 +445,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          filetype?: string | null
           id?: number | null
           professor_id?: number | null
           resource_url?: never
@@ -472,6 +478,7 @@ export type Database = {
           batch: string | null
           course_id: number | null
           created_at: string | null
+          filetype: string | null
           id: number | null
           professor_id: number | null
           resource_url: string | null
@@ -486,6 +493,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          filetype?: string | null
           id?: number | null
           professor_id?: number | null
           resource_url?: never
@@ -500,6 +508,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          filetype?: string | null
           id?: number | null
           professor_id?: number | null
           resource_url?: never
@@ -532,6 +541,7 @@ export type Database = {
           batch: string | null
           course_id: number | null
           created_at: string | null
+          filetype: string | null
           id: number | null
           professor_id: number | null
           resource_url: string | null
@@ -546,6 +556,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          filetype?: string | null
           id?: number | null
           professor_id?: number | null
           resource_url?: string | null
@@ -560,6 +571,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          filetype?: string | null
           id?: number | null
           professor_id?: number | null
           resource_url?: string | null
@@ -589,7 +601,61 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_public_course_content: {
+        Args: Record<PropertyKey, never> | { target_course_id: number }
+        Returns: {
+          batch: string | null
+          course_id: number | null
+          created_at: string | null
+          filetype: string | null
+          id: number | null
+          professor_id: number | null
+          resource_url: string | null
+          semester_number: number | null
+          tag_ids: number[] | null
+          title: string | null
+          user_id: string | null
+          visible: boolean | null
+          year: number | null
+        }[]
+      }
+      professor_course_list: {
+        Args: { limit_count?: number; offset_count?: number }
+        Returns: {
+          course_code: string
+          course_id: number
+          course_title: string
+          professor_email: string
+          professor_id: number
+          professor_name: string
+        }[]
+      }
+      professor_course_resources: {
+        Args: { limit_count?: number; offset_count?: number }
+        Returns: {
+          content_id: number
+          content_title: string
+          course_code: string
+          course_id: number
+          course_title: string
+          professor_email: string
+          professor_id: number
+          professor_name: string
+          resource_url: string
+          semester_number: number
+          year: number
+        }[]
+      }
+      top_contributors: {
+        Args: { limit_count?: number }
+        Returns: {
+          batch: string
+          contribution_count: number
+          full_name: string
+          profile_picture_url: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
