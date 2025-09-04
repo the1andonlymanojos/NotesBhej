@@ -116,12 +116,21 @@ export default function EditContentDialog({
     
     try {
       // Get upload URL
-      const response = await fetch("/api/update-url", {
+      // const response = await fetch("/api/update-url", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({
+      //     fileKey: content?.resource_url?.split('/').pop(),
+      //     fileType: newFile.type,
+      //   }),
+      // })
+
+      const response = await fetch("/api/get-upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fileKey: content?.resource_url?.split('/').pop(),
           fileType: newFile.type,
+          fileName: "really doesnt matter as we are using the filetype to generate the unique file name"
         }),
       })
 
