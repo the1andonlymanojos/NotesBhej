@@ -1299,7 +1299,23 @@ export default function CourseViewPage({
                                     <Edit className="h-3 w-3" />
                                   </Button>
                                 )}
+                                 {item.resource_url && (
+                                  <button
+                                    className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                    onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
+                                    aria-label="Download"
+                                  >
+                                    {downloadState[item.id || -1]?.active ? (
+                                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                                        {downloadState[item.id || -1]?.progress ?? 0}%
+                                      </span>
+                                    ) : (
+                                      <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                                    )}
+                                  </button>
+                                )}
                               </div>
+
                             </div>
                         
                           </div>
