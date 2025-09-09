@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
@@ -69,6 +69,8 @@ export default function CourseViewPage({
   const [isContentReady, setIsContentReady] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingContent, setEditingContent] = useState<CourseContent | null>(null)
+  const [downloadState, setDownloadState] = useState<Record<number, { progress: number, active: boolean }>>({})
+  const downloadControllers = useRef<Map<number, AbortController>>(new Map())
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -232,6 +234,104 @@ export default function CourseViewPage({
     const semesters = ['', 'Spring', 'Summer', 'Fall']
     return semesters[semesterNumber] || `Sem ${semesterNumber}`
   }
+
+  const buildFilename = (item: EnhancedContent, contentType?: string | null) => {
+    const safe = (item.title || 'file').replace(/[^a-z0-9\-_. ]/gi, '_')
+    const type = (item.filetype || contentType || '').toLowerCase()
+    if (!type) return safe + '.pdf'
+    if (type.includes('pdf')) return safe + '.pdf'
+    if (type.includes('word')) return safe + '.docx'
+    if (type.includes('sheet') || type.includes('excel')) return safe + '.xlsx'
+    if (type.includes('presentation') || type.includes('powerpoint')) return safe + '.pptx'
+    if (type.includes('text/plain')) return safe + '.txt'
+    if (type.includes('image/png')) return safe + '.png'
+    if (type.includes('image/jpeg')) return safe + '.jpg'
+    if (type.includes('image/jpg')) return safe + '.jpg'
+    if (type.includes('image/webp')) return safe + '.webp'
+    if (type.includes('application/zip')) return safe + '.zip'
+    return safe
+  }
+
+  const downloadWithProgress = async (item: EnhancedContent) => {
+    if (!item.id || !item.resource_url) return
+    const id = item.id
+    try {
+      setDownloadState(prev => ({ ...prev, [id]: { progress: 0, active: true } }))
+      const controller = new AbortController()
+      const existing = downloadControllers?.current?.get(id)
+      console.log(existing);
+      if (!downloadControllers.current) downloadControllers.current = new Map()
+      downloadControllers.current.set(id, controller)
+
+      const res = await fetch(item.resource_url, { signal: controller.signal })
+      if (!res.ok || !res.body) {
+        throw new Error('Failed to fetch file')
+      }
+
+      const contentType = res.headers.get('content-type')
+      const contentLength = res.headers.get('content-length')
+      const total = contentLength ? parseInt(contentLength, 10) : 0
+
+      const reader = res.body.getReader()
+      const chunks: Uint8Array[] = []
+      let received = 0
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (value) {
+          chunks.push(value)
+          received += value.length
+          if (total > 0) {
+            const pct = Math.min(99, Math.round((received / total) * 100))
+            setDownloadState(prev => ({ ...prev, [id]: { progress: pct, active: true } }))
+          }
+        }
+      }
+
+      const blob = new Blob(chunks, { type: contentType || item.filetype || 'application/pdf' })
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = buildFilename(item, contentType)
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+
+      setDownloadState(prev => ({ ...prev, [id]: { progress: 100, active: false } }))
+      downloadControllers.current.delete(id)
+      // Optionally clear after a delay
+      setTimeout(() => setDownloadState(prev => { const n = { ...prev }; delete n[id]; return n }), 1500)
+    } catch (e: any) {
+      downloadControllers.current.delete(id)
+      const aborted = e?.name === 'AbortError' || /aborted/i.test(String(e?.message || ''))
+      if (aborted) {
+        setDownloadState(prev => ({ ...prev, [id]: { progress: 0, active: false } }))
+      } else {
+        setDownloadState(prev => ({ ...prev, [id]: { progress: 0, active: false } }))
+        console.error('Download error', e)
+        alert('Failed to download file.')
+      }
+    }
+  }
+
+  const handleDownloadClick = (item: EnhancedContent) => {
+    if (!item.id || !item.resource_url) return
+    const id = item.id
+    const state = downloadState[id]
+    if (state?.active) {
+      const controller = downloadControllers.current.get(id)
+      controller?.abort()
+      downloadControllers.current.delete(id)
+      setDownloadState(prev => ({ ...prev, [id]: { progress: 0, active: false } }))
+      return
+    }
+    downloadWithProgress(item)
+  }
+  
+
+  
 
   // Helper function to get responsive semester text
   const getSemesterText = (semesterDisplay: string) => {
@@ -927,7 +1027,21 @@ export default function CourseViewPage({
                                 </span>
                               )}
                             </div>
-                            <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                            {item.resource_url && (
+                              <button
+                                className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
+                                aria-label="Download"
+                              >
+                                {downloadState[item.id || -1]?.active ? (
+                                  <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                                    {downloadState[item.id || -1]?.progress ?? 0}%
+                                  </span>
+                                ) : (
+                                  <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -966,6 +1080,7 @@ export default function CourseViewPage({
                   }`}
                   onClick={() => handleContentClick(item)}
                 >
+                  
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 sm:gap-2 mb-1">
                       <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
@@ -1032,7 +1147,21 @@ export default function CourseViewPage({
                           </span>
                         )}
                       </div>
-                      <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors" />
+                      {item.resource_url && (
+                        <button
+                          className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
+                          aria-label="Download"
+                        >
+                          {downloadState[item.id || -1]?.active ? (
+                            <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                              {downloadState[item.id || -1]?.progress ?? 0}%
+                            </span>
+                          ) : (
+                            <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -1144,6 +1273,7 @@ export default function CourseViewPage({
                           }`}
                           onClick={() => handleContentClick(item)}
                         >
+                          
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 sm:gap-2 mb-1">
                               <h4 className="text-xs sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
@@ -1190,6 +1320,8 @@ export default function CourseViewPage({
                             }`}
                             onClick={() => handleContentClick(item)}
                           >
+                            
+                            
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 sm:gap-2 mb-1">
                                 <h4 className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100 truncate flex-1 leading-tight">
@@ -1246,7 +1378,21 @@ export default function CourseViewPage({
                                     </span>
                                   )}
                                 </div>
-                                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
+                                {item.resource_url && (
+                                  <button
+                                    className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                    onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
+                                    aria-label="Download"
+                                  >
+                                    {downloadState[item.id || -1]?.active ? (
+                                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                                        {downloadState[item.id || -1]?.progress ?? 0}%
+                                      </span>
+                                    ) : (
+                                      <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                                    )}
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1287,6 +1433,8 @@ export default function CourseViewPage({
             </motion.div>
           )}
         </AnimatePresence>
+
+        
 
         {/* PDF Viewer Modal */}
         {showViewer && (
