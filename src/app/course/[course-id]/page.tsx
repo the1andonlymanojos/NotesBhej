@@ -7,7 +7,6 @@ const SITE_URL = "https://notesbhej.manoj-shiv.tech";
 export async function generateMetadata({
   params,
 }: {
-  // keep signature as you have it — support for params being a Promise
   params: Promise<{ "course-id": string }>;
 }): Promise<Metadata> {
   // support both Promise and plain object
@@ -23,6 +22,40 @@ export async function generateMetadata({
     .select("*")
     .eq("id", courseId)
     .single();
+
+  // Query all course content for this course to get professor ids
+  const { data: allContent, error: allContentError } = await supabase
+    .from("course_contentnew")
+    .select("professor_id")
+    .eq("course_id", courseId);
+
+  let professorNames: string[] = [];
+  if (allContent && allContent.length > 0) {
+    // Get unique professor ids (filter out nulls)
+    const profIds = Array.from(
+      new Set(
+        allContent
+          .map((c: any) => c.professor_id)
+          .filter((id: any) => id !== null && id !== undefined)
+      )
+    );
+    console.log(profIds)
+
+    if (profIds.length > 0) {
+      // Query professors table for their names
+      const { data: profs, error: profsError } = await supabase
+        .from("professorsnew")
+        .select("name")
+        .in("id", profIds);
+
+        console.log(profsError, allContentError)
+      if (profs && profs.length > 0) {
+        professorNames = profs.map((p: any) => p.name).filter(Boolean);
+      }
+    }
+
+    console.log(professorNames);
+  }
 
   if (!course || courseError) {
     // not found -> show "not found" metadata and tell crawlers not to index
@@ -44,12 +77,14 @@ export async function generateMetadata({
     .limit(1)
     .single();
 
-    console.log(contentError)
+  console.log(coursecontent,contentError)
+  // Build professor names string for metadata
+  const profNamesStr = professorNames.length > 0 ? ` (Professors: ${professorNames.join(", ")})` : "";
+
   // build descriptive title + description
-  const title = `${course.title} | NotesBhej`;
+  const title = `${course.title}${profNamesStr} | NotesBhej`;
   const shortDescParts = [];
   if (course.abbreviation) shortDescParts.push(course.abbreviation);
-  // course.code may exist per your schema
   if ((course as any).code) shortDescParts.push((course as any).code);
   const shortMeta = shortDescParts.length ? ` (${shortDescParts.join(" • ")})` : "";
 
@@ -57,14 +92,13 @@ export async function generateMetadata({
     (coursecontent?.title
       ? `${coursecontent.title} — `
       : "") +
-    `Notes, resources and uploads for ${course.title}${shortMeta}. Find semester-wise PDFs, notes and professor uploads.`;
+    `Notes, resources and uploads for ${course.title}${shortMeta}${profNamesStr}. Find semester-wise PDFs, notes and professor uploads.`;
 
   // OG image pattern: prefer course-specific image if you have one; else fallback
   // If you plan to generate social preview images dynamically create an API endpoint like /api/og?courseId=...
   const ogImage =
-    // if you have an og_image field: course.og_image
     (course as any).og_image ||
-    `${SITE_URL}/api/og?title=${encodeURIComponent(course.title)}&type=course&prof=${encodeURIComponent(course.professor)}`;
+    `${SITE_URL}/api/og?title=${encodeURIComponent(course.title)}&type=course&prof=${encodeURIComponent(professorNames.join(", "))}`;
 
   const canonical = `${SITE_URL}/course/${courseId}`;
 
@@ -76,6 +110,7 @@ export async function generateMetadata({
       course.abbreviation ?? "",
       (course as any).code ?? "",
       coursecontent?.title ?? "",
+      ...professorNames,
     ]
       .filter(Boolean)
       .join(", "),
@@ -88,7 +123,6 @@ export async function generateMetadata({
       url: canonical,
       siteName: "NotesBhej",
       type: "article",
-      // next's Metadata expects images to be an object or an array of objects
       images: [
         {
           url: ogImage,
@@ -115,6 +149,5 @@ export default function CourseViewPage2({
 }: {
   params: Promise<{ "course-id": string }>
 }) {
-  
   return <CourseViewPage params={params} />
 }                           
