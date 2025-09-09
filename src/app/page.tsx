@@ -106,6 +106,8 @@ export default function HomePage() {
     admin_request: false
   })
 
+ console.log(userMeta, formData)
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser()
