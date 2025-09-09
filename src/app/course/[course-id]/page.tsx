@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
 
 
-const SITE_URL = "http://localhost:3000";
+const SITE_URL = "https://notesbhej.manoj-shiv.tech";
 export async function generateMetadata({
   params,
 }: {
