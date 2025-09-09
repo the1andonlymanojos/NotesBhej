@@ -21,6 +21,7 @@ import {
 
 import { User as SupabaseUser } from "@supabase/supabase-js"
 
+type UserMeta = Database['public']['Tables']['user_meta']['Row']
 type CourseNew = Database['public']['Tables']['coursenew']['Row']
 //type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
 //type logbook = Database['public']['Tables']['user_course_interaction']['Row']
@@ -97,6 +98,108 @@ export default function HomePage() {
   const [professorCurrentPage, setProfessorCurrentPage] = useState(1)
   const [totalProfessorEntries, setTotalProfessorEntries] = useState(0)
   const [isNavigating, setIsNavigating] = useState(false)
+  const [userMeta, setUserMeta] = useState<UserMeta | null>(null)
+  const [formData, setFormData] = useState({
+    full_name: "",
+    batch: "",
+    role: "",
+    admin_request: false
+  })
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      
+      if (error || !user) {
+        router.push("/")
+        return
+      }
+      console.log("User found:", user)
+      setUser(user)
+      await fetchUserMeta(user.id, user)
+    }
+
+    getUser()
+  }, [router, supabase])
+
+  const fetchUserMeta = async (userId: string, user: SupabaseUser) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_meta")
+        .select("*")
+        .eq("user_id", userId)
+        .single()
+
+      if (error && error.code === 'PGRST116') {
+        // No entry found, create one
+        console.log("No user_meta entry found, creating one...")
+        await createUserMetaEntry(userId, user)
+        return
+      }
+
+      if (error) {
+        console.error("Error fetching user meta:", error)
+        return
+      }
+
+      setUserMeta(data)
+      setFormData({
+        full_name: data.full_name || "",
+        batch: data.batch || "",
+        role: data.role || "",
+        admin_request: data.admin_request || false
+      })
+    } catch (error) {
+      console.error("Error:", error)
+    }
+  }
+
+  const createUserMetaEntry = async (userId: string, user: SupabaseUser) => {
+    if (!user) {
+        console.log("No user found")
+        return
+    }
+    console.log("Creating user meta entry for user:", user)
+
+    try {
+      // Get user name from metadata or derive from email
+      const fullName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name || 
+                      user.email?.split('@')[0] || 
+                      'User'
+
+      const newUserMeta = {
+        user_id: userId,
+        full_name: fullName,
+        role: 'student',
+        admin_request: false,
+        profile_picture_url: user.user_metadata?.avatar_url || null,
+        batch: null,
+      }
+
+      const { data, error } = await supabase
+        .from("user_meta")
+        .insert(newUserMeta)
+        .select()
+        .single()
+
+      if (error) {
+        console.error("Error creating user meta:", error)
+        return
+      }
+
+      console.log("Created user_meta entry:", data)
+      setUserMeta(data)
+      setFormData({
+        full_name: data.full_name || "",
+        batch: data.batch || "",
+        role: data.role || "",
+        admin_request: data.admin_request || false
+      })
+    } catch (error) {
+      console.error("Error creating user meta entry:", error)
+    }
+  }
 
   // Add view mode state (will be hydrated from localStorage after mount)
   const [viewMode, setViewMode] = useState<'list' | 'professor'>('list')
