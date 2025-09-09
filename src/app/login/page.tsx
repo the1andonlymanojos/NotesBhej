@@ -1,14 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { BookOpen } from "lucide-react"
 
 export default function LoginPage() {
-  const router = useRouter()
+
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
@@ -90,24 +89,7 @@ export default function LoginPage() {
             </div>
           </Button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-300 dark:border-zinc-700"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400">
-                or
-              </span>
-            </div>
-          </div>
 
-          <Button
-            onClick={() => router.push('/')}
-            variant="outline"
-            className="w-full border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 h-12"
-          >
-            Continue as Guest
-          </Button>
         </div>
 
         <p className="mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
