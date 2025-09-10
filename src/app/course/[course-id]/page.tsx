@@ -1,7 +1,28 @@
 import CourseViewPage from "./page-client"
 import { Metadata } from "next";
-import { createClient } from "@/utils/supabase/server";
+import { createClient as cl } from "@supabase/supabase-js";
+export const revalidate = 3600; 
 
+
+export async function generateStaticParams() {
+    console.log("YO IM RUNNING AND GETTING COURSE IDS")
+  
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var");
+}
+const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  // optional global opts
+});;
+
+
+  // Fetch IDs you want pre-built (top 1000 popular courses, etc.)
+  const { data } = await supabase.from("coursenew").select("id").limit(1000);
+  console.log(data);
+  return (data || []).map((c: any) => ({ "course-id": String(c.id) }));
+}
 
 const SITE_URL = "https://notesbhej.manoj-shiv.tech";
 export async function generateMetadata({
@@ -14,7 +35,16 @@ export async function generateMetadata({
   const courseIdStr = p["course-id"];
   const courseId = Number(courseIdStr); // your ids are numeric in DB
 
-  const supabase = await createClient();
+  
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var");
+}
+const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  // optional global opts
+});;
 
   // fetch course
   const { data: course, error: courseError } = await supabase
@@ -24,8 +54,8 @@ export async function generateMetadata({
     .single();
 
   // Query all course content for this course to get professor ids
-  const { data: allContent, error: allContentError } = await supabase
-    .from("course_contentnew")
+  const { data: allContent } = await supabase
+    .from("course_contentnew_safe")
     .select("professor_id")
     .eq("course_id", courseId);
 
@@ -39,22 +69,22 @@ export async function generateMetadata({
           .filter((id: any) => id !== null && id !== undefined)
       )
     );
-    console.log(profIds)
+    //console.log(profIds)
 
     if (profIds.length > 0) {
       // Query professors table for their names
-      const { data: profs, error: profsError } = await supabase
+      const { data: profs} = await supabase
         .from("professorsnew")
         .select("name")
         .in("id", profIds);
 
-        console.log(profsError, allContentError)
+        //console.log(profsError, allContentError)
       if (profs && profs.length > 0) {
         professorNames = profs.map((p: any) => p.name).filter(Boolean);
       }
     }
 
-    console.log(professorNames);
+    //console.log(professorNames);
   }
 
   if (!course || courseError) {
@@ -71,13 +101,10 @@ export async function generateMetadata({
 
   // fetch one piece of content to use in description (you can fetch more if needed)
   const { data: coursecontent, error: contentError } = await supabase
-    .from("course_contentnew")
-    .select("*")
-    .eq("course_id", courseId)
-    .limit(1)
-    .single();
+  .rpc("get_public_course_content", { target_course_id: courseId })
 
-  console.log(coursecontent,contentError)
+  console.log("coursecontent",coursecontent)
+  console.log("contentError",contentError)
   // Build professor names string for metadata
   const profNamesStr = professorNames.length > 0 ? ` (Professors: ${professorNames.join(", ")})` : "";
 
@@ -86,14 +113,11 @@ export async function generateMetadata({
   const shortDescParts = [];
   if (course.abbreviation) shortDescParts.push(course.abbreviation);
   if ((course as any).code) shortDescParts.push((course as any).code);
-  const shortMeta = shortDescParts.length ? ` (${shortDescParts.join(" • ")})` : "";
 
   const description =
-    (coursecontent?.title
-      ? `${coursecontent.title} — `
-      : "") +
-    `Notes, resources and uploads for ${course.title}${shortMeta}${profNamesStr}. Find semester-wise PDFs, notes and professor uploads.`;
+    `Notes, resources and uploads for ${course.title} •${profNamesStr}. Find semester-wise PDFs, notes and professor uploads.`;
 
+   // console.log(description)
   // OG image pattern: prefer course-specific image if you have one; else fallback
   // If you plan to generate social preview images dynamically create an API endpoint like /api/og?courseId=...
   const ogImage =
@@ -144,10 +168,52 @@ export async function generateMetadata({
   };
 }
 
-export default function CourseViewPage2({
+export default async function CourseViewPage2({
   params,
 }: {
   params: Promise<{ "course-id": string }>
 }) {
-  return <CourseViewPage params={params} />
+  const courseId = Number((await params)["course-id"]);
+  
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var");
+}
+const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  // optional global opts
+});;
+  // Fetch course and content server-side (these are run at build time for IDs returned by generateStaticParams,
+  // and at request-time (SSR) for IDs not pre-built — then cached per `revalidate`).
+  const [{ data: course }, { data: content, error: err, data: coursecontent, error: contentError }] = await Promise.all([
+    supabase.from("coursenew").select("*").eq("id", courseId).single(),
+    supabase.rpc("get_public_course_content", { target_course_id: courseId }),
+  ]);
+  console.log("err",err)
+  console.log("contentError",contentError)
+  console.log("coursecontent",coursecontent)
+  if (!course) {
+    // return notFound() in Next.js if you want 404
+    return <div>Course not found</div>;
+  }
+
+  // Gather professors (if you want to show names)
+  const profIds = Array.from(new Set((content || []).map((c: any) => c.professor_id).filter(Boolean)));
+  let professors: any[] = [];
+  if (profIds.length) {
+    const { data: profs } = await supabase.from("professorsnew").select("id,name").in("id", profIds);
+    professors = profs || [];
+  }
+
+  //log all the parametes: 
+  console.log("Course", course)
+  console.log("Content", coursecontent)
+  console.log("Professors", professors)
+  console.log("Course ID", courseId)
+  //console.log("Params", params)
+
+  return <CourseViewPage params={params} serverCourse={course}
+  serverContent={content}
+  serverProfessors={professors} />
 }                           

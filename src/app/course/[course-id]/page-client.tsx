@@ -33,15 +33,21 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
 
 export default function CourseViewPage({
   params,
+  serverCourse,
+  serverContent,
+  serverProfessors,
 }: {
-  params: Promise<{ "course-id": string }>
+  params: Promise<{ "course-id": string }>,
+  serverCourse?: CourseNew | null,
+  serverContent?: (Course_content_anon | Course_content_user)[],
+  serverProfessors?: Professor[],
 }) {
   const router = useRouter()
   const courseId = use(params)["course-id"]
-  const [course, setCourse] = useState<CourseNew | null>(null)
-  const [content, setContent] = useState<(Course_content_anon | Course_content_user)[]>([])
+  const course = serverCourse || null
+  const [content, setContent] = useState<(Course_content_anon | Course_content_user)[]>(serverContent || [])
+  const professors = serverProfessors || []
   const [enhancedContent, setEnhancedContent] = useState<EnhancedContent[]>([])
-  const [professors, setProfessors] = useState<Professor[]>([])
   const [tags, setTags] = useState<Tag[]>([])
   const [search, setSearch] = useState("")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -364,8 +370,37 @@ export default function CourseViewPage({
     return { text: "Hidden", icon: "eye-off" }
   }
 
+  // Initialize enhanced content from server props
   useEffect(() => {
-    const fetchCourseData = async () => {
+    if (content.length > 0 && professors.length > 0) {
+      // Create enhanced content with resolved professor names and tags
+      const enhanced = content.map((item: Course_content_anon | Course_content_user) => {
+        const professor = professors.find(p => p.id === item.professor_id)
+        const itemTags = item.tag_ids && tags.length > 0 ? 
+          tags.filter((tag: Tag) => item.tag_ids!.includes(tag.id)).map(tag => tag.name) : 
+          []
+        
+        return {
+          ...item,
+          professor_name: professor?.name,
+          tag_names: itemTags,
+          semester_display: getSemesterDisplay(item.semester_number || 0)
+        }
+      })
+      setEnhancedContent(enhanced)
+      
+      // Extract unique tag names for filtering
+      const uniqueTags = new Set<string>()
+      enhanced.forEach((item: any) => {
+        item.tag_names?.forEach((tag: string) => uniqueTags.add(tag))
+      })
+      setAvailableTags(Array.from(uniqueTags))
+    }
+  }, [content, professors, tags])
+
+  // Fetch tags and handle user authentication
+  useEffect(() => {
+    const fetchClientData = async () => {
       try {
         // Check if user is authenticated
         const { data: { user } } = await supabase.auth.getUser()
@@ -377,81 +412,33 @@ export default function CourseViewPage({
           logUserInteraction('view')
         }
 
-        // Fetch course data
-        const { data: courseData } = await supabase
-          .from("coursenew")
-          .select("*")
-          .eq("id", courseId)
-          .single()
-
-        // Fetch content data based on authentication status
-        let contentData, contentError
-        if (isAuthenticated) {
-          ({ data: contentData, error: contentError } = await supabase
-            .from("course_contentnew_user")
-            .select("*")
-            .eq("course_id", courseId)
-            .order("year", { ascending: true })
-          )
-        } else {
-          // Use the new function for public content
-          const { data, error } = await supabase
-            .rpc("get_public_course_content", { target_course_id: courseId })
-          contentData = data 
-          contentError = error
-          console.log(data)
-        }
-
-        if (contentError) {
-          console.error("Error fetching content data:", contentError)
-        }
-
-        // Fetch all professors
-        const { data: professorsData } = await supabase
-          .from("professorsnew")
-          .select("*")
-
-        // Fetch all tags
+        // Fetch tags (needed for filtering and enhanced content)
         const { data: tagsData } = await supabase
           .from("tags")
           .select("*")
 
-        setCourse(courseData)
-        setContent(contentData || [])
-        setProfessors(professorsData || [])
         setTags(tagsData || [])
 
-        // Create enhanced content with resolved professor names and tags
-        if (contentData && professorsData && tagsData) {
-          const enhanced = contentData.map((item: Course_content_anon | Course_content_user) => {
-            const professor = professorsData.find(p => p.id === item.professor_id)
-            const itemTags = item.tag_ids ? 
-              tagsData.filter((tag: Tag) => item.tag_ids!.includes(tag.id)).map(tag => tag.name) : 
-              []
-            
-            return {
-              ...item,
-              professor_name: professor?.name,
-              tag_names: itemTags,
-              semester_display: getSemesterDisplay(item.semester_number || 0)
-            }
-          })
-          setEnhancedContent(enhanced)
-          
-          // Extract unique tag names for filtering
-          const uniqueTags = new Set<string>()
-          enhanced.forEach((item: any) => {
-            item.tag_names?.forEach((tag: string) => uniqueTags.add(tag))
-          })
-          setAvailableTags(Array.from(uniqueTags))
+        // If user is authenticated and we have server content, we might need to refetch for user-specific data
+        if (isAuthenticated && serverContent && serverContent.length > 0) {
+          // Check if we need to fetch user-specific content (with resource URLs)
+          const { data: userContentData, error: contentError } = await supabase
+            .from("course_contentnew_user")
+            .select("*")
+            .eq("course_id", courseId)
+            .order("year", { ascending: true })
+
+          if (!contentError && userContentData) {
+            setContent(userContentData)
+          }
         }
       } catch (error) {
-        console.error("Error fetching course data:", error)
+        console.error("Error fetching client data:", error)
       }
     }
 
-    fetchCourseData()
-  }, [courseId, supabase])
+    fetchClientData()
+  }, [courseId, supabase, serverContent])
 
   // Check if course is pinned
   useEffect(() => {
@@ -486,14 +473,14 @@ export default function CourseViewPage({
 
   // Set content as ready after a delay to allow animations to complete
   useEffect(() => {
-    if (course && enhancedContent.length > 0) {
+    if ((course || serverCourse) && enhancedContent.length > 0) {
       const timer = setTimeout(() => {
         setIsContentReady(true)
-      }, 100) // Wait 1 second for animations to settle
+      }, 100) // Wait 100ms for animations to settle
       
       return () => clearTimeout(timer)
     }
-  }, [course, enhancedContent])
+  }, [course, serverCourse, enhancedContent])
 
   // Toggle pin status
   const togglePin = async () => {
@@ -563,7 +550,7 @@ export default function CourseViewPage({
     }
   }, [sortBy])
 
-  if (!course) {
+  if (!course && !serverCourse) {
     return (
       <motion.div 
         initial={{ opacity: 0 }}
@@ -827,7 +814,7 @@ export default function CourseViewPage({
               </Button>
               <div>
               <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight break-words">
-                {course.title}
+                {(course || serverCourse)?.title}
               </h1>
             </div>
             </div>
@@ -855,11 +842,11 @@ export default function CourseViewPage({
             </Button>
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl lg:text-3xl font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
-                {course.title}
+                {(course || serverCourse)?.title}
               </h1>
-              {course.abbreviation && (
+              {(course || serverCourse)?.abbreviation && (
                 <p className="text-zinc-600 dark:text-zinc-400 mt-1 text-base">
-                  {course.abbreviation}
+                  {(course || serverCourse)?.abbreviation}
                 </p>
               )}
             </div>
