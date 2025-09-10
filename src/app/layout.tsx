@@ -6,7 +6,6 @@ import { Toaster } from "sonner"
 import { Footer } from "@/components/footer"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next"
-import SWRegister from "@/components/sw-register"
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -49,7 +48,6 @@ export default function RootLayout({
         </ThemeProvider>
         <SpeedInsights />
         <Analytics />
-        <SWRegister />
       </body>
     </html>
   )
