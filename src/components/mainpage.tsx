@@ -432,11 +432,6 @@ const allCourses = initialData.allCourses
 
   // Add function to fetch professor courses
   const fetchProfessorCourses = async () => {
-    // Skip fetching if we're on page 1 and already have initial data
-    if (professorCurrentPage === 1 && professorCourses.length > 0) {
-      return
-    }
-    
     setProfessorCoursesLoading(true)
     try {
       // Get paginated data
@@ -504,11 +499,6 @@ const allCourses = initialData.allCourses
 
   useEffect(() => {
     const fetchCourses = async () => {
-      // Skip fetching if we're on page 1 and already have initial data
-      if (currentPage === 1 && courses.length > 0) {
-        return
-      }
-      
       setLoading(true)
       
       // Get paginated data
