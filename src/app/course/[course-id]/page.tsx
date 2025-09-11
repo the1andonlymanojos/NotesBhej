@@ -32,6 +32,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   // support both Promise and plain object
   const p = await params;
+  console.log("p",p);
   const courseIdStr = p["course-id"];
   console.log("courseIdStr", courseIdStr)
   const courseId = Number(courseIdStr); // your ids are numeric in DB
