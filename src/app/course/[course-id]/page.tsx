@@ -33,9 +33,11 @@ export async function generateMetadata({
   // support both Promise and plain object
   const p = await params;
   const courseIdStr = p["course-id"];
+  console.log("courseIdStr", courseIdStr)
   const courseId = Number(courseIdStr); // your ids are numeric in DB
+  console.log("courseId", courseId)
 
-  
+
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
 

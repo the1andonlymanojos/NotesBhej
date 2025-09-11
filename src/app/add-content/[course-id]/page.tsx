@@ -401,8 +401,17 @@ export default function AddContentPage({
             <Button
               onClick={() => {
                 console.log("PUSHING TO COURSE", courseId)
-                
-                router.push(`/course/${courseId}`)}}
+                const str = "30"
+                console.log(`/course/${courseId}`)
+
+                console.log(`/course/${str}`)
+
+                router.push(`/course/${courseId}`)
+              
+              
+              
+              
+              }}
               variant="outline"
               size="sm"
               className="border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50"
