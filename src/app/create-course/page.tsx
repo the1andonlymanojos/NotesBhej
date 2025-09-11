@@ -72,6 +72,8 @@ function CreateCourseForm() {
       .insert([{ title: title.trim(), code: "NA", abbreviation: description.trim() }])
       .select() // This will return the inserted row(s)
     console.log(data)
+    const id = data?.[0]?.id ?? 0;
+    console.log("ID", id);
     console.log(error)
     if (error) {
       alert("Error creating course." + error)
@@ -81,7 +83,11 @@ function CreateCourseForm() {
     setLoading(false)
     // Defensive: data could be null or empty, so check before accessing [0].id
     if (data && data.length > 0) {
-      router.push(`/add-content/${data[0].id}`)
+
+      console.log("data", data)
+
+      //wait for 5 seconds, so that the course is created, show a countdown as well
+      router.push(`/add-content/${id}`)
     } else {
       alert("Course created, but could not retrieve new course ID.")
     }
