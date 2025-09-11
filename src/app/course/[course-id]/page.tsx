@@ -1,4 +1,4 @@
-import CourseViewPage from "./page-client"
+import CourseViewPage from "../../../components/page-client"
 import { Metadata } from "next";
 import { createClient as cl } from "@supabase/supabase-js";
 export const revalidate = 3600; 
@@ -25,6 +25,9 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 }
 
 const SITE_URL = "https://notesbhej.manoj-shiv.tech";
+
+
+
 export async function generateMetadata({
   params,
 }: {
@@ -176,8 +179,11 @@ export default async function CourseViewPage2({
 }: {
   params: Promise<{ "course-id": string }>
 }) {
+  const param = await params;
+  console.log("param", param)
+  console.log("param course-id", param["course-id"])
   const courseId = Number((await params)["course-id"]);
-  console.log("coursid", courseId)
+  console.log("coursid in course page", courseId)
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
 
