@@ -193,10 +193,7 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   console.log("err",err)
   console.log("contentError",contentError)
   console.log("coursecontent",coursecontent)
-  if (!course) {
-    // return notFound() in Next.js if you want 404
-    return <div>Course not found</div>;
-  }
+  
 
   // Gather professors (if you want to show names)
   const profIds = Array.from(new Set((content || []).map((c: any) => c.professor_id).filter(Boolean)));
