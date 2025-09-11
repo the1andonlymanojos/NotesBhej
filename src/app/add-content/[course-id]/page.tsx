@@ -399,7 +399,10 @@ export default function AddContentPage({
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
             <Button
-              onClick={() => router.push(`/course/${courseId}`)}
+              onClick={() => {
+                console.log("PUSHING TO COURSE", courseId)
+                
+                router.push(`/course/${courseId}`)}}
               variant="outline"
               size="sm"
               className="border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50"
