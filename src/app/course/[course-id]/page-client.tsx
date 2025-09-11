@@ -919,7 +919,7 @@ if(pinnedData?.length){
 
         {/* Recently Viewed Section */}
         <AnimatePresence>
-          {currentUserId && recentlyViewed.length > 0 && isContentReady && (
+          { true && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
