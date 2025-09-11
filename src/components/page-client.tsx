@@ -37,13 +37,13 @@ export default function CourseViewPage({
   serverContent,
   serverProfessors,
 }: {
-  params: Promise<{ "course-id": string }>,
+  params: Promise<{ "slugg": string }>,
   serverCourse?: CourseNew | null,
   serverContent?: (Course_content_anon | Course_content_user)[],
   serverProfessors?: Professor[],
 }) {
   const router = useRouter()
-  const courseId = use(params)["course-id"]
+  const courseId = use(params)["slugg"]
   const course = serverCourse || null
   const [content, setContent] = useState<(Course_content_anon | Course_content_user)[]>(serverContent || [])
   const professors = serverProfessors || []

@@ -21,7 +21,7 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   // Fetch IDs you want pre-built (top 1000 popular courses, etc.)
   const { data } = await supabase.from("coursenew").select("id").limit(1000);
   console.log(data);
-  return (data || []).map((c: any) => ({ "course-id": String(c.id) }));
+  return (data || []).map((c: any) => ({ "slugg": String(c.id) }));
 }
 
 const SITE_URL = "https://notesbhej.manoj-shiv.tech";
@@ -31,12 +31,12 @@ const SITE_URL = "https://notesbhej.manoj-shiv.tech";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ "course-id": string }>;
+  params: Promise<{ "slugg": string }>;
 }): Promise<Metadata> {
   // support both Promise and plain object
   const p = await params;
   console.log("p",p);
-  const courseIdStr = p["course-id"];
+  const courseIdStr = p["slugg"];
   console.log("courseIdStr", courseIdStr)
   const courseId = Number(courseIdStr); // your ids are numeric in DB
   console.log("courseId", courseId)
@@ -177,12 +177,12 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 export default async function CourseViewPage2({
   params,
 }: {
-  params: Promise<{ "course-id": string }>
+  params: Promise<{ "slugg": string }>
 }) {
   const param = await params;
   console.log("param", param)
-  console.log("param course-id", param["course-id"])
-  const courseId = Number((await params)["course-id"]);
+  console.log("param course-id", param["slugg"])
+  const courseId = Number((await params)["slugg"]);
   console.log("coursid in course page", courseId)
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
