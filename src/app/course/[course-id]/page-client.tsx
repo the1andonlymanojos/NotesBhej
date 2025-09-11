@@ -453,7 +453,8 @@ export default function CourseViewPage({
           .eq("user_id", user.id)
           .eq("course_id", courseId)
 
-        setIsPinned(!!pinnedData)
+
+        setIsPinned(pinnedData?.length! > 0)
       } catch (error) {
         // Not pinned or error, keep as false
         console.log(error)
