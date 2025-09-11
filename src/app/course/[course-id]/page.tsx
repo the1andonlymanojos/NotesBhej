@@ -174,7 +174,7 @@ export default async function CourseViewPage2({
   params: Promise<{ "course-id": string }>
 }) {
   const courseId = Number((await params)["course-id"]);
-  
+  console.log("coursid", courseId)
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
 
