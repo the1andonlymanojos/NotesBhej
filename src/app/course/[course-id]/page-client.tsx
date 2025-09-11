@@ -323,6 +323,10 @@ export default function CourseViewPage({
   }
 
   const handleDownloadClick = (item: EnhancedContent) => {
+    if(!item.resource_url){
+      setShowLoginDialog(true)
+      return
+    }
     if (!item.id || !item.resource_url) return
     const id = item.id
     const state = downloadState[id]
@@ -660,11 +664,13 @@ if(pinnedData?.length){
   }, {} as Record<string, EnhancedContent[]>)
 
   const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    )
+    setSelectedTags(prev => {
+      // Single-select: clicking a tag selects only that tag; clicking it again clears selection
+      if (prev.length === 1 && prev[0] === tag) {
+        return []
+      }
+      return [tag]
+    })
   }
 
   const toggleGroupExpansion = (groupKey: string) => {
@@ -1020,7 +1026,7 @@ if(pinnedData?.length){
                             </div>
                             {item.resource_url && (
                               <button
-                                className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
                                 onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
                                 aria-label="Download"
                               >
@@ -1029,7 +1035,7 @@ if(pinnedData?.length){
                                     {downloadState[item.id || -1]?.progress ?? 0}%
                                   </span>
                                 ) : (
-                                  <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                                  <Download className="h-5 w-5 sm:h-5 sm:w-5" />
                                 )}
                               </button>
                             )}
@@ -1140,7 +1146,7 @@ if(pinnedData?.length){
                       </div>
                       {item.resource_url && (
                         <button
-                          className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors"
+                          className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors"
                           onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
                           aria-label="Download"
                         >
@@ -1149,7 +1155,7 @@ if(pinnedData?.length){
                               {downloadState[item.id || -1]?.progress ?? 0}%
                             </span>
                           ) : (
-                            <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <Download className="h-5 w-5 sm:h-5 sm:w-5" />
                           )}
                         </button>
                       )}
@@ -1292,7 +1298,7 @@ if(pinnedData?.length){
                                 )}
                                  {item.resource_url && (
                                   <button
-                                    className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                    className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
                                     onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
                                     aria-label="Download"
                                   >
@@ -1301,7 +1307,7 @@ if(pinnedData?.length){
                                         {downloadState[item.id || -1]?.progress ?? 0}%
                                       </span>
                                     ) : (
-                                      <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                                      <Download className="h-5 w-5 sm:h-5 sm:w-5" />
                                     )}
                                   </button>
                                 )}
@@ -1354,6 +1360,21 @@ if(pinnedData?.length){
                                       <Edit className="h-3 w-3" />
                                     </Button>
                                   )}
+                                   {(
+                                  <button
+                                    className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                    onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
+                                    aria-label="Download"
+                                  >
+                                    {downloadState[item.id || -1]?.active ? (
+                                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                                        {downloadState[item.id || -1]?.progress ?? 0}%
+                                      </span>
+                                    ) : (
+                                      <Download className="h-5 w-5 dark:text-zinc-200" />
+                                    )}
+                                  </button>
+                                )}
                                 </div>
                               </div>
                               <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
@@ -1371,35 +1392,8 @@ if(pinnedData?.length){
                                       </span>
                                     )
                                   })()}
-                                  {item.tag_names?.slice(0, 2).map((tag: string, index: number) => (
-                                    <span
-                                      key={index}
-                                      className="px-1.5 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {item.tag_names && item.tag_names.length > 2 && (
-                                    <span className="px-1.5 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-full">
-                                      +{item.tag_names.length - 2}
-                                    </span>
-                                  )}
+                               
                                 </div>
-                                {item.resource_url && (
-                                  <button
-                                    className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
-                                    onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
-                                    aria-label="Download"
-                                  >
-                                    {downloadState[item.id || -1]?.active ? (
-                                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
-                                        {downloadState[item.id || -1]?.progress ?? 0}%
-                                      </span>
-                                    ) : (
-                                      <Download className="h-4 w-4 sm:h-5 sm:w-5" />
-                                    )}
-                                  </button>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -1438,10 +1432,10 @@ if(pinnedData?.length){
             </div>
           )}
             </motion.div>
-          )}
+        )}
         </AnimatePresence>
 
-        
+              
 
         {/* PDF Viewer Modal */}
         {showViewer && (
