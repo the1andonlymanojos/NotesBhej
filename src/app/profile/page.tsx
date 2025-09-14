@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
-import { User } from '@supabase/supabase-js'
+import { Provider, User } from '@supabase/supabase-js'
 import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,15 +11,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Database } from "@/types/supabase"
-import { ChevronDown, ChevronRight, Edit, ExternalLink, Calendar, Users, Github, Link, Unlink } from "lucide-react"
+import {  Github, Link, Unlink, Trophy, Plus, Twitch } from "lucide-react"
+import { toast } from "sonner"
+
+// Provider configuration
+const PROVIDERS: { id: string; label: string; Icon?: any }[] = [
+  { id: 'github', label: 'GitHub', Icon: Github },
+  { id: 'google', label: 'Google' /* add icon if you want */ },
+  { id: 'spotify', label: 'Spotify' /* add icon if you want */ },
+  {id: 'twitch', label: 'Twitch', Icon: Twitch },
+  {id: 'discord', label:'Discord'
+  },
+  // add more providers here as needed
+]
 
 type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
-type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
-type Course = Database["public"]["Tables"]["coursenew"]["Row"]
 
-interface ContributionWithCourse extends CourseContent {
-  course: Course | null
-}
+
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -28,14 +36,6 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
   const [uploadingPfp, setUploadingPfp] = useState(false)
-  const [contributions, setContributions] = useState<ContributionWithCourse[]>([])
-  const [loadingContributions, setLoadingContributions] = useState(false)
-  const [expandedCourses, setExpandedCourses] = useState<Set<number>>(new Set())
-  const [editingContribution, setEditingContribution] = useState<number | null>(null)
-  const [selectedContributions, setSelectedContributions] = useState<Set<number>>(new Set())
-  const [showBatchEdit, setShowBatchEdit] = useState(false)
-  const [availableTags, setAvailableTags] = useState<{id: number, name: string}[]>([])
-  const [updatingTags, setUpdatingTags] = useState(false)
   const [identities, setIdentities] = useState<any[]>([])
   const [loadingIdentities, setLoadingIdentities] = useState(false)
   const [linkingAccount, setLinkingAccount] = useState(false)
@@ -61,8 +61,6 @@ export default function ProfilePage() {
       console.log("User found:", user)
       setUser(user)
       await fetchUserMeta(user.id, user)
-      await fetchUserContributions(user.id)
-      await fetchAvailableTags()
       await fetchUserIdentities()
       setLoading(false)
     }
@@ -149,201 +147,111 @@ export default function ProfilePage() {
     }
   }
 
-  const fetchUserContributions = async (userId: string) => {
-    setLoadingContributions(true)
-    try {
-      const { data, error } = await supabase
-        .from("course_contentnew")
-        .select(`
-          *,
-          course:coursenew(*)
-        `)
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Error fetching contributions:", error)
-        return
-      }
-
-      setContributions(data || [])
-    } catch (error) {
-      console.error("Error fetching contributions:", error)
-    } finally {
-      setLoadingContributions(false)
-    }
-  }
-
-  const fetchAvailableTags = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("tags")
-        .select("id, name")
-        .order("name")
-
-      if (error) {
-        console.error("Error fetching tags:", error)
-        return
-      }
-
-      setAvailableTags(data || [])
-    } catch (error) {
-      console.error("Error fetching tags:", error)
-    }
-  }
 
   const fetchUserIdentities = async () => {
     setLoadingIdentities(true)
     try {
-      const { data: identities, error: identitiesError } = await supabase.auth.getUserIdentities()
-      
-      if (identitiesError) {
-        console.error("Error fetching identities:", identitiesError)
+      const res = await supabase.auth.getUserIdentities()
+      if (res.error) {
+        console.error('getUserIdentities error', res.error)
+        toast.error('Could not fetch linked accounts')
+        setIdentities([])
         return
       }
-
-      console.log(identities);
-
-      setIdentities(identities.identities || [])
-    } catch (error) {
-      console.error("Error fetching identities:", error)
+      // res.data.identities is usually an array — keep it safe
+      const ids = res.data?.identities ?? []
+      console.log('identities fetched:', ids)
+      setIdentities(ids)
+    } catch (err) {
+      console.error('Error fetching identities:', err)
+      setIdentities([])
     } finally {
       setLoadingIdentities(false)
     }
   }
 
-  const handleLinkGitHub = async () => {
+  /** Start linking flow for provider.
+   *  In-browser: supabase.auth.linkIdentity triggers redirect; you won't get a response in many cases.
+   */
+  const handleLinkProvider = async (provider: string) => {
     setLinkingAccount(true)
     try {
-      const { error } = await supabase.auth.linkIdentity({ provider: 'github' })
-      
+      const { data, error } = await supabase.auth.linkIdentity({ provider: provider as Provider })
+      // If called server-side you'll get a URL to redirect to in data; in browser the SDK normally redirects immediately.
       if (error) {
-        console.error("Error linking GitHub account:", error)
-        alert("Error linking GitHub account: " + error.message)
+        console.error('linkIdentity error', error)
+        toast.error(`Could not start linking ${provider}: ${error.message}`)
         return
       }
-
-      // Refresh identities after successful linking
-      await fetchUserIdentities()
-      alert("GitHub account linked successfully!")
-    } catch (error) {
-      console.error("Error linking GitHub account:", error)
-      alert("Error linking GitHub account")
+      // if returned data.url (server-style), redirect client:
+      if (data && (data as any).url) {
+        window.location.href = (data as any).url
+        return
+      }
+      // otherwise wait for redirect back; refresh identities after a short delay or on next mount
+      toast.success(`Started linking ${provider}. Complete the flow in the popup/redirect.`)
+    } catch (err) {
+      console.error('linkIdentity exception', err)
+      toast.error(`Could not start linking ${provider}`)
     } finally {
       setLinkingAccount(false)
     }
   }
 
-  const handleBatchTagUpdate = async (tagIds: number[]) => {
-    if (selectedContributions.size === 0) return
+  /** Unlink identity generically.
+   *  Notes:
+   *   - Prevents unlinking the last identity
+   *   - If unlinking fails due to the identity being linked to another user, you must resolve via admin (service_role) or tell the user.
+   */
+  const handleUnlinkAccount = async (provider: string) => {
+    if (!confirm(`Unlink ${provider} from this account?`)) return
 
-    setUpdatingTags(true)
     try {
-      const contributionIds = Array.from(selectedContributions)
-      
-      // Update each selected contribution
-      for (const contributionId of contributionIds) {
-        const { error } = await supabase
-          .from("course_contentnew")
-          .update({ tag_ids: tagIds })
-          .eq("id", contributionId)
+      setLinkingAccount(true)
 
-        if (error) {
-          console.error(`Error updating contribution ${contributionId}:`, error)
-          throw error
-        }
-      }
-
-      // Refresh contributions
-      if (user) {
-        await fetchUserContributions(user.id)
-      }
-      
-      setSelectedContributions(new Set())
-      setShowBatchEdit(false)
-      alert(`Successfully updated tags for ${contributionIds.length} contribution${contributionIds.length > 1 ? 's' : ''}!`)
-    } catch (error) {
-      console.error("Error updating tags:", error)
-      alert("Error updating tags")
-    } finally {
-      setUpdatingTags(false)
-    }
-  }
-
-  const toggleContributionSelection = (contributionId: number) => {
-    const newSelected = new Set(selectedContributions)
-    if (newSelected.has(contributionId)) {
-      newSelected.delete(contributionId)
-    } else {
-      newSelected.add(contributionId)
-    }
-    setSelectedContributions(newSelected)
-  }
-
-  const selectAllInCourse = (courseContributions: ContributionWithCourse[]) => {
-    const newSelected = new Set(selectedContributions)
-    courseContributions.forEach(contribution => {
-      newSelected.add(contribution.id)
-    })
-    setSelectedContributions(newSelected)
-  }
-
-  const toggleCourseExpansion = (courseId: number) => {
-    const newExpanded = new Set(expandedCourses)
-    if (newExpanded.has(courseId)) {
-      newExpanded.delete(courseId)
-    } else {
-      newExpanded.add(courseId)
-    }
-    setExpandedCourses(newExpanded)
-  }
-
-  const handleEditContribution = async (contributionId: number, updates: Partial<CourseContent>) => {
-    try {
-      const { error } = await supabase
-        .from("course_contentnew")
-        .update(updates)
-        .eq("id", contributionId)
-
-      if (error) {
-        console.error("Error updating contribution:", error)
-        alert("Error updating contribution")
+      const res = await supabase.auth.getUserIdentities()
+      if (res.error) throw res.error
+      const ids = res.data?.identities ?? []
+      const identity = ids.find((i: any) => i.provider === provider)
+      if (!identity) {
+        toast.error(`${provider} is not linked`)
         return
       }
 
-      // Refresh contributions
-      if (user) {
-        await fetchUserContributions(user.id)
+      // Check if this would be the last identity
+      if (ids.length === 1) {
+        toast.error('Cannot unlink your last authentication method. You must have at least one way to sign in.')
+        return
       }
-      setEditingContribution(null)
-      alert("Contribution updated successfully!")
-    } catch (error) {
-      console.error("Error updating contribution:", error)
-      alert("Error updating contribution")
+
+      console.log('unlinking identity object:', identity)
+
+      // Pass the whole identity object to unlinkIdentity
+      const unlinkResult = await supabase.auth.unlinkIdentity(identity)
+
+      // unlinkResult shape can vary; check for error
+      if (unlinkResult?.error) {
+        console.error('unlinkIdentity error', unlinkResult.error)
+        toast.error('Could not unlink account: ' + (unlinkResult.error.message || unlinkResult.error))
+        return
+      }
+
+      // refresh identities
+      await fetchUserIdentities()
+      toast.success(`${provider} unlinked`)
+    } catch (err: any) {
+      console.error('Error unlinking account', err)
+      // Common real message: identity linked to another user (needs admin)
+      if (err?.message?.includes?.('linked to another')) {
+        toast.error('This identity is linked to another account. You may need support to resolve.')
+      } else {
+        toast.error('Failed to unlink account')
+      }
+    } finally {
+      setLinkingAccount(false)
     }
   }
 
-  const groupContributionsByCourse = () => {
-    const grouped = contributions.reduce((acc, contribution) => {
-      const courseId = contribution.course_id || 0
-      const courseName = contribution.course?.title || "Unknown Course"
-      console.log(courseName)
-      
-      if (!acc[courseId]) {
-        acc[courseId] = {
-          course: contribution.course,
-          contributions: []
-        }
-      }
-      acc[courseId].contributions.push(contribution)
-      return acc
-    }, {} as Record<number, { course: Course | null, contributions: ContributionWithCourse[] }>)
-
-    return Object.entries(grouped).map(([courseId, data]) => ({
-      courseId: parseInt(courseId),
-      ...data
-    }))
-  }
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -545,158 +453,6 @@ export default function ProfilePage() {
   )
 }
 
-// Contribution Edit Form Component
-interface ContributionEditFormProps {
-  contribution: ContributionWithCourse
-  onSave: (updates: Partial<CourseContent>) => void
-  onCancel: () => void
-}
-
-function ContributionEditForm({ contribution, onSave, onCancel }: ContributionEditFormProps) {
-  const [formData, setFormData] = useState({
-    title: contribution.title,
-    batch: contribution.batch,
-    year: contribution.year,
-    semester_number: contribution.semester_number
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <Label htmlFor="edit-title" className="text-sm">Title</Label>
-          <Input
-            id="edit-title"
-            value={formData.title}
-            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="Content title"
-            className="text-sm"
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-batch" className="text-sm">Batch</Label>
-          <Input
-            id="edit-batch"
-            value={formData.batch}
-            onChange={(e) => setFormData(prev => ({ ...prev, batch: e.target.value }))}
-            placeholder="Batch"
-            className="text-sm"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="edit-year" className="text-sm">Year</Label>
-          <Input
-            id="edit-year"
-            type="number"
-            value={formData.year}
-            onChange={(e) => setFormData(prev => ({ ...prev, year: parseInt(e.target.value) }))}
-            placeholder="Year"
-            className="text-sm"
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-semester" className="text-sm">Semester</Label>
-          <Input
-            id="edit-semester"
-            type="number"
-            value={formData.semester_number}
-            onChange={(e) => setFormData(prev => ({ ...prev, semester_number: parseInt(e.target.value) }))}
-            placeholder="Semester"
-            className="text-sm"
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-        <Button type="submit" size="sm" className="text-xs sm:text-sm">
-          Save Changes
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={onCancel} className="text-xs sm:text-sm">
-          Cancel
-        </Button>
-      </div>
-    </form>
-  )
-}
-
-// Batch Tag Selector Component
-interface BatchTagSelectorProps {
-  availableTags: {id: number, name: string}[]
-  onSave: (tagIds: number[]) => void
-  onCancel: () => void
-  updating: boolean
-}
-
-function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTagSelectorProps) {
-  const [selectedTags, setSelectedTags] = useState<number[]>([])
-
-  const toggleTag = (tagId: number) => {
-    setSelectedTags(prev => 
-      prev.includes(tagId) 
-        ? prev.filter(id => id !== tagId)
-        : [...prev, tagId]
-    )
-  }
-
-  const handleSave = () => {
-    onSave(selectedTags)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label className="text-sm font-medium">Select Tags</Label>
-        <p className="text-xs text-gray-500 mb-3">
-          Choose tags to apply to all selected contributions. This will replace existing tags.
-        </p>
-        <div className="flex flex-wrap gap-1 sm:gap-2 max-h-32 sm:max-h-40 overflow-y-auto">
-          {availableTags.map((tag) => (
-            <button
-              key={tag.id}
-              onClick={() => toggleTag(tag.id)}
-              className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-full border transition-colors ${
-                selectedTags.includes(tag.id)
-                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700"
-                  : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
-              }`}
-            >
-              {tag.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-        <Button 
-          onClick={handleSave} 
-          disabled={updating}
-          size="sm"
-          className="text-xs sm:text-sm"
-        >
-          {updating ? "Updating..." : "Update Tags"}
-        </Button>
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={onCancel}
-          disabled={updating}
-          size="sm"
-          className="text-xs sm:text-sm"
-        >
-          Cancel
-        </Button>
-      </div>
-    </div>
-  )
-}
 
   return (
     <div className="min-h-screen p-2 sm:p-4 md:p-8">
@@ -789,6 +545,15 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                 <CardDescription className="text-sm">Manage your profile information</CardDescription>
               </div>
               <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/manage-contributions')}
+                  className="text-xs sm:text-sm"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Manage Contributions
+                </Button>
                 {editing ? (
                   <>
                     <Button
@@ -896,208 +661,23 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
           )}
         </Card>
 
-        {/* User Contributions */}
+        {/* Achievements */}
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-              My Contributions
+              <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
+              Achievements
             </CardTitle>
             <CardDescription className="text-sm">
-              Documents and resources you&apos;ve contributed to the platform
+              Your accomplishments and milestones
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loadingContributions ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
-                <span className="ml-2 text-sm">Loading contributions...</span>
-              </div>
-            ) : contributions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm sm:text-base">No contributions yet</p>
-                <p className="text-xs sm:text-sm">Start by adding content to courses!</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    Total contributions: {contributions.length}
-                  </span>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {selectedContributions.size > 0 && (
-                      <>
-                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                          {selectedContributions.size} selected
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setShowBatchEdit(true)}
-                          disabled={updatingTags}
-                          className="text-xs"
-                        >
-                          Edit Tags
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedContributions(new Set())}
-                          className="text-xs"
-                        >
-                          Clear
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Batch Tag Edit Dialog */}
-                {showBatchEdit && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-                      <h3 className="text-base sm:text-lg font-semibold mb-4">
-                        Edit Tags for {selectedContributions.size} Contribution{selectedContributions.size > 1 ? 's' : ''}
-                      </h3>
-                      <BatchTagSelector
-                        availableTags={availableTags}
-                        onSave={handleBatchTagUpdate}
-                        onCancel={() => setShowBatchEdit(false)}
-                        updating={updatingTags}
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                {groupContributionsByCourse().map(({ courseId, course, contributions: courseContributions }) => (
-                  <div key={courseId} className="border rounded-lg">
-                    <button
-                      onClick={() => toggleCourseExpansion(courseId)}
-                      className="w-full p-3 sm:p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                        {expandedCourses.has(courseId) ? (
-                          <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                        )}
-                        <div className="text-left min-w-0 flex-1">
-                          <h3 className="font-semibold text-sm sm:text-base truncate">
-                            {course?.title || "Unknown Course"}
-                          </h3>
-                          {course?.code && (
-                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                              {course.code}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge variant="secondary" className="text-xs">
-                          {courseContributions.length}
-                        </Badge>
-                        {expandedCourses.has(courseId) && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              selectAllInCourse(courseContributions)
-                            }}
-                            className="text-xs p-1 sm:p-2 hidden sm:inline-flex"
-                          >
-                            Select All
-                          </Button>
-                        )}
-                      </div>
-                    </button>
-                    
-                    {expandedCourses.has(courseId) && (
-                      <div className="border-t">
-                        {/* Mobile Select All Button */}
-                        <div className="p-3 border-b bg-gray-50 dark:bg-gray-800 sm:hidden">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => selectAllInCourse(courseContributions)}
-                            className="text-xs w-full"
-                          >
-                            Select All in This Course
-                          </Button>
-                        </div>
-                        {courseContributions.map((contribution) => (
-                          <div key={contribution.id} className="p-3 sm:p-4 border-b last:border-b-0">
-                            {editingContribution === contribution.id ? (
-                              <ContributionEditForm
-                                contribution={contribution}
-                                onSave={(updates) => handleEditContribution(contribution.id, updates)}
-                                onCancel={() => setEditingContribution(null)}
-                              />
-                            ) : (
-                              <div className="flex items-start gap-3 sm:gap-4">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedContributions.has(contribution.id)}
-                                  onChange={() => toggleContributionSelection(contribution.id)}
-                                  className="mt-1 rounded flex-shrink-0"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-sm sm:text-base">{contribution.title}</h4>
-                                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                    <span className="flex items-center gap-1">
-                                      <Calendar className="h-3 w-3" />
-                                      {new Date(contribution.created_at).toLocaleDateString()}
-                                    </span>
-                                    <span>Batch: {contribution.batch}</span>
-                                    <span>Year: {contribution.year}</span>
-                                    <span>Sem: {contribution.semester_number}</span>
-                                  </div>
-                                  {/* Display current tags */}
-                                  {contribution.tag_ids && contribution.tag_ids.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                      {contribution.tag_ids.map((tagId) => {
-                                        const tag = availableTags.find(t => t.id === tagId)
-                                        return tag ? (
-                                          <span
-                                            key={tagId}
-                                            className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
-                                          >
-                                            {tag.name}
-                                          </span>
-                                        ) : null
-                                      })}
-                                    </div>
-                                  )}
-                                  {contribution.resource_url && (
-                                    <a
-                                      href={contribution.resource_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 mt-2 text-blue-600 hover:text-blue-800 text-xs sm:text-sm"
-                                    >
-                                      <ExternalLink className="h-3 w-3" />
-                                      View Resource
-                                    </a>
-                                  )}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setEditingContribution(contribution.id)}
-                                  className="flex-shrink-0"
-                                >
-                                  <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="text-center py-8 text-gray-500">
+              <Trophy className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
+              <p className="text-sm sm:text-base">No achievements yet</p>
+              <p className="text-xs sm:text-sm">Start contributing to earn your first achievement!</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -1121,7 +701,7 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
           </CardContent>
         </Card>
 
-        {/* Connected Accounts */}
+        {/* Connected Accounts (REWRITTEN) */}
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg sm:text-xl">Connected Accounts</CardTitle>
@@ -1135,70 +715,69 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
               </div>
             ) : (
               <div className="space-y-3">
-                {/* GitHub Account */}
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Github className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                    <div>
-                      <p className="font-medium text-sm">GitHub</p>
-                      <p className="text-xs text-gray-500">
-                        {identities.find(identity => identity.provider === 'github') 
-                          ? `Connected as ${identities.find(identity => identity.provider === 'github')?.identity_data?.user_name || 'GitHub user'}`
-                          : 'Not connected'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    {identities.find(identity => identity.provider === 'github') ? (
-                      <Badge variant="secondary" className="text-xs">
-                        <Link className="h-3 w-3 mr-1" />
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={handleLinkGitHub}
-                        disabled={linkingAccount}
-                        className="text-xs"
-                      >
-                        {linkingAccount ? (
+                {PROVIDERS.map((p) => {
+                  const identity = identities.find((i: any) => i.provider === p.id)
+                  const connected = !!identity
+                  const connectedAs = identity?.identity_data?.user_name
+                    || identity?.identity_data?.full_name
+                    || identity?.identity_data?.email
+                    || ''
+                  
+                  const displayText = connected ? `Connected${connectedAs ? ` as ${connectedAs}` : ''}` : 'Not connected'
+                  
+                  // Check if this is the last identity (since we're ignoring email)
+                  const isLastIdentity = identities.length === 1 && connected
+                  
+                  return (
+                    <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {p.Icon ? <p.Icon className="h-5 w-5 text-gray-600 dark:text-gray-400" /> : null}
+                        <div>
+                          <p className="font-medium text-sm">{p.label}</p>
+                          <p className="text-xs text-gray-500">{displayText}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {connected ? (
                           <>
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                            Linking...
+                            <Badge variant="secondary" className="text-xs">
+                              <Link className="h-3 w-3 mr-1" />
+                              Connected
+                            </Badge>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleUnlinkAccount(p.id)} 
+                              disabled={isLastIdentity}
+                              className="text-xs"
+                              title={isLastIdentity ? "Cannot unlink your last authentication method" : ""}
+                            >
+                              <Unlink className="h-3 w-3 mr-1" /> Unlink
+                            </Button>
                           </>
                         ) : (
-                          <>
-                            <Link className="h-3 w-3 mr-1" />
-                            Link GitHub
-                          </>
+                          <Button size="sm" onClick={() => handleLinkProvider(p.id)} disabled={linkingAccount} className="text-xs">
+                            {linkingAccount ? (
+                              <>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                Linking...
+                              </>
+                            ) : (
+                              <>
+                                <Link className="h-3 w-3 mr-1" /> Link {p.label}
+                              </>
+                            )}
+                          </Button>
                         )}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Email Account (always present) */}
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-300">@</span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">Email</p>
-                      <p className="text-xs text-gray-500">{user?.email}</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    <Link className="h-3 w-3 mr-1" />
-                    Primary
-                  </Badge>
-                </div>
+                  )
+                })}
 
                 {identities.length === 0 && (
                   <div className="text-center py-4 text-gray-500">
                     <p className="text-sm">No additional accounts connected</p>
-                    <p className="text-xs">Link your GitHub account to enhance your profile</p>
+                    <p className="text-xs">Link your accounts to enhance your profile</p>
                   </div>
                 )}
               </div>
