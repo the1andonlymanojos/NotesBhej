@@ -140,6 +140,33 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  const handleAzureLogin = async () => {
+    try {
+      setLoading(true)
+      const redirectTo = typeof window !== "undefined"
+        ? (new URLSearchParams(window.location.search).get("redirect") || "/")
+        : "/";
+      const {error} = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
+          scopes:'email',
+          queryParams: {
+            redirecttt: redirectTo
+          }
+        },
+      })
+
+      console.log(error)
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4">
       <div className="fixed top-4 right-4 z-10">
@@ -197,6 +224,18 @@ export default function LoginPage() {
               <Github/>
               <span className="text-base font-medium">
                 {loading ? "Signing in..." : "Continue with GitHub"}
+              </span>
+            </div>
+          </Button>
+          <Button
+            onClick={handleAzureLogin}
+            disabled={loading}
+            className="w-full bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-600 shadow-md hover:shadow-lg transition-all duration-200 h-12"
+          >
+            <div className="flex items-center justify-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path fill="#FFFFFF" d="M96 96L310.6 96L310.6 310.6L96 310.6L96 96zM329.4 96L544 96L544 310.6L329.4 310.6L329.4 96zM96 329.4L310.6 329.4L310.6 544L96 544L96 329.4zM329.4 329.4L544 329.4L544 544L329.4 544L329.4 329.4z"/></svg>
+            <span className="text-base font-medium">
+                {loading ? "Signing in..." : "Continue with Microsoft"}
               </span>
             </div>
           </Button>
@@ -266,6 +305,7 @@ export default function LoginPage() {
               </span>
             </div>
           </Button>
+          
 
 
         </div>

@@ -22,6 +22,9 @@ const PROVIDERS: { id: string; label: string; Icon?: any }[] = [
   {id: 'twitch', label: 'Twitch', Icon: Twitch },
   {id: 'discord', label:'Discord'
   },
+  {
+    id:'azure', label:'Microsoft',
+  }
   // add more providers here as needed
 ]
 
