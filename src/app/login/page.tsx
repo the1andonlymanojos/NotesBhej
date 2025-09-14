@@ -126,7 +126,7 @@ export default function LoginPage() {
       const {error} = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             redirecttt: redirectTo
           }
