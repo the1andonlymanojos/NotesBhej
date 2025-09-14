@@ -55,7 +55,7 @@ export default function ProfilePage() {
       const { data: { user }, error } = await supabase.auth.getUser()
       
       if (error || !user) {
-        router.push("/")
+        router.push(`/login?redirect=${window.location.pathname}`)
         return
       }
       console.log("User found:", user)
