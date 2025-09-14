@@ -6,9 +6,11 @@ import { createClient } from '@/utils/supabase/server'
 export async function GET(request: Request) {
     console.log("THIS ROUTE IS CALLED")
     console.log("requesturl", request.url)
-    
+
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
+    const error = searchParams.get('error')
+    const error_descr = searchParams.get('error_description')
     // if "next" is in param, use it as the redirect URL
     const next = searchParams.get('redirect') ?? '/'
     console.log("next", next)
@@ -38,5 +40,8 @@ export async function GET(request: Request) {
     }
 
     // return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+    const params = new URLSearchParams()
+    if (error) params.set('error', error)
+    if (error_descr) params.set('error_description', error_descr)
+    return NextResponse.redirect(`${origin}/auth/auth-code-error?${params.toString()}`)
 }
