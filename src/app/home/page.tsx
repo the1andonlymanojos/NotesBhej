@@ -32,6 +32,8 @@ export default function HomePage() {
             </h1>
             <p className="text-xl sm:text-2xl text-gray-600 dark:text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto">
               Your go-to platform for discovering and sharing course notes. Because giving your fingers a scrolling workout anytime you wanna download something from the class WhatsApp group is sooooo 2010s.
+              <br />
+              IIITM's unofficial knowledge repository.
             </p>
             <Button
               onClick={() => router.push('/')}

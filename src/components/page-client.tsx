@@ -77,6 +77,10 @@ export default function CourseViewPage({
   const [editingContent, setEditingContent] = useState<CourseContent | null>(null)
   const [downloadState, setDownloadState] = useState<Record<number, { progress: number, active: boolean }>>({})
   const downloadControllers = useRef<Map<number, AbortController>>(new Map())
+  const [showAdminPopup, setShowAdminPopup] = useState(false)
+  const [adminPopupContent, setAdminPopupContent] = useState<EnhancedContent | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminApproving, setAdminApproving] = useState(false)
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -372,10 +376,10 @@ export default function CourseViewPage({
   // Helper function to get hidden content label
   const getHiddenLabel = (item: EnhancedContent) => {
     if (item.visible !== false) return null
-    if (currentUserId && item.user_id === currentUserId) {
+    if (currentUserId && item.user_id === currentUserId && !isAdmin) {
       return { text: "Pending Approval", icon: "clock" }
     }
-    return { text: "Hidden", icon: "eye-off" }
+    return { text: "Click to approve", icon: "eye-off" }
   }
 
   // Initialize enhanced content from server props
@@ -414,6 +418,18 @@ export default function CourseViewPage({
         const { data: { user } } = await supabase.auth.getUser()
         const isAuthenticated = !!user
         setCurrentUserId(user?.id || null)
+
+        // Check if user is admin
+        if (user) {
+          const { data: userMeta } = await supabase
+            .from("user_meta")
+            .select("role")
+            .eq("user_id", user.id)
+            .single()
+          
+          const userRole = userMeta?.role
+          setIsAdmin(userRole === 'admin' || userRole === 'moderator' || userRole === 'super_admin')
+        }
 
         // Log user course interaction if authenticated (debounced)
         if (isAuthenticated && user) {
@@ -696,6 +712,13 @@ if(pinnedData?.length){
       return
     }
     
+    // Check if content is hidden and user is admin - show admin popup
+    if (item.visible === false && isAdmin) {
+      setAdminPopupContent(item)
+      setShowAdminPopup(true)
+      return
+    }
+    
     // Log content interaction (debounced)
     if (item.id) {
       console.log("Logging content interaction for item:", item.id)
@@ -774,6 +797,50 @@ if(pinnedData?.length){
             : item
         )
       )
+    }
+  }
+
+  const handleAdminApprove = async () => {
+    if (!adminPopupContent) return
+
+    try {
+      setAdminApproving(true)
+      
+      const { error } = await supabase
+        .from("course_contentnew")
+        .update({ visible: true })
+        .eq("id", adminPopupContent.id)
+
+      if (error) {
+        console.error("Error approving content:", error)
+        alert("Failed to approve content")
+        return
+      }
+
+      // Update the content in the state to make it visible
+      setEnhancedContent(prev => 
+        prev.map(item => 
+          item.id === adminPopupContent.id 
+            ? { ...item, visible: true }
+            : item
+        )
+      )
+      
+      setContent(prev => 
+        prev.map(item => 
+          item.id === adminPopupContent.id 
+            ? { ...item, visible: true }
+            : item
+        )
+      )
+
+      setShowAdminPopup(false)
+      setAdminPopupContent(null)
+    } catch (error) {
+      console.error("Error approving content:", error)
+      alert("Failed to approve content")
+    } finally {
+      setAdminApproving(false)
     }
   }
 
@@ -1536,6 +1603,70 @@ if(pinnedData?.length){
           professors={professors}
           tags={tags}
         />
+
+        {/* Admin Popup for Hidden Content */}
+        <Dialog open={showAdminPopup} onOpenChange={setShowAdminPopup}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-5 w-5" />
+                Admin Content Review
+              </DialogTitle>
+              <DialogDescription className="space-y-3 pt-2 text-zinc-700 dark:text-zinc-300">
+                This content is currently hidden and requires approval.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {adminPopupContent && (
+              <div className="space-y-4">
+                <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg border">
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                    {adminPopupContent.title || "Untitled Resource"}
+                  </h3>
+                  <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>{adminPopupContent.year} - {adminPopupContent.semester_display} ({adminPopupContent.batch})</span>
+                    </div>
+                    {adminPopupContent.professor_name && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span>{adminPopupContent.professor_name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAdminPopup(false)}
+                className="flex-1"
+              >
+                Close
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (adminPopupContent?.resource_url) {
+                    window.open(adminPopupContent.resource_url, '_blank')
+                  }
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Open PDF
+              </Button>
+              <Button 
+                onClick={handleAdminApprove}
+                disabled={adminApproving}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                {adminApproving ? "Approving..." : "Approve"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </div>
