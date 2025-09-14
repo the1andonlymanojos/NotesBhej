@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['lh3.googleusercontent.com', 'data.miga.manoj-shiv.tech'], // Allow Google user content images
+    domains: ['lh3.googleusercontent.com', 'data.miga.manoj-shiv.tech', 'avatars.githubusercontent.com'], // Allow Google user content images
   },
 }
 

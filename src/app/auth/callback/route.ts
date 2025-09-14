@@ -5,6 +5,8 @@ import { createClient } from '@/utils/supabase/server'
 
 export async function GET(request: Request) {
     console.log("THIS ROUTE IS CALLED")
+    console.log("requesturl", request.url)
+    
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
     // if "next" is in param, use it as the redirect URL
@@ -13,6 +15,8 @@ export async function GET(request: Request) {
     console.log("code", code)
 
     if (code) {
+
+        console.log("here");
         const supabase = await createClient()
         console.log()
         const { error, data } = await supabase.auth.exchangeCodeForSession(code)

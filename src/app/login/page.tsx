@@ -40,6 +40,30 @@ export default function LoginPage() {
     }
   }
 
+  const handleGitHubLogin = async () => {
+    try {
+      setLoading(true)
+      const redirectTo = typeof window !== "undefined"
+        ? (new URLSearchParams(window.location.search).get("redirect") || "/")
+        : "/";
+      const {error} = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            redirecttt: redirectTo
+          }
+        },
+      })
+
+      console.log(error)
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4">
       <div className="fixed top-4 right-4 z-10">
@@ -85,6 +109,20 @@ export default function LoginPage() {
               </svg>
               <span className="text-base font-medium">
                 {loading ? "Signing in..." : "Continue with Google"}
+              </span>
+            </div>
+          </Button>
+          <Button
+            onClick={handleGitHubLogin}
+            disabled={loading}
+            className="w-full bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-600 shadow-md hover:shadow-lg transition-all duration-200 h-12"
+          >
+            <div className="flex items-center justify-center gap-3">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm0 11.55c-1.98 0-3.58-1.58-3.58-3.58s1.6-3.58 3.58-3.58 3.58 1.6 3.58 3.58-1.6 3.58-3.58 3.58zm5.43 1.6c0 2.67-3.53 4.5-6.58 4.5s-6.58-1.83-6.58-4.5c0-2.76 3.53-4.56 6.48-4.56 2.95 0 6.58 1.8 6.58 4.56z" />
+              </svg>
+              <span className="text-base font-medium">
+                {loading ? "Signing in..." : "Continue with GitHub"}
               </span>
             </div>
           </Button>

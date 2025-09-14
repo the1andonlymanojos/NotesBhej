@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Database } from "@/types/supabase"
-import { ChevronDown, ChevronRight, Edit, ExternalLink, Calendar, Users } from "lucide-react"
+import { ChevronDown, ChevronRight, Edit, ExternalLink, Calendar, Users, Github, Link, Unlink } from "lucide-react"
 
 type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
 type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
@@ -36,6 +36,9 @@ export default function ProfilePage() {
   const [showBatchEdit, setShowBatchEdit] = useState(false)
   const [availableTags, setAvailableTags] = useState<{id: number, name: string}[]>([])
   const [updatingTags, setUpdatingTags] = useState(false)
+  const [identities, setIdentities] = useState<any[]>([])
+  const [loadingIdentities, setLoadingIdentities] = useState(false)
+  const [linkingAccount, setLinkingAccount] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -60,6 +63,7 @@ export default function ProfilePage() {
       await fetchUserMeta(user.id, user)
       await fetchUserContributions(user.id)
       await fetchAvailableTags()
+      await fetchUserIdentities()
       setLoading(false)
     }
 
@@ -185,6 +189,48 @@ export default function ProfilePage() {
       setAvailableTags(data || [])
     } catch (error) {
       console.error("Error fetching tags:", error)
+    }
+  }
+
+  const fetchUserIdentities = async () => {
+    setLoadingIdentities(true)
+    try {
+      const { data: identities, error: identitiesError } = await supabase.auth.getUserIdentities()
+      
+      if (identitiesError) {
+        console.error("Error fetching identities:", identitiesError)
+        return
+      }
+
+      console.log(identities);
+
+      setIdentities(identities.identities || [])
+    } catch (error) {
+      console.error("Error fetching identities:", error)
+    } finally {
+      setLoadingIdentities(false)
+    }
+  }
+
+  const handleLinkGitHub = async () => {
+    setLinkingAccount(true)
+    try {
+      const { error } = await supabase.auth.linkIdentity({ provider: 'github' })
+      
+      if (error) {
+        console.error("Error linking GitHub account:", error)
+        alert("Error linking GitHub account: " + error.message)
+        return
+      }
+
+      // Refresh identities after successful linking
+      await fetchUserIdentities()
+      alert("GitHub account linked successfully!")
+    } catch (error) {
+      console.error("Error linking GitHub account:", error)
+      alert("Error linking GitHub account")
+    } finally {
+      setLinkingAccount(false)
     }
   }
 
@@ -1072,6 +1118,91 @@ function BatchTagSelector({ availableTags, onSave, onCancel, updating }: BatchTa
                 <p className="text-xs sm:text-sm">{user?.email_confirmed_at ? 'Yes' : 'No'}</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Connected Accounts */}
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg sm:text-xl">Connected Accounts</CardTitle>
+            <CardDescription className="text-sm">Manage your linked social accounts</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loadingIdentities ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-gray-100"></div>
+                <span className="ml-2 text-sm">Loading connected accounts...</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* GitHub Account */}
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Github className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    <div>
+                      <p className="font-medium text-sm">GitHub</p>
+                      <p className="text-xs text-gray-500">
+                        {identities.find(identity => identity.provider === 'github') 
+                          ? `Connected as ${identities.find(identity => identity.provider === 'github')?.identity_data?.user_name || 'GitHub user'}`
+                          : 'Not connected'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    {identities.find(identity => identity.provider === 'github') ? (
+                      <Badge variant="secondary" className="text-xs">
+                        <Link className="h-3 w-3 mr-1" />
+                        Connected
+                      </Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={handleLinkGitHub}
+                        disabled={linkingAccount}
+                        className="text-xs"
+                      >
+                        {linkingAccount ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                            Linking...
+                          </>
+                        ) : (
+                          <>
+                            <Link className="h-3 w-3 mr-1" />
+                            Link GitHub
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Email Account (always present) */}
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-300">@</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Email</p>
+                      <p className="text-xs text-gray-500">{user?.email}</p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    <Link className="h-3 w-3 mr-1" />
+                    Primary
+                  </Badge>
+                </div>
+
+                {identities.length === 0 && (
+                  <div className="text-center py-4 text-gray-500">
+                    <p className="text-sm">No additional accounts connected</p>
+                    <p className="text-xs">Link your GitHub account to enhance your profile</p>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
