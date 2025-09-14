@@ -30,7 +30,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
           queryParams: {
             redirect: redirectTo
           }
@@ -53,7 +53,7 @@ export default function LoginPage() {
       const {error} = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
           queryParams: {
             redirecttt: redirectTo
           }
@@ -76,7 +76,7 @@ export default function LoginPage() {
       const {error} = await supabase.auth.signInWithOAuth({
         provider: 'spotify',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
           queryParams: {
             redirecttt: redirectTo
           }
@@ -101,7 +101,7 @@ export default function LoginPage() {
       const {error} = await supabase.auth.signInWithOAuth({
         provider: 'twitch',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
           queryParams: {
             redirecttt: redirectTo
           }
@@ -126,7 +126,7 @@ export default function LoginPage() {
       const {error} = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
           queryParams: {
             redirecttt: redirectTo
           }

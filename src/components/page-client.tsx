@@ -259,7 +259,11 @@ export default function CourseViewPage({
   }
 
   const downloadWithProgress = async (item: EnhancedContent) => {
-    if (!item.id || !item.resource_url) return
+    if (!item.id || !item.resource_url){
+      setRedirectTo(`/course/${courseId}`)
+      setShowLoginDialog(true)
+      return
+    }
     const id = item.id
     try {
       setDownloadState(prev => ({ ...prev, [id]: { progress: 0, active: true } }))
@@ -323,11 +327,11 @@ export default function CourseViewPage({
   }
 
   const handleDownloadClick = (item: EnhancedContent) => {
-    if(!item.resource_url){
+    if(!item.resource_url || !item.id){
+      setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
       return
     }
-    if (!item.id || !item.resource_url) return
     const id = item.id
     const state = downloadState[id]
     if (state?.active) {
@@ -687,7 +691,7 @@ if(pinnedData?.length){
 
   const handleContentClick = (item: EnhancedContent) => {
     if (!item.resource_url) {
-      setRedirectTo(`/add-content/${courseId}`)
+      setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
       return
     }
