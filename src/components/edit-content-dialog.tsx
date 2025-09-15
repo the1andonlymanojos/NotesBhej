@@ -130,7 +130,7 @@ export default function EditContentDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fileType: newFile.type,
-          fileName: "really doesnt matter as we are using the filetype to generate the unique file name"
+          fileName: newFile.name
         }),
       })
 

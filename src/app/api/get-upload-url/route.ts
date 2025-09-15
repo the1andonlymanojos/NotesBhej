@@ -3,7 +3,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { v4 as uuidv4 } from "uuid"
 import { createClient } from "@/utils/supabase/server"
-
+import mime from "mime-types";
 const UseDev = process.env.UseDev === "true"
 
 // ===== MINIO CONFIG =====
@@ -64,12 +64,21 @@ export async function POST(request: Request) {
       )
     }
 
-    const { fileName, fileType } = await request.json()
+    const { fileName, fileTypee } = await request.json()
+    let fileType = fileTypee;
+    console.log("fileName",fileName)
 
-    if (!fileName || !fileType) {
+    if (!fileName) {
       return NextResponse.json({ error: "File name and type are required" }, { status: 400 })
     }
-    const uniqueFileName = `${uuidv4()}`
+    const extension = fileName.split('.').pop()
+
+    let uniqueFileName = `${uuidv4()}`
+    if(!fileType){
+
+    uniqueFileName = `${uuidv4()}.${extension}`
+    fileType = mime.lookup(fileName) || "application/octet-stream";
+    }
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: uniqueFileName,

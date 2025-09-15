@@ -731,6 +731,9 @@ if(pinnedData?.length){
       if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${item.resource_url}`, '_blank')
       } 
+      else if(item.filetype === "application/octet-stream"){
+        handleDownloadClick(item)
+      }
       else {
         window.open(item.resource_url, '_blank')
       }
