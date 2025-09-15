@@ -259,6 +259,7 @@ export default function CourseViewPage({
     if (type.includes('image/jpg')) return safe + '.jpg'
     if (type.includes('image/webp')) return safe + '.webp'
     if (type.includes('application/zip')) return safe + '.zip'
+    if (type.includes('application/octet-stream')) return safe + item.resource_url?.split('.').pop()
     return safe
   }
 
