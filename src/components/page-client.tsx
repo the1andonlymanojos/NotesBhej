@@ -82,6 +82,7 @@ export default function CourseViewPage({
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminApproving, setAdminApproving] = useState(false)
   const supabase = createClient()
+  const serverBaselineCount = (serverContent || []).length
 
   // Debouncing refs for interaction logging
   const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
@@ -288,14 +289,14 @@ export default function CourseViewPage({
       const total = contentLength ? parseInt(contentLength, 10) : 0
 
       const reader = res.body.getReader()
-      const chunks: Uint8Array[] = []
+      const chunks: BlobPart[] = []
       let received = 0
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         if (value) {
-          chunks.push(value)
+          chunks.push(value as unknown as BlobPart)
           received += value.length
           if (total > 0) {
             const pct = Math.min(99, Math.round((received / total) * 100))
@@ -444,9 +445,27 @@ export default function CourseViewPage({
 
         setTags(tagsData || [])
 
-        // If user is authenticated and we have server content, we might need to refetch for user-specific data
-        if (isAuthenticated && serverContent && serverContent.length > 0) {
-          // Check if we need to fetch user-specific content (with resource URLs)
+        // Always revalidate client data against server snapshot on mount
+        // 1) Fetch anonymous-safe content for everyone
+        const { data: anonContentData } = await supabase
+          .from("course_contentnew_safe")
+          .select("*")
+          .eq("course_id", courseId)
+          .order("year", { ascending: true })
+
+        if (anonContentData) {
+          const latestAnonCount = anonContentData.length
+          // If new content appeared compared to server snapshot, update UI and ask server to revalidate
+          if (latestAnonCount > serverBaselineCount) {
+            setContent(anonContentData)
+            // fire and forget; no-store to bypass any caches
+            fetch(`/api/revalidate-course?courseId=${courseId}&currentCount=${serverBaselineCount}`, { cache: "no-store" })
+              .catch(() => {})
+          }
+        }
+
+        // 2) If authenticated, prefer user-specific view (with resource URLs)
+        if (isAuthenticated) {
           const { data: userContentData, error: contentError } = await supabase
             .from("course_contentnew_user")
             .select("*")
@@ -454,7 +473,14 @@ export default function CourseViewPage({
             .order("year", { ascending: true })
 
           if (!contentError && userContentData) {
-            setContent(userContentData)
+            // Update UI if different size or we had no server content
+            if (userContentData.length !== (serverContent?.length || 0)) {
+              setContent(userContentData)
+            }
+            if (userContentData.length > serverBaselineCount) {
+              fetch(`/api/revalidate-course?courseId=${courseId}&currentCount=${serverBaselineCount}`, { cache: "no-store" })
+                .catch(() => {})
+            }
           }
         }
       } catch (error) {
