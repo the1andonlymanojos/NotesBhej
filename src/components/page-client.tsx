@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
@@ -287,7 +287,7 @@ export default function CourseViewPage({
       const total = contentLength ? parseInt(contentLength, 10) : 0
 
       const reader = res.body.getReader()
-      const chunks: Uint8Array[] = []
+      const chunks: BlobPart[] = []
       let received = 0
 
       while (true) {
@@ -1565,24 +1565,43 @@ if(pinnedData?.length){
           </div>
         )}
 
-        {/* Add Content Button */}
+        {/* Floating Actions */}
         <motion.div 
-          initial={{ opacity: 0, scale: 0.8 }}
+          initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.8, duration: 0.4 }}
           className="fixed bottom-6 right-6 flex items-center justify-center gap-4"
         >
           <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-3 sm:py-2 rounded-full bg-white/70 dark:bg-zinc-900/60 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-lg"
           >
-          <Button
-            onClick={handleAddContent}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-md sm:px-4 sm:py-2 flex items-center justify-center"
-          >
-            <Plus className="h-5 w-5 sm:mr-2" />
-            <span className="hidden sm:inline">Add Content</span>
-          </Button>
+            {isAdmin ? (
+              <Button
+                variant="ghost"
+                onClick={async () => {
+                  const response = await fetch(`/protected/revalidate?courseID=${courseId}`)
+                  if(response.ok){
+                    alert('Course page revalidated')
+                  }else{
+                    alert('Failed to revalidate course page')
+                  }
+                }}
+                className="inline-flex items-center justify-center hover:bg-emerald-100/60 dark:hover:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full h-12 w-12 sm:h-auto sm:w-auto sm:px-3"
+              >
+                <RefreshCcw className="h-5 w-5 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Revalidate</span>
+              </Button>
+            ) : null}
+
+            <Button
+              onClick={handleAddContent}
+              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10"
+            >
+              <Plus className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">Add Content</span>
+            </Button>
           </motion.div>
           <Chatbox />
         </motion.div>
