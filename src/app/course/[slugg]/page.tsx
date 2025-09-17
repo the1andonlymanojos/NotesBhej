@@ -202,6 +202,23 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   console.log("err",err)
   console.log("contentError",contentError)
   console.log("coursecontent",coursecontent)
+  if(coursecontent.length == 0){
+    //generate dummy content
+    coursecontent.push({
+      id: 0,
+    course_id: courseId,
+    user_id: 'NA',
+    professor_id: 71,
+    year: 2022,
+    batch: 'IMT',
+    semester_number: 1,
+    resource_url: null,
+    title: 'No content available, please upload some content',
+    visible: true,
+    created_at: '2025-09-11T17:18:49.101115+00:00',
+    filetype: 'application/pdf'
+    })
+  }
   
 
   // Gather professors (if you want to show names)
@@ -210,6 +227,13 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   if (profIds.length) {
     const { data: profs } = await supabase.from("professorsnew").select("id,name").in("id", profIds);
     professors = profs || [];
+  }
+  if(professors.length == 0){
+    //generate dummy professors
+    professors.push({
+      id: 71,
+      name: "Dummy Professor",
+    })
   }
 
   //log all the parametes: 

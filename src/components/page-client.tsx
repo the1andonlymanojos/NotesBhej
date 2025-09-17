@@ -241,8 +241,7 @@ export default function CourseViewPage({
 
   // Helper function to get semester display name
   const getSemesterDisplay = (semesterNumber: number) => {
-    const semesters = ['', 'Spring', 'Summer', 'Fall']
-    return semesters[semesterNumber] || `Sem ${semesterNumber}`
+    return  `Sem ${semesterNumber}`
   }
 
   const buildFilename = (item: EnhancedContent, contentType?: string | null) => {
@@ -332,6 +331,10 @@ export default function CourseViewPage({
   }
 
   const handleDownloadClick = (item: EnhancedContent) => {
+    if(item.professor_id==71){
+      alert('No content available, uploading content will increase your aura.')
+      return;
+    }
     if(!item.resource_url || !item.id){
       setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
@@ -707,6 +710,10 @@ if(pinnedData?.length){
   }
 
   const handleContentClick = (item: EnhancedContent) => {
+    if(item.professor_id==71){
+      alert('No content available, uploading content will increase your aura.')
+      return;
+    }
     if (!item.resource_url) {
       setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
@@ -1285,11 +1292,16 @@ if(pinnedData?.length){
                               semester: String(items[0]?.semester_number),
                               batch: batch
                             })
+                            if(professorId==71){
+                              params.delete("year")
+                              params.delete("semester")
+                              params.delete("batch")
+                            }
                             
-                            if (professorId) {
+                            if (professorId && professorId!=71) {
                               params.append('professor_id', professorId.toString())
                             }
-                            if (professorName) {
+                            if (professorName && professorId!=71) {
                               params.append('professor_name', professorName)
                             }
                             if (!user) {
@@ -1336,6 +1348,7 @@ if(pinnedData?.length){
                     // Expanded Grid View
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {items.map((item: EnhancedContent) => (
+                        item.professor_id!=71?
                         <div
                           key={item.id}
                           className={`group flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
@@ -1391,6 +1404,18 @@ if(pinnedData?.length){
                             </div>
                         
                           </div>
+                        </div> : <div
+                        key={item.id}
+                        >
+                          <div className="flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                                <h4 className="text-xs sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
+                                  No content available, please upload some content
+                                </h4>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1399,6 +1424,7 @@ if(pinnedData?.length){
                     <div className="overflow-x-auto">
                       <div className="flex gap-4 pb-2 min-w-min">
                         {displayItems.map((item: EnhancedContent) => (
+                          item.professor_id!=71?
                           <div
                             key={item.id}
                             className={`group flex flex-col w-52 sm:w-64 flex-shrink-0 p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
@@ -1471,16 +1497,20 @@ if(pinnedData?.length){
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                        {items.length > 3 && !isExpanded && (
-                          <div className="flex items-center justify-center w-32 flex-shrink-0">
-                            <div className="text-center text-zinc-500 dark:text-zinc-400">
-                              <div className="text-sm font-medium">+{items.length - 3} more</div>
-                              <div className="text-xs">Click &quot;View All&quot;</div>
+                          </div>:<div
+                          key={item.id}
+                          >
+                            <div className="flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                                  <h4 className="text-xs sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
+                                    No content available, please upload some content
+                                  </h4>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        )}
+                        ))}
                       </div>
                     </div>
                   )}
