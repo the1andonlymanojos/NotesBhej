@@ -340,7 +340,7 @@ export default function CourseViewPage({
       setShowLoginDialog(true)
       return
     }
-    logUserInteraction('download')
+    logUserInteraction('download', item.id)
     const id = item.id
     const state = downloadState[id]
     if (state?.active) {
@@ -828,6 +828,8 @@ if(pinnedData?.length){
         alert("Failed to approve content")
         return
       }
+
+      logUserInteraction('approve', adminPopupContent.id!)
 
       // Update the content in the state to make it visible
       setEnhancedContent(prev => 
