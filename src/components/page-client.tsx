@@ -340,6 +340,7 @@ export default function CourseViewPage({
       setShowLoginDialog(true)
       return
     }
+    logUserInteraction('download')
     const id = item.id
     const state = downloadState[id]
     if (state?.active) {
