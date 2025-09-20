@@ -80,6 +80,7 @@ export default function CourseViewPage({
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
   const [feedbackText, setFeedbackText] = useState("")
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [adminRejecting, setAdminRejecting] = useState(false)
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -185,6 +186,7 @@ export default function CourseViewPage({
           .from("course_contentnew_user")
           .select("*")
           .in("id", uniqueContentIds)
+          .or("deleted.is.null,deleted.eq.false");
 
         if (contentData) {
           // Enhance with professor and tag info
@@ -241,6 +243,32 @@ export default function CourseViewPage({
   // Helper function to get semester display name
   const getSemesterDisplay = (semesterNumber: number) => {
     return  `Sem ${semesterNumber}`
+  }
+
+  // Helper function to format updated timestamp
+  const formatUpdatedAt = (updatedAt: string | null) => {
+    if (!updatedAt) return null
+    
+    const updated = new Date(updatedAt)
+    const now = new Date()
+    const diffMs = now.getTime() - updated.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    
+    if (diffMinutes < 60) {
+      return `${diffMinutes}m ago`
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`
+    } else if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7)
+      return `${weeks}w ago`
+    } else {
+      const months = Math.floor(diffDays / 30)
+      return `${months}mo ago`
+    }
   }
 
   const buildFilename = (item: EnhancedContent, contentType?: string | null) => {
@@ -454,7 +482,8 @@ export default function CourseViewPage({
             .from("course_contentnew_user")
             .select("*")
             .eq("course_id", courseId)
-            .order("year", { ascending: true })
+            .or("deleted.is.null,deleted.eq.false")
+            .order("year", { ascending: true });
 
           if (!contentError && userContentData) {
             setContent(userContentData)
@@ -814,6 +843,55 @@ if(pinnedData?.length){
     }
   }
 
+ 
+
+  const handleAdminReject = async () => {
+    if (!adminPopupContent) return
+
+    try {
+      setAdminRejecting(true)
+      
+      const { error } = await supabase
+        .from("course_contentnew")
+        .update({ deleted: true })
+        .eq("id", adminPopupContent.id)
+
+      if (error) {
+        console.error("Error approving content:", error)
+        alert("Failed to approve content")
+        return
+      }
+
+      logUserInteraction('delete', adminPopupContent.id!)
+
+      // // Update the content in the state to make it visible
+      // setEnhancedContent(prev => 
+      //   prev.map(item => 
+      //     item.id === adminPopupContent.id 
+      //       ? { ...item, visible: true }
+      //       : item
+      //   )
+      // )
+      setEnhancedContent(prev => prev.filter(item => item.id !== adminPopupContent.id))
+      setContent(prev => prev.filter(item => item.id !== adminPopupContent.id))
+      // setContent(prev => 
+      //   prev.map(item => 
+      //     item.id === adminPopupContent.id 
+      //       ? { ...item, deleted: true }
+      //       : item
+      //   )
+      // )
+
+      setShowAdminPopup(false)
+      setAdminPopupContent(null)
+    } catch (error) {
+      console.error("Error Deleting content:", error)
+      alert("Failed to delete content")
+    } finally {
+      setAdminRejecting(false)
+    }
+  }
+
   const handleAdminApprove = async () => {
     if (!adminPopupContent) return
 
@@ -1147,6 +1225,14 @@ if(pinnedData?.length){
                                 <span className="hidden sm:block truncate">{item.professor_name}</span>
                               </>
                             )}
+                            {item.updated_at && (
+                              <>
+                                <span className="hidden sm:block text-zinc-400 dark:text-zinc-600">•</span>
+                                <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                  Updated {formatUpdatedAt(item.updated_at)}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
                             <div className="flex flex-wrap gap-1">
@@ -1278,6 +1364,14 @@ if(pinnedData?.length){
                         <>
                           <User className="hidden sm:block h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
                           <span className="hidden sm:block truncate">{item.professor_name}</span>
+                        </>
+                      )}
+                      {item.updated_at && (
+                        <>
+                          <span className="hidden sm:block text-zinc-400 dark:text-zinc-600">•</span>
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                            Updated {formatUpdatedAt(item.updated_at)}
+                          </span>
                         </>
                       )}
                     </div>
@@ -1473,7 +1567,13 @@ if(pinnedData?.length){
                               </div>
 
                             </div>
-                        
+                            {item.updated_at && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-full">
+                                  Updated {formatUpdatedAt(item.updated_at)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div> : <div
                         key={item.id}
@@ -1564,7 +1664,11 @@ if(pinnedData?.length){
                                       </span>
                                     )
                                   })()}
-                               
+                                  {item.updated_at && (
+                                    <span className="px-1.5 py-0.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-full">
+                                      Updated {formatUpdatedAt(item.updated_at)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1795,6 +1899,13 @@ if(pinnedData?.length){
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               >
                 {adminApproving ? "Approving..." : "Approve"}
+              </Button>
+              <Button
+                onClick={handleAdminReject}
+                disabled={adminRejecting}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {adminRejecting ? "Rejecting..." : "Reject"}
               </Button>
             </div>
           </DialogContent>

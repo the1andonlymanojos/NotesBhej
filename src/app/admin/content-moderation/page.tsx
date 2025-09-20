@@ -209,6 +209,7 @@ export default function ContentModerationPage() {
           )
         `)
         .eq("visible", false)
+        .or("deleted.is.null,deleted.eq.false")
         .order("created_at", { ascending: false })
 
       if (error) {
@@ -268,7 +269,7 @@ export default function ContentModerationPage() {
       // For now, I'll delete it, but you could add a "denied" status instead
       const { error } = await supabase
         .from("course_contentnew")
-        .delete()
+        .update({ deleted: true })
         .eq("id", contentId)
 
       if (error) {
@@ -279,6 +280,7 @@ export default function ContentModerationPage() {
 
       toast.success("Content denied and removed")
       // Remove from pending list
+   
       setPendingContent(prev => prev.filter(item => item.id !== contentId))
     } catch (error) {
       console.error("Error denying content:", error)
@@ -303,7 +305,8 @@ export default function ContentModerationPage() {
           batch: editingContent.batch,
           course_id: editingContent.course_id,
           professor_id: editingContent.professor_id,
-          tag_ids: editingTag ? [editingTag] : null
+          tag_ids: editingTag ? [editingTag] : null,
+          updated_at: new Date().toISOString()
         })
         .eq("id", editingContent.id)
 
@@ -323,7 +326,8 @@ export default function ContentModerationPage() {
                 ...editingContent,
                 course_name: allCourses.find(c => c.id === editingContent.course_id)?.title,
                 course_code: allCourses.find(c => c.id === editingContent.course_id)?.code,
-                professor_name: allProfessors.find(p => p.id === editingContent.professor_id)?.name
+                professor_name: allProfessors.find(p => p.id === editingContent.professor_id)?.name,
+                updated_at: new Date().toISOString()
               }
             : item
         )
@@ -342,7 +346,8 @@ export default function ContentModerationPage() {
     content.title.toLowerCase().includes(search.toLowerCase()) ||
     content.course_name?.toLowerCase().includes(search.toLowerCase()) ||
     content.course_code?.toLowerCase().includes(search.toLowerCase()) ||
-    content.professor_name?.toLowerCase().includes(search.toLowerCase())
+    content.professor_name?.toLowerCase().includes(search.toLowerCase()) ||
+    content.updated_at?.toLowerCase().includes(search.toLowerCase())
   )
 
   const formatDate = (dateString: string) => {
@@ -516,7 +521,7 @@ export default function ContentModerationPage() {
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                         <Calendar className="h-4 w-4" />
-                        <span>{formatDate(content.created_at)}</span>
+                        <span>{formatDate(content.updated_at || content.created_at)}</span>
                       </div>
                     </TableCell>
                     <TableCell>

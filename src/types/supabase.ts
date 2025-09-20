@@ -150,6 +150,7 @@ export type Database = {
           batch: string
           course_id: number | null
           created_at: string
+          deleted: boolean | null
           filetype: string | null
           id: number
           professor_id: number | null
@@ -157,6 +158,7 @@ export type Database = {
           semester_number: number
           tag_ids: number[] | null
           title: string
+          updated_at: string | null
           user_id: string | null
           visible: boolean | null
           year: number
@@ -165,6 +167,7 @@ export type Database = {
           batch: string
           course_id?: number | null
           created_at?: string
+          deleted?: boolean | null
           filetype?: string | null
           id?: number
           professor_id?: number | null
@@ -172,6 +175,7 @@ export type Database = {
           semester_number: number
           tag_ids?: number[] | null
           title: string
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year: number
@@ -180,6 +184,7 @@ export type Database = {
           batch?: string
           course_id?: number | null
           created_at?: string
+          deleted?: boolean | null
           filetype?: string | null
           id?: number
           professor_id?: number | null
@@ -187,6 +192,7 @@ export type Database = {
           semester_number?: number
           tag_ids?: number[] | null
           title?: string
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year?: number
@@ -442,6 +448,7 @@ export type Database = {
           batch: string | null
           course_id: number | null
           created_at: string | null
+          deleted: boolean | null
           filetype: string | null
           id: number | null
           professor_id: number | null
@@ -449,6 +456,7 @@ export type Database = {
           semester_number: number | null
           tag_ids: number[] | null
           title: string | null
+          updated_at: string | null
           user_id: string | null
           visible: boolean | null
           year: number | null
@@ -457,6 +465,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          deleted?: boolean | null
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
@@ -464,6 +473,7 @@ export type Database = {
           semester_number?: number | null
           tag_ids?: number[] | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year?: number | null
@@ -472,6 +482,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          deleted?: boolean | null
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
@@ -479,6 +490,7 @@ export type Database = {
           semester_number?: number | null
           tag_ids?: number[] | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year?: number | null
@@ -505,6 +517,7 @@ export type Database = {
           batch: string | null
           course_id: number | null
           created_at: string | null
+          deleted: boolean | null
           filetype: string | null
           id: number | null
           professor_id: number | null
@@ -512,6 +525,7 @@ export type Database = {
           semester_number: number | null
           tag_ids: number[] | null
           title: string | null
+          updated_at: string | null
           user_id: string | null
           visible: boolean | null
           year: number | null
@@ -520,6 +534,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          deleted?: boolean | null
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
@@ -527,6 +542,7 @@ export type Database = {
           semester_number?: number | null
           tag_ids?: number[] | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year?: number | null
@@ -535,6 +551,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          deleted?: boolean | null
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
@@ -542,6 +559,7 @@ export type Database = {
           semester_number?: number | null
           tag_ids?: number[] | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year?: number | null
@@ -568,6 +586,7 @@ export type Database = {
           batch: string | null
           course_id: number | null
           created_at: string | null
+          deleted: boolean | null
           filetype: string | null
           id: number | null
           professor_id: number | null
@@ -575,6 +594,7 @@ export type Database = {
           semester_number: number | null
           tag_ids: number[] | null
           title: string | null
+          updated_at: string | null
           user_id: string | null
           visible: boolean | null
           year: number | null
@@ -583,6 +603,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          deleted?: boolean | null
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
@@ -590,6 +611,7 @@ export type Database = {
           semester_number?: number | null
           tag_ids?: number[] | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year?: number | null
@@ -598,6 +620,7 @@ export type Database = {
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
+          deleted?: boolean | null
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
@@ -605,6 +628,7 @@ export type Database = {
           semester_number?: number | null
           tag_ids?: number[] | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string | null
           visible?: boolean | null
           year?: number | null
@@ -634,6 +658,7 @@ export type Database = {
           batch: string | null
           course_id: number | null
           created_at: string | null
+          deleted: boolean | null
           filetype: string | null
           id: number | null
           professor_id: number | null
@@ -641,6 +666,7 @@ export type Database = {
           semester_number: number | null
           tag_ids: number[] | null
           title: string | null
+          updated_at: string | null
           user_id: string | null
           visible: boolean | null
           year: number | null

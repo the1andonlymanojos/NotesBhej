@@ -195,6 +195,7 @@ export default function EditContentDialog({
         semester_number: parseInt(semesterNumber as string),
         professor_id: selectedProfessorId,
         tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
+        updated_at: new Date().toISOString()
       }
 
       // Add new resource URL and filetype if file was uploaded
@@ -217,6 +218,7 @@ export default function EditContentDialog({
       if (newResourceUrl) {
         content.resource_url = newResourceUrl
         content.visible = shouldSetVisible
+        content.updated_at = new Date().toISOString()
       }
 
       onSave()
