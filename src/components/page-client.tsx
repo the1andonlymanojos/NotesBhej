@@ -732,6 +732,9 @@ if(pinnedData?.length){
     
     if (isMobile || useNativeViewer) {
       console.log("Opening resource url:", item.filetype)
+
+      setSelectedContent(item)
+      setSelectedFileId(item.id)
       if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${item.resource_url}`, '_blank')
       } 
@@ -739,7 +742,6 @@ if(pinnedData?.length){
         handleDownloadClick(item)
       }
       else {
-        setSelectedFileId(item.id)
         window.open(item.resource_url, '_blank')
       }
       //window.open(item.resource_url, '_blank')
