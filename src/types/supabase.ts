@@ -232,6 +232,27 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          created_at: string
+          feedback: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback: string
+          id?: never
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback?: string
+          id?: never
+          user_id?: string
+        }
+        Relationships: []
+      }
       professorsnew: {
         Row: {
           address: string | null
@@ -288,24 +309,30 @@ export type Database = {
           content_id: number | null
           course_id: number
           created_at: string | null
+          deleted: number | null
           id: number
           interaction_type: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           content_id?: number | null
           course_id: number
           created_at?: string | null
+          deleted?: number | null
           id?: number
           interaction_type: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           content_id?: number | null
           course_id?: number
           created_at?: string | null
+          deleted?: number | null
           id?: number
           interaction_type?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [

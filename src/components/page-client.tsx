@@ -6,7 +6,9 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw } from "lucide-react"
+// import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
@@ -14,7 +16,6 @@ import { Database } from "@/types/supabase"
 import Chatbox from "@/components/chatbox"
 import EditContentDialog from "@/components/edit-content-dialog"
 import { motion, AnimatePresence } from "framer-motion"
-
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
 type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
@@ -76,6 +77,9 @@ export default function CourseViewPage({
   const [adminPopupContent, setAdminPopupContent] = useState<EnhancedContent | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminApproving, setAdminApproving] = useState(false)
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
+  const [feedbackText, setFeedbackText] = useState("")
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -856,6 +860,60 @@ if(pinnedData?.length){
     }
   }
 
+  const handleFeedbackSubmit = async () => {
+    if (!feedbackText.trim()) {
+      alert("Please enter your feedback before submitting.")
+      return
+    }
+
+    try {
+      setFeedbackSubmitting(true)
+      
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert("You must be logged in to submit feedback.")
+        return
+      }
+
+      const { error } = await supabase
+        .from("feedback")
+        .insert({
+          user_id: user.id,
+          feedback: feedbackText.trim()
+        })
+
+      if (error) {
+        console.error("Error submitting feedback:", error)
+        alert("Failed to submit feedback. Please try again.")
+        return
+      }
+
+      alert("Thank you for your feedback! We appreciate your input.")
+      setFeedbackText("")
+      setShowFeedbackDialog(false)
+    } catch (error) {
+      console.error("Error submitting feedback:", error)
+      alert("Failed to submit feedback. Please try again.")
+    } finally {
+      setFeedbackSubmitting(false)
+    }
+  }
+
+  const handleFeedbackClick = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setRedirectTo(`/course/${courseId}`)
+        setShowLoginDialog(true)
+        return
+      }
+      setShowFeedbackDialog(true)
+    } catch (error) {
+      console.error("Error checking auth for feedback:", error)
+      setShowLoginDialog(true)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6">
       <motion.div 
@@ -1609,6 +1667,14 @@ if(pinnedData?.length){
             ) : null}
 
             <Button
+              onClick={handleFeedbackClick}
+              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10"
+            >
+              <Bug className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">Feedback</span>
+            </Button>
+
+            <Button
               onClick={handleAddContent}
               className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10"
             >
@@ -1729,6 +1795,69 @@ if(pinnedData?.length){
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               >
                 {adminApproving ? "Approving..." : "Approve"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Feedback Dialog */}
+        <Dialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <Bug className="h-5 w-5" />
+                Report Bug or Give Feedback 🐛
+              </DialogTitle>
+              <DialogDescription className="space-y-3 pt-2 text-zinc-700 dark:text-zinc-300">
+                Help us improve the platform by sharing your thoughts, reporting bugs, or suggesting new features.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="feedback-text" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  Your Feedback
+                </Label>
+                <textarea
+                  id="feedback-text"
+                  placeholder="Describe the bug you encountered, suggest improvements, or share any other feedback..."
+                  value={feedbackText}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedbackText(e.target.value)}
+                  className="min-h-[120px] resize-none border-2 border-amber-200 dark:border-amber-700 focus:ring-2 focus:ring-amber-400 transition w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={feedbackSubmitting}
+                />
+              </div>
+              
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-2">
+                  <MessageSquare className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">Anything is welcome, really. Thank you for your feedback:</p>
+                    <ul className="space-y-1 text-amber-700 dark:text-amber-300">
+                      <li>• If you have a good experience with a feature, let us know.</li>
+                      <li>• Something didnt work? let us know.</li>
+                      <li>• Mention your browser and device, if reporting a bug.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowFeedbackDialog(false)}
+                className="flex-1"
+                disabled={feedbackSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleFeedbackSubmit}
+                disabled={feedbackSubmitting || !feedbackText.trim()}
+                className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+              >
+                {feedbackSubmitting ? "Submitting..." : "Submit Feedback"}
               </Button>
             </div>
           </DialogContent>
