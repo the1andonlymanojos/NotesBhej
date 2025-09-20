@@ -60,12 +60,7 @@ export default function CourseViewPage({
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [redirectTo, setRedirectTo] = useState<string >("")
   const [useNativeViewer, setUseNativeViewer] = useState(() => {
-    if (typeof window !== 'undefined') {
-      console.log(content)
-      const saved = localStorage.getItem('useNativeViewer')
-      return saved ? JSON.parse(saved) : false
-    }
-    return false
+    return true
   })
   const [isPinned, setIsPinned] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -744,6 +739,7 @@ if(pinnedData?.length){
         handleDownloadClick(item)
       }
       else {
+        setSelectedFileId(item.id)
         window.open(item.resource_url, '_blank')
       }
       //window.open(item.resource_url, '_blank')
@@ -867,13 +863,25 @@ if(pinnedData?.length){
         className="fixed top-4 right-4 z-10 flex items-center gap-2"
       >
         {!isMobile && (
-          <Button
-            variant="ghost"
-            onClick={() => setUseNativeViewer(!useNativeViewer)}
-            className="hover:bg-white/50 dark:hover:bg-zinc-800/50 text-sm"
-          >
-            {useNativeViewer ? "Use In-App Viewer" : "Use Browser Viewer"}
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setUseNativeViewer(!useNativeViewer)}
+              className="hover:bg-white/50 dark:hover:bg-zinc-800/50 text-sm"
+            >
+              {useNativeViewer ? "Using Browser viewer" : "Using In-App viewer"}
+            </Button>
+            {!useNativeViewer && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-1 rounded border border-amber-200 dark:border-amber-800 max-w-xs text-right"
+              >
+                Having issues? Try the toggle above
+              </motion.div>
+            )}
+          </div>
         )}
         <ThemeToggle />
       </motion.div>
