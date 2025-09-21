@@ -96,6 +96,7 @@ const allCourses = initialData.allCourses
   const [userRole, setUserRole] = useState<string | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [pendingContentCount, setPendingContentCount] = useState<number>(0)
   const supabase = createClient()
   const inputRef = useRef<HTMLInputElement>(null);
   // Add new state for professor courses
@@ -273,6 +274,33 @@ const allCourses = initialData.allCourses
     }
   }
 
+  // Fetch pending content count for admins
+  const fetchPendingContentCount = async () => {
+    if (!isAdmin(userRole)) {
+      setPendingContentCount(0)
+      return
+    }
+
+    try {
+      const { count, error } = await supabase
+        .from("course_contentnew")
+        .select("*", { count: "exact", head: true })
+        .eq("visible", false)
+        .or("deleted.is.null,deleted.eq.false")
+
+      if (error) {
+        console.error("Error fetching pending content count:", error)
+        setPendingContentCount(0)
+        return
+      }
+
+      setPendingContentCount(count || 0)
+    } catch (error) {
+      console.error("Error fetching pending content count:", error)
+      setPendingContentCount(0)
+    } 
+  }
+
   useEffect(() => {
     // Check for user session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -299,6 +327,15 @@ const allCourses = initialData.allCourses
       setRoleLoading(false)
     }
   }, [user, supabase])
+
+  // Fetch pending content count when user role changes
+  useEffect(() => {
+    if (user && !roleLoading) {
+      fetchPendingContentCount()
+    } else if (!user) {
+      setPendingContentCount(0)
+    }
+  }, [user, userRole, roleLoading, supabase])
 
   // Fetch pinned courses for authenticated user
   const fetchPinnedCourses = async () => {
@@ -706,7 +743,7 @@ const allCourses = initialData.allCourses
 )} */}
 
 
-            <div className="hidden sm:block">
+            <div className="hidden sm:flex items-center gap-2">
               <Button
                 onClick={() => setOpen(true)}
                 variant="outline"
@@ -720,6 +757,34 @@ const allCourses = initialData.allCourses
                   </div>
                 </div>
               </Button>
+              
+              {/* Discrete Admin Reminder */}
+              {user && isAdmin(userRole) && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-2"
+                >
+                  <Button
+                    onClick={() => router.push('/admin/content-moderation')}
+                    variant="outline"
+                    size="sm"
+                    className="relative w-full sm:w-auto bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-md hover:shadow-lg transition-all duration-200 text-zinc-800 dark:text-zinc-200 px-3 sm:px-4 py-2 h-10"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-medium">Admin</span>
+                      {pendingContentCount > 0 && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                          {pendingContentCount}
+                        </div>
+                      )}
+                    </div>
+                  </Button>
+                </motion.div>
+              )}
             </div>
             
             {user ? (
@@ -813,35 +878,64 @@ const allCourses = initialData.allCourses
           </div>
           
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mr-1 sm:mr-2">View:</span>
-            <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 sm:p-1">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mr-1 sm:mr-2">View:</span>
+              <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 sm:p-1">
 
-              <button
-                onClick={() => changeViewMode('list')}
-                className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
-                  viewMode === 'list'
-                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-                }`}
-              >
-                <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
-                <span className="hidden xs:inline">List All</span>
-                <span className="inline xs:hidden">List</span>
-              </button>
-              <button
-                onClick={() => changeViewMode('professor')}
-                className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
-                  viewMode === 'professor'
-                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-                }`}
-              >
-                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
-                <span className="hidden xs:inline">Sort by Prof</span>
-                <span className="inline xs:hidden">Prof</span>
-              </button>
+                <button
+                  onClick={() => changeViewMode('list')}
+                  className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
+                    viewMode === 'list'
+                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                  }`}
+                >
+                  <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
+                  <span className="hidden xs:inline">List All</span>
+                  <span className="inline xs:hidden">List</span>
+                </button>
+                <button
+                  onClick={() => changeViewMode('professor')}
+                  className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
+                    viewMode === 'professor'
+                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
+                  <span className="hidden xs:inline">Sort by Prof</span>
+                  <span className="inline xs:hidden">Prof</span>
+                </button>
+              </div>
             </div>
+            
+            {/* Mobile Admin Reminder */}
+            {user && isAdmin(userRole) && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+                className="sm:hidden"
+              >
+                <Button
+                  onClick={() => router.push('/admin/content-moderation')}
+                  variant="outline"
+                  size="sm"
+                  className="relative bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all duration-200 text-zinc-700 dark:text-zinc-300 px-2 py-1 h-7"
+                >
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                    {pendingContentCount > 0 && (
+                      <div className="flex items-center gap-1 px-1 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium">
+                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                        {pendingContentCount}
+                      </div>
+                    )}
+                  </div>
+                </Button>
+              </motion.div>
+            )}
           </div>
           
           {/* Mobile Search Input */}
