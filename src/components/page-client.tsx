@@ -81,6 +81,8 @@ export default function CourseViewPage({
   const [feedbackText, setFeedbackText] = useState("")
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const [adminRejecting, setAdminRejecting] = useState(false)
+  const [downloadAllState, setDownloadAllState] = useState<Record<string, { progress: number, active: boolean, completed: number, total: number }>>({})
+  const downloadAllControllers = useRef<Map<string, AbortController>>(new Map())
   const supabase = createClient()
 
   // Debouncing refs for interaction logging
@@ -222,6 +224,18 @@ export default function CourseViewPage({
       })
       logTimeouts.current.clear()
       loggedInteractions.current.clear()
+      
+      // Clean up download controllers
+      downloadControllers.current.forEach((controller) => {
+        controller.abort()
+      })
+      downloadControllers.current.clear()
+      
+      // Clean up download all controllers
+      downloadAllControllers.current.forEach((controller) => {
+        controller.abort()
+      })
+      downloadAllControllers.current.clear()
     }
   }, [])
 
@@ -378,6 +392,122 @@ export default function CourseViewPage({
       return
     }
     downloadWithProgress(item)
+  }
+
+  const downloadAllInGroup = async (groupKey: string, items: EnhancedContent[]) => {
+    // Filter out items without resource URLs and dummy content
+    const downloadableItems = items.filter(item => 
+      item.resource_url && 
+      item.id && 
+      item.professor_id !== 71
+    )
+    
+    if (downloadableItems.length === 0) {
+      alert('No downloadable content available in this group.')
+      return
+    }
+
+    try {
+      setDownloadAllState(prev => ({ 
+        ...prev, 
+        [groupKey]: { 
+          progress: 0, 
+          active: true, 
+          completed: 0, 
+          total: downloadableItems.length 
+        } 
+      }))
+      
+      const controller = new AbortController()
+      downloadAllControllers.current.set(groupKey, controller)
+
+      // Download items sequentially to avoid overwhelming the browser
+      for (let i = 0; i < downloadableItems.length; i++) {
+        if (controller.signal.aborted) break
+        
+        const item = downloadableItems[i]
+        
+        try {
+          await downloadWithProgress(item)
+          
+          // Update progress
+          setDownloadAllState(prev => ({
+            ...prev,
+            [groupKey]: {
+              ...prev[groupKey],
+              completed: i + 1,
+              progress: Math.round(((i + 1) / downloadableItems.length) * 100)
+            }
+          }))
+          
+          // Small delay between downloads to prevent overwhelming
+          if (i < downloadableItems.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+          }
+        } catch (error) {
+          console.error(`Failed to download ${item.title}:`, error)
+          // Continue with next file even if one fails
+        }
+      }
+
+      setDownloadAllState(prev => ({ 
+        ...prev, 
+        [groupKey]: { 
+          ...prev[groupKey], 
+          active: false, 
+          progress: 100 
+        } 
+      }))
+      
+      downloadAllControllers.current.delete(groupKey)
+      
+      // Clear state after delay
+      setTimeout(() => {
+        setDownloadAllState(prev => {
+          const newState = { ...prev }
+          delete newState[groupKey]
+          return newState
+        })
+      }, 3000)
+      
+    } catch (error) {
+      console.error('Download all error:', error)
+      setDownloadAllState(prev => ({ 
+        ...prev, 
+        [groupKey]: { 
+          ...prev[groupKey], 
+          active: false 
+        } 
+      }))
+      downloadAllControllers.current.delete(groupKey)
+      alert('Failed to download all files.')
+    }
+  }
+
+  const handleDownloadAllClick = async (groupKey: string, items: EnhancedContent[]) => {
+    const state = downloadAllState[groupKey]
+    
+    if (state?.active) {
+      // Cancel download
+      const controller = downloadAllControllers.current.get(groupKey)
+      controller?.abort()
+      downloadAllControllers.current.delete(groupKey)
+      setDownloadAllState(prev => ({
+        ...prev,
+        [groupKey]: { ...prev[groupKey], active: false, progress: 0 }
+      }))
+      return
+    }
+    
+    // Check if user is authenticated before allowing download
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setRedirectTo(`/course/${courseId}`)
+      setShowLoginDialog(true)
+      return
+    }
+    
+    downloadAllInGroup(groupKey, items)
   }
   
 
@@ -1439,6 +1569,29 @@ if(pinnedData?.length){
                     )}
                     </div>
                     <div className="flex items-center gap-2">
+                      {/* Download All Button */}
+                      {items.filter(item => item.resource_url && item.id && item.professor_id !== 71).length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadAllClick(key, items)}
+                          className="hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600 dark:text-blue-400 flex items-center gap-1"
+                        >
+                          {downloadAllState[key]?.active ? (
+                            <>
+                              <span className="text-xs font-medium">
+                                {downloadAllState[key]?.completed || 0}/{downloadAllState[key]?.total || 0}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4" />
+                              <span className="hidden sm:inline text-sm">All</span>
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      
                       <Button
                         variant="ghost"
                         size="sm"
