@@ -862,6 +862,18 @@ const allCourses = initialData.allCourses
           </div>
         </div>
 
+        {/* Notice Box */}
+        <div className="mb-6">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/50 backdrop-blur px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm sm:text-base text-zinc-700 dark:text-zinc-300">
+                <span className="font-medium">Good luck for your minors!</span> It would be super helpful if you upload your question papers after the exam.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Course Count and Search */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
