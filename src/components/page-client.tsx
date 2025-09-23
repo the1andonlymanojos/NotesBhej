@@ -32,6 +32,15 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
   semester_display?: string
 }
 
+const prefer_r2_url = true;
+const getContentUrl = (item: { r2_url?: string | null; resource_url?: string | null }): string | null => {
+  
+  const r2 = (item as any).r2_url as string | null | undefined
+  const res = (item as any).resource_url as string | null | undefined
+  console.log("r2", r2, "res", res)
+  if (prefer_r2_url && r2) return r2
+  return res || null
+}
 export default function CourseViewPage({
   params,
   serverCourse,
@@ -299,12 +308,13 @@ export default function CourseViewPage({
     if (type.includes('image/jpg')) return safe + '.jpg'
     if (type.includes('image/webp')) return safe + '.webp'
     if (type.includes('application/zip')) return safe + '.zip'
-    if (type.includes('application/octet-stream')) return safe + item.resource_url?.split('.').pop()
+    if (type.includes('application/octet-stream')) return safe + getContentUrl(item)?.split('.').pop()
     return safe
   }
 
   const downloadWithProgress = async (item: EnhancedContent) => {
-    if (!item.id || !item.resource_url){
+    const url = getContentUrl(item)
+    if (!item.id || !url){
       setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
       return
@@ -318,7 +328,7 @@ export default function CourseViewPage({
       if (!downloadControllers.current) downloadControllers.current = new Map()
       downloadControllers.current.set(id, controller)
 
-      const res = await fetch(item.resource_url, { signal: controller.signal })
+      const res = await fetch(url, { signal: controller.signal })
       if (!res.ok || !res.body) {
         throw new Error('Failed to fetch file')
       }
@@ -376,7 +386,7 @@ export default function CourseViewPage({
       alert('No content available, uploading content will increase your aura.')
       return;
     }
-    if(!item.resource_url || !item.id){
+    if(!getContentUrl(item) || !item.id){
       setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
       return
@@ -397,7 +407,7 @@ export default function CourseViewPage({
   const downloadAllInGroup = async (groupKey: string, items: EnhancedContent[]) => {
     // Filter out items without resource URLs and dummy content
     const downloadableItems = items.filter(item => 
-      item.resource_url && 
+      getContentUrl(item) && 
       item.id && 
       item.professor_id !== 71
     )
@@ -873,7 +883,8 @@ if(pinnedData?.length){
       alert('No content available, uploading content will increase your aura.')
       return;
     }
-    if (!item.resource_url) {
+    const url = getContentUrl(item)
+    if (!url) {
       setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
       return
@@ -899,13 +910,13 @@ if(pinnedData?.length){
       setSelectedContent(item)
       setSelectedFileId(item.id)
       if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
-        window.open(`https://view.officeapps.live.com/op/view.aspx?src=${item.resource_url}`, '_blank')
+        window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
       } 
       else if(item.filetype === ""){
         handleDownloadClick(item)
       }
       else {
-        window.open(item.resource_url, '_blank')
+        window.open(url, '_blank')
       }
       //window.open(item.resource_url, '_blank')
     } else {
@@ -1393,7 +1404,7 @@ if(pinnedData?.length){
                                 </span>
                               )}
                             </div>
-                            {item.resource_url && (
+                            {getContentUrl(item) && (
                               <button
                                 className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
                                 onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
@@ -1521,7 +1532,7 @@ if(pinnedData?.length){
                           </span>
                         )}
                       </div>
-                      {item.resource_url && (
+                      {getContentUrl(item) && (
                         <button
                           className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors"
                           onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
@@ -1570,7 +1581,7 @@ if(pinnedData?.length){
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Download All Button */}
-                      {items.filter(item => item.resource_url && item.id && item.professor_id !== 71).length > 0 && (
+                      {items.filter(item => getContentUrl(item) && item.id && item.professor_id !== 71).length > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1702,7 +1713,7 @@ if(pinnedData?.length){
                                     <Edit className="h-3 w-3" />
                                   </Button>
                                 )}
-                                 {item.resource_url && (
+                                 {getContentUrl(item) && (
                                   <button
                                     className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
                                     onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
@@ -1785,7 +1796,7 @@ if(pinnedData?.length){
                                       <Edit className="h-3 w-3" />
                                     </Button>
                                   )}
-                                   {(
+                                  {( 
                                   <button
                                     className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
                                     onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
@@ -1876,12 +1887,12 @@ if(pinnedData?.length){
             <div className="absolute inset-4">
               <PDFViewer 
                 files={filteredContent
-                  .filter(item => item.title && item.resource_url && item.year && item.semester_display && item.id)
+                  .filter(item => item.title && getContentUrl(item) && item.year && item.semester_display && item.id)
                   .map(item => ({
                     id: item.id!.toString(),
                     title: item.title!,
                     filetype: item.filetype!,
-                    resource_url: item.resource_url!,
+                    resource_url: getContentUrl(item)!,
                     year: item.year!, 
                     semester: item.semester_display!,
                     instructor: item.professor_name || undefined
@@ -2038,8 +2049,9 @@ if(pinnedData?.length){
               </Button>
               <Button 
                 onClick={() => {
-                  if (adminPopupContent?.resource_url) {
-                    window.open(adminPopupContent.resource_url, '_blank')
+                  const url = adminPopupContent ? getContentUrl(adminPopupContent) : null
+                  if (url) {
+                    window.open(url, '_blank')
                   }
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"

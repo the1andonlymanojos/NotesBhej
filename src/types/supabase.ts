@@ -154,6 +154,7 @@ export type Database = {
           filetype: string | null
           id: number
           professor_id: number | null
+          r2_url: string | null
           resource_url: string
           semester_number: number
           tag_ids: number[] | null
@@ -171,6 +172,7 @@ export type Database = {
           filetype?: string | null
           id?: number
           professor_id?: number | null
+          r2_url?: string | null
           resource_url: string
           semester_number: number
           tag_ids?: number[] | null
@@ -188,6 +190,7 @@ export type Database = {
           filetype?: string | null
           id?: number
           professor_id?: number | null
+          r2_url?: string | null
           resource_url?: string
           semester_number?: number
           tag_ids?: number[] | null
@@ -452,6 +455,7 @@ export type Database = {
           filetype: string | null
           id: number | null
           professor_id: number | null
+          r2_url: string | null
           resource_url: string | null
           semester_number: number | null
           tag_ids: number[] | null
@@ -469,6 +473,7 @@ export type Database = {
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
+          r2_url?: string | null
           resource_url?: never
           semester_number?: number | null
           tag_ids?: number[] | null
@@ -486,6 +491,7 @@ export type Database = {
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
+          r2_url?: string | null
           resource_url?: never
           semester_number?: number | null
           tag_ids?: number[] | null
@@ -590,6 +596,7 @@ export type Database = {
           filetype: string | null
           id: number | null
           professor_id: number | null
+          r2_url: string | null
           resource_url: string | null
           semester_number: number | null
           tag_ids: number[] | null
@@ -607,6 +614,7 @@ export type Database = {
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
+          r2_url?: string | null
           resource_url?: string | null
           semester_number?: number | null
           tag_ids?: number[] | null
@@ -624,6 +632,7 @@ export type Database = {
           filetype?: string | null
           id?: number | null
           professor_id?: number | null
+          r2_url?: string | null
           resource_url?: string | null
           semester_number?: number | null
           tag_ids?: number[] | null
