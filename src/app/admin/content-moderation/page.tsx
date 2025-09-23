@@ -100,6 +100,7 @@ export default function ContentModerationPage() {
   const [allCourses, setAllCourses] = useState<Course[]>([])
   const [allProfessors, setAllProfessors] = useState<Professor[]>([])
   const [allTags, setAllTags] = useState<Tag[]>([])
+  const [userID, setUserID] = useState<string | null>(null)
   const [editingTag, setEditingTag] = useState<number | null>(null)
   const supabase = createClient()
 
@@ -162,6 +163,7 @@ export default function ContentModerationPage() {
       }
       
       // Fetch user role from user_meta table
+      setUserID(currentUser.id)
       fetchUserRole(currentUser.id)
     })
 
@@ -235,7 +237,7 @@ export default function ContentModerationPage() {
     }
   }
 
-  const handleApprove = async (contentId: number) => {
+  const handleApprove = async (contentId: number, courseId: number) => {
     try {
       setActionLoading(contentId)
       
@@ -249,7 +251,14 @@ export default function ContentModerationPage() {
         toast.error("Failed to approve content")
         return
       }
-
+      await supabase
+            .from("user_course_interaction")
+            .insert({
+              user_id: userID,
+              course_id: courseId || null,
+              content_id: contentId || null,
+              interaction_type: "approve"
+            })
       toast.success("Content approved successfully")
       // Remove from pending list
       setPendingContent(prev => prev.filter(item => item.id !== contentId))
@@ -261,7 +270,7 @@ export default function ContentModerationPage() {
     }
   }
 
-  const handleDeny = async (contentId: number) => {
+  const handleDeny = async (contentId: number, courseId: number) => {
     try {
       setActionLoading(contentId)
       
@@ -278,6 +287,14 @@ export default function ContentModerationPage() {
         return
       }
 
+      await supabase
+      .from("user_course_interaction")
+      .insert({
+        user_id: userID,
+        course_id: courseId || null,
+        content_id: contentId || null,
+        interaction_type: "deny"
+      })
       toast.success("Content denied and removed")
       // Remove from pending list
    
@@ -568,7 +585,7 @@ export default function ContentModerationPage() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleApprove(content.id)}
+                                onClick={() => handleApprove(content.id, content.course_id == null ? 0 : content.course_id)}
                                 className="bg-green-600 hover:bg-green-700"
                               >
                                 Approve
@@ -598,7 +615,7 @@ export default function ContentModerationPage() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleDeny(content.id)}
+                                onClick={() => handleDeny(content.id, content.course_id == null ? 0 : content.course_id)}
                                 className="bg-red-600 hover:bg-red-700"
                               >
                                 Deny

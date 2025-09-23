@@ -992,7 +992,7 @@ if(pinnedData?.length){
         return
       }
 
-      logUserInteraction('delete', adminPopupContent.id!)
+      logUserInteraction('deny', adminPopupContent.id!)
 
       // // Update the content in the state to make it visible
       // setEnhancedContent(prev => 
