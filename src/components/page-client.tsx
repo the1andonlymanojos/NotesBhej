@@ -32,12 +32,10 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
   semester_display?: string
 }
 
-const prefer_r2_url = true;
+const prefer_r2_url = false;
 const getContentUrl = (item: { r2_url?: string | null; resource_url?: string | null }): string | null => {
-  
   const r2 = (item as any).r2_url as string | null | undefined
   const res = (item as any).resource_url as string | null | undefined
-  console.log("r2", r2, "res", res)
   if (prefer_r2_url && r2) return r2
   return res || null
 }
@@ -1234,7 +1232,16 @@ if(pinnedData?.length){
             </div>
           </div>
         </motion.div>
-
+        <div className="mb-6">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/50 backdrop-blur px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm sm:text-base text-zinc-700 dark:text-zinc-300">
+                <span className="font-medium">Due to unexpected load, the download speed may be degraded, we are working on it! If you face any issue/unable to view the content, ping me on WhatsApp.</span>
+              </p>
+            </div>
+          </div>
+        </div>
         {/* Search and Filters */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
