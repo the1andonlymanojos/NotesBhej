@@ -32,7 +32,7 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
   semester_display?: string
 }
 
-const prefer_r2_url = false;
+const prefer_r2_url = true;
 const getContentUrl = (item: { r2_url?: string | null; resource_url?: string | null }): string | null => {
   const r2 = (item as any).r2_url as string | null | undefined
   const res = (item as any).resource_url as string | null | undefined
