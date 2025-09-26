@@ -20,7 +20,7 @@ type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
 type Tag = Database["public"]["Tables"]["tags"]["Row"]
 //type CourseContentTag = Database["public"]["Tables"]["course_content_tags"]["Row"]
-const MAX_FILE_SIZE = 30 * 1024 * 1024 // 10MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 10MB
 
 export default function AddContentPage({
   params,
@@ -341,7 +341,7 @@ export default function AddContentPage({
     
     {/* Move content outside of AlertDialogDescription */}
     <div className="space-y-4 py-2">
-      <p>The following files exceed the 10MB size limit:</p>
+      <p>The following files exceed the 100MB size limit:</p>
       
       <ul className="list-disc pl-5 space-y-1">
         {oversizedFiles.map(file => (
