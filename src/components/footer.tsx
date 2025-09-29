@@ -112,7 +112,7 @@ export function Footer() {
           {/* Fun message */}
           <div className="mt-4 text-center">
             <p className="text-xs text-zinc-500 dark:text-zinc-500 italic">
-              &quot;Sharing knowledge is the greatest gift one can give to another&quot; 
+              &quot;Knowledge not shared is knowledge wasted.&quot; 
             </p>
           </div>
         </div>

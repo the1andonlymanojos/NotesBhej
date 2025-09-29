@@ -92,6 +92,8 @@ export default function CourseViewPage({
   const [downloadAllState, setDownloadAllState] = useState<Record<string, { progress: number, active: boolean, completed: number, total: number }>>({})
   const downloadAllControllers = useRef<Map<string, AbortController>>(new Map())
   const supabase = createClient()
+  const [isNavigating, setIsNavigating] = useState(false)
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null)
 
   // Debouncing refs for interaction logging
   const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
@@ -725,6 +727,8 @@ if(pinnedData?.length){
         return
       }
       
+      setNavigatingTo(`Add Content`)
+      setIsNavigating(true)
       router.push(`/add-content/${courseId}`)
     } catch (error) {
       console.error("Error checking auth for add content:", error)
@@ -909,13 +913,19 @@ if(pinnedData?.length){
       setSelectedContent(item)
       setSelectedFileId(item.id)
       if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+        setNavigatingTo("Office Viewer")
+        setIsNavigating(true)
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
+        setTimeout(() => setIsNavigating(false), 1500)
       } 
       else if(item.filetype === ""){
         handleDownloadClick(item)
       }
       else {
+        setNavigatingTo("Resource")
+        setIsNavigating(true)
         window.open(url, '_blank')
+        setTimeout(() => setIsNavigating(false), 1500)
       }
       //window.open(item.resource_url, '_blank')
     } else {
@@ -1165,6 +1175,23 @@ if(pinnedData?.length){
         )}
         <ThemeToggle />
       </motion.div>
+      {isNavigating && (
+        <div className="fixed inset-0 z-50 backdrop-blur-sm bg-black/30 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="px-4 py-3 rounded-xl bg-white/90 dark:bg-zinc-900/90 border border-white/40 dark:border-white/10 shadow-2xl text-center"
+          >
+            <div className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Navigating to</div>
+            <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{navigatingTo || 'Destination'}</div>
+            <div className="mt-2 flex items-center justify-center gap-1 text-indigo-600 dark:text-indigo-300">
+              <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:120ms]"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:240ms]"></div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -1178,7 +1205,7 @@ if(pinnedData?.length){
           <div className="flex flex-col sm:hidden">
             <div className="flex items-center gap-1">
               <Button
-                onClick={() => router.push("/")}
+                onClick={() => { setNavigatingTo("Home"); setIsNavigating(true); router.push("/") }}
                 variant="ghost"
                 className="hover:bg-white/50 dark:hover:bg-zinc-800/50 p-2"
               >
@@ -1206,7 +1233,7 @@ if(pinnedData?.length){
           {/* Desktop: Horizontal layout */}
           <div className="hidden sm:flex items-center gap-4">
             <Button
-              onClick={() => router.push("/")}
+              onClick={() => { setNavigatingTo("Home"); setIsNavigating(true); router.push("/") }}
               variant="ghost"
               className="hover:bg-white/50 dark:hover:bg-zinc-800/50 p-3"
             >
@@ -1640,6 +1667,8 @@ if(pinnedData?.length){
                               setShowLoginDialog(true)
                               return
                             }
+                            setNavigatingTo("Add Content")
+                            setIsNavigating(true)
                             router.push(`/add-content/${courseId}?${params.toString()}`)
 
                           } catch (error) {
@@ -2078,7 +2107,10 @@ if(pinnedData?.length){
                 onClick={() => {
                   const url = adminPopupContent ? getContentUrl(adminPopupContent) : null
                   if (url) {
+                    setNavigatingTo("Resource")
+                    setIsNavigating(true)
                     window.open(url, '_blank')
+                    setTimeout(() => setIsNavigating(false), 1500)
                   }
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
