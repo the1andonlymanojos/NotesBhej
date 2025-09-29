@@ -1,6 +1,6 @@
 "use client"
 
-import { Heart, BookOpen, Code, Coffee, Users, Mail, MapPin, Sparkles } from "lucide-react"
+import { Heart, BookOpen, Code, Mail, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import Link from "next/link"
@@ -26,10 +26,7 @@ export function Footer() {
             <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
               Making IIITM great again, one doc at a time!
             </p>
-            <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-500">
-              <MapPin className="h-3 w-3" />
-              <span>IIITM Gwalior</span>
-            </div>
+            
           </div>
 
           {/* Quick Links */}
@@ -72,35 +69,7 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Community */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-500" />
-              Community
-            </h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  Made by students, for students
-                </span>
-              </li>
-              <li>
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  Collaborative learning
-                </span>
-              </li>
-              <li>
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  Open source spirit
-                </span>
-              </li>
-              <li>
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  Built with love & coffee
-                </span>
-              </li>
-            </ul>
-          </div>
+          
 
           {/* Connect */}
           <div className="space-y-4">
@@ -136,10 +105,6 @@ export function Footer() {
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-500">
-                <Coffee className="h-3 w-3" />
-                <span>Powered by caffeine</span>
-              </div>
               <ThemeToggle />
             </div>
           </div>
@@ -147,7 +112,7 @@ export function Footer() {
           {/* Fun message */}
           <div className="mt-4 text-center">
             <p className="text-xs text-zinc-500 dark:text-zinc-500 italic">
-              &quot;Sharing knowledge is the greatest gift one can give to another&quot; 🎯
+              &quot;Sharing knowledge is the greatest gift one can give to another&quot; 
             </p>
           </div>
         </div>

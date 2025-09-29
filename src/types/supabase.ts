@@ -147,6 +147,7 @@ export type Database = {
       }
       course_contentnew: {
         Row: {
+          anon: boolean | null
           batch: string
           course_id: number | null
           created_at: string
@@ -165,6 +166,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          anon?: boolean | null
           batch: string
           course_id?: number | null
           created_at?: string
@@ -183,6 +185,7 @@ export type Database = {
           year: number
         }
         Update: {
+          anon?: boolean | null
           batch?: string
           course_id?: number | null
           created_at?: string
@@ -246,18 +249,21 @@ export type Database = {
           created_at: string
           feedback: string
           id: number
+          rating: number | null
           user_id: string
         }
         Insert: {
           created_at?: string
           feedback: string
           id?: never
+          rating?: number | null
           user_id: string
         }
         Update: {
           created_at?: string
           feedback?: string
           id?: never
+          rating?: number | null
           user_id?: string
         }
         Relationships: []
@@ -448,6 +454,7 @@ export type Database = {
     Views: {
       course_contentnew_anon: {
         Row: {
+          anon: boolean | null
           batch: string | null
           course_id: number | null
           created_at: string | null
@@ -466,6 +473,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          anon?: boolean | null
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
@@ -484,6 +492,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          anon?: boolean | null
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
@@ -520,6 +529,7 @@ export type Database = {
       }
       course_contentnew_safe: {
         Row: {
+          anon: boolean | null
           batch: string | null
           course_id: number | null
           created_at: string | null
@@ -537,6 +547,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          anon?: boolean | null
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
@@ -554,6 +565,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          anon?: boolean | null
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
@@ -589,6 +601,7 @@ export type Database = {
       }
       course_contentnew_user: {
         Row: {
+          anon: boolean | null
           batch: string | null
           course_id: number | null
           created_at: string | null
@@ -607,6 +620,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          anon?: boolean | null
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
@@ -625,6 +639,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          anon?: boolean | null
           batch?: string | null
           course_id?: number | null
           created_at?: string | null
@@ -664,6 +679,7 @@ export type Database = {
       get_public_course_content: {
         Args: Record<PropertyKey, never> | { target_course_id: number }
         Returns: {
+          anon: boolean | null
           batch: string | null
           course_id: number | null
           created_at: string | null

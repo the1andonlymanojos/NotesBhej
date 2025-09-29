@@ -5,7 +5,6 @@ export const revalidate = 3600;
 
 
 export async function generateStaticParams() {
-    console.log("YO IM RUNNING AND GETTING COURSE IDS")
   
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
@@ -25,7 +24,6 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 }
 
 const SITE_URL = "https://notesbhej.manoj-shiv.tech";
-
 
 
 export async function generateMetadata({

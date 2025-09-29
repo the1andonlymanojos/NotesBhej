@@ -868,7 +868,7 @@ const allCourses = initialData.allCourses
             <div className="flex items-start gap-3">
               <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
               <p className="text-sm sm:text-base text-zinc-700 dark:text-zinc-300">
-                <span className="font-medium">Good luck for your minors!</span> It would be super helpful if you upload your question papers after the exam.
+                <span className="font-medium"></span> If this page has helped you, please consider uploading content
               </p>
             </div>
           </div>

@@ -50,6 +50,7 @@ export default function AddContentPage({
   const [oversizedFiles, setOversizedFiles] = useState<File[]>([])
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [showValidationError, setShowValidationError] = useState(false)
+  const [isAnonymous, setIsAnonymous] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -218,6 +219,7 @@ export default function AddContentPage({
           tag_ids: fileTagIds[pair.fileName] ? [fileTagIds[pair.fileName]] : null,
           title: pair.title,
           visible: false,
+          anon: isAnonymous,
         }))
       )
       uploadedUrls.forEach(pair => {
@@ -491,7 +493,7 @@ export default function AddContentPage({
                 <Upload className="text-indigo-500" size={20} />
                 {step === 1 ? "Basic Information" : "Upload Files"}
               </h2>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${step === 1 ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
                 <div className={`w-2 h-2 rounded-full ${step === 2 ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
               </div>
@@ -598,6 +600,19 @@ export default function AddContentPage({
                       disabled={loading}
                       className="border-2 border-indigo-200 dark:border-indigo-700 focus:ring-2 focus:ring-indigo-400 transition"
                     />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="anonymous-toggle"
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 text-indigo-600 focus:ring-indigo-500"
+                      checked={isAnonymous}
+                      onChange={(e) => setIsAnonymous(e.target.checked)}
+                      disabled={loading}
+                    />
+                    <label htmlFor="anonymous-toggle" className="text-sm text-zinc-600 dark:text-zinc-300">
+                      Post anonymously
+                    </label>
                   </div>
   
 

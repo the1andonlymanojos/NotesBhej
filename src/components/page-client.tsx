@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 // import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug, Star } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
@@ -87,6 +87,7 @@ export default function CourseViewPage({
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
   const [feedbackText, setFeedbackText] = useState("")
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null)
   const [adminRejecting, setAdminRejecting] = useState(false)
   const [downloadAllState, setDownloadAllState] = useState<Record<string, { progress: number, active: boolean, completed: number, total: number }>>({})
   const downloadAllControllers = useRef<Map<string, AbortController>>(new Map())
@@ -1096,7 +1097,8 @@ if(pinnedData?.length){
         .from("feedback")
         .insert({
           user_id: user.id,
-          feedback: feedbackText.trim()
+          feedback: feedbackText.trim(),
+          rating: feedbackRating
         })
 
       if (error) {
@@ -1107,6 +1109,7 @@ if(pinnedData?.length){
 
       alert("Thank you for your feedback! We appreciate your input.")
       setFeedbackText("")
+      setFeedbackRating(null)
       setShowFeedbackDialog(false)
     } catch (error) {
       console.error("Error submitting feedback:", error)
@@ -1232,16 +1235,7 @@ if(pinnedData?.length){
             </div>
           </div>
         </motion.div>
-        <div className="mb-6">
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/50 backdrop-blur px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm sm:text-base text-zinc-700 dark:text-zinc-300">
-                <span className="font-medium">Good luck for your minors!</span> It would be super helpful if you upload your question papers after the exam.
-              </p>
-            </div>
-          </div>
-        </div>
+        
         {/* Search and Filters */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -1561,7 +1555,8 @@ if(pinnedData?.length){
             </div>
           ) : (
             // Grouped view when not searching
-            (Object.entries(groupedContent) as [string, EnhancedContent[]][]).map(([key, items]) => {
+            <>
+              {(Object.entries(groupedContent) as [string, EnhancedContent[]][]).map(([key, items]) => {
               const [year, semester, batch, instructor] = key.split('*')
               console.log(semester)
               const isExpanded = expandedGroups.has(key)
@@ -1862,7 +1857,32 @@ if(pinnedData?.length){
                   )}
                 </div>
               )
-            })
+            })}
+              {/* Encourage-upload empty group (after existing groups) */}
+              <div className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      Add new class!
+                    </h3>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAddContent}
+                    className="hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    <span className="hidden sm:inline">Upload content</span>
+                  </Button>
+                </div>
+                <div className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
+                  <p>
+                    Prefer privacy? Toggle <span className="font-medium text-zinc-800 dark:text-zinc-200">Anonymous</span> on the upload form.
+                  </p>
+                </div>
+              </div>
+            </>
           )}
 
           {filteredContent.length === 0 && (
@@ -2088,8 +2108,8 @@ if(pinnedData?.length){
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                <Bug className="h-5 w-5" />
-                Report Bug or Give Feedback 🐛
+            
+                Report a bug or Give Feedback
               </DialogTitle>
               <DialogDescription className="space-y-3 pt-2 text-zinc-700 dark:text-zinc-300">
                 Help us improve the platform by sharing your thoughts, reporting bugs, or suggesting new features.
@@ -2109,6 +2129,27 @@ if(pinnedData?.length){
                   className="min-h-[120px] resize-none border-2 border-amber-200 dark:border-amber-700 focus:ring-2 focus:ring-amber-400 transition w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={feedbackSubmitting}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Optional Rating</Label>
+                <div className="flex items-center gap-1">
+                  {[0,1,2,3,4].map((i) => {
+                    const active = (feedbackRating ?? -1) >= i + 1
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setFeedbackRating((feedbackRating ?? 0) === i + 1 ? null : i + 1)}
+                        className="p-1 rounded hover:bg-amber-100/60 dark:hover:bg-amber-900/30"
+                        aria-label={`Set rating to ${i+1}`}
+                        disabled={feedbackSubmitting}
+                      >
+                        <Star className={`${active ? 'fill-amber-400 text-amber-500' : 'text-zinc-400 dark:text-zinc-600'} h-5 w-5`} />
+                      </button>
+                    )
+                  })}
+                  <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">{feedbackRating ?? 'No rating'}</span>
+                </div>
               </div>
               
               <div className="text-xs text-zinc-500 dark:text-zinc-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
