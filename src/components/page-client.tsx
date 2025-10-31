@@ -760,6 +760,44 @@ if(pinnedData?.length){
     }
   }, [sortBy])
 
+  // Compute filtered content before potential early return to keep hooks order consistent
+  const filteredContent = enhancedContent.filter(item => {
+    const matchesSearch = 
+      item.title?.toLowerCase().includes(search.toLowerCase()) ||
+      item.professor_name?.toLowerCase().includes(search.toLowerCase()) ||
+      item.semester_display?.toLowerCase().includes(search.toLowerCase()) ||
+      item.batch?.toLowerCase().includes(search.toLowerCase())
+
+    const matchesTags = selectedTags.length === 0 || 
+      selectedTags.every(tag => item.tag_names?.includes(tag))
+
+    return matchesSearch && matchesTags
+  }).sort((a, b) => 
+    (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
+  )
+
+  // Group content by year, semester, batch, and professor
+  const groupedContent = filteredContent.reduce((groups, item) => {
+    const key = `${item.year}*${item.semester_display}*${item.batch}*${item.professor_name || 'Unknown'}`
+    if (!groups[key]) {
+      groups[key] = []
+    }
+    groups[key].push(item)
+    return groups
+  }, {} as Record<string, EnhancedContent[]>)
+
+  // Expand all groups by default on first load (keeps user toggles afterward)
+  useEffect(() => {
+    if (!search && expandedGroups.size === 0 && filteredContent.length > 0) {
+      const allKeys = new Set<string>()
+      filteredContent.forEach((item) => {
+        const key = `${item.year}*${item.semester_display}*${item.batch}*${item.professor_name || 'Unknown'}`
+        allKeys.add(key)
+      })
+      setExpandedGroups(allKeys)
+    }
+  }, [filteredContent, search, expandedGroups.size])
+
   if (!course && !serverCourse) {
     return (
       <motion.div 
@@ -839,43 +877,7 @@ if(pinnedData?.length){
       </motion.div>
     )
   }
-
-  const filteredContent = enhancedContent.filter(item => {
-    const matchesSearch = 
-      item.title?.toLowerCase().includes(search.toLowerCase()) ||
-      item.professor_name?.toLowerCase().includes(search.toLowerCase()) ||
-      item.semester_display?.toLowerCase().includes(search.toLowerCase()) ||
-      item.batch?.toLowerCase().includes(search.toLowerCase())
-
-    const matchesTags = selectedTags.length === 0 || 
-      selectedTags.every(tag => item.tag_names?.includes(tag))
-
-    return matchesSearch && matchesTags
-  }).sort((a, b) => 
-    (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
-  )
-
-  // Group content by year, semester, batch, and professor
-  const groupedContent = filteredContent.reduce((groups, item) => {
-    const key = `${item.year}*${item.semester_display}*${item.batch}*${item.professor_name || 'Unknown'}`
-    if (!groups[key]) {
-      groups[key] = []
-    }
-    groups[key].push(item)
-    return groups
-  }, {} as Record<string, EnhancedContent[]>)
-
-  // Expand all groups by default on first load (keeps user toggles afterward)
-  useEffect(() => {
-    if (!search && expandedGroups.size === 0 && filteredContent.length > 0) {
-      const allKeys = new Set<string>()
-      filteredContent.forEach((item) => {
-        const key = `${item.year}*${item.semester_display}*${item.batch}*${item.professor_name || 'Unknown'}`
-        allKeys.add(key)
-      })
-      setExpandedGroups(allKeys)
-    }
-  }, [filteredContent, search, expandedGroups.size])
+  
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => {
