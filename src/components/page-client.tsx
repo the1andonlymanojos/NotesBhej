@@ -32,7 +32,7 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
   semester_display?: string
 }
 
-const prefer_r2_url = false;
+const prefer_r2_url = true;
 const getContentUrl = (item: { r2_url?: string | null; resource_url?: string | null }): string | null => {
   const r2 = (item as any).r2_url as string | null | undefined
   const res = (item as any).resource_url as string | null | undefined
@@ -858,6 +858,18 @@ if(pinnedData?.length){
     groups[key].push(item)
     return groups
   }, {} as Record<string, EnhancedContent[]>)
+
+  // Expand all groups by default on first load (keeps user toggles afterward)
+  useEffect(() => {
+    if (!search && expandedGroups.size === 0 && filteredContent.length > 0) {
+      const allKeys = new Set<string>()
+      filteredContent.forEach((item) => {
+        const key = `${item.year}*${item.semester_display}*${item.batch}*${item.professor_name || 'Unknown'}`
+        allKeys.add(key)
+      })
+      setExpandedGroups(allKeys)
+    }
+  }, [filteredContent, search, expandedGroups.size])
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => {
