@@ -281,17 +281,23 @@ export default function CourseViewPage({
     const diffMinutes = Math.floor(diffMs / (1000 * 60))
     
     if (diffMinutes < 60) {
-      return `${diffMinutes}m ago`
+      const unit = diffMinutes === 1 ? 'minute' : 'minutes'
+      return `${diffMinutes} ${unit} ago`
     } else if (diffHours < 24) {
-      return `${diffHours}h ago`
+      const hoursOnly = Math.floor(diffMinutes / 60)
+      const unit = hoursOnly === 1 ? 'hour' : 'hours'
+      return `${hoursOnly} ${unit} ago`
     } else if (diffDays < 7) {
-      return `${diffDays}d ago`
+      const unit = diffDays === 1 ? 'day' : 'days'
+      return `${diffDays} ${unit} ago`
     } else if (diffDays < 30) {
       const weeks = Math.floor(diffDays / 7)
-      return `${weeks}w ago`
+      const unit = weeks === 1 ? 'week' : 'weeks'
+      return `${weeks} ${unit} ago`
     } else {
       const months = Math.floor(diffDays / 30)
-      return `${months}mo ago`
+      const unit = months === 1 ? 'month' : 'months'
+      return `${months} ${unit} ago`
     }
   }
 
