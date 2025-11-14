@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileInput } from "@/components/ui/file-input"
-import { Upload, FileText, Tag, X, AlertCircle, ArrowLeft, Check, ChevronsUpDown, ChevronDown, ChevronUp } from "lucide-react"
+import { Upload, FileText, Tag, X, AlertCircle, ArrowLeft, Check, ChevronsUpDown, ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Progress } from "@/components/ui/progress"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
@@ -30,8 +30,10 @@ export default function AddContentPage({
   const router = useRouter()
   const searchParams = useSearchParams()
   const courseId = use(params)["course-id"]
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(0)
+  const [contentType, setContentType] = useState<'pdf' | 'images' | null>(null)
   const [files, setFiles] = useState<File[]>([])
+  const [imageFiles, setImageFiles] = useState<File[]>([])
   const [fileTitles, setFileTitles] = useState<{ [key: string]: string }>({})
   const [fileTagIds, setFileTagIds] = useState<{ [key: string]: number | null }>({})
   const [year, setYear] = useState<number | string>("")
@@ -316,6 +318,59 @@ export default function AddContentPage({
     return errors
   }
 
+  const handleContentTypeSelect = (type: 'pdf' | 'images') => {
+    setContentType(type)
+    setStep(1)
+  }
+
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(e.target.files || [])
+    // Filter to only image files
+    const imageFiles = newFiles.filter(file => file.type.startsWith('image/'))
+    setImageFiles(prev => [...prev, ...imageFiles])
+  }
+
+  const removeImage = (fileName: string) => {
+    setImageFiles(imageFiles.filter(file => file.name !== fileName))
+  }
+
+  const handleImageUpload = async () => {
+    if (imageFiles.length === 0) {
+      setValidationErrors(["Please select at least one image to upload"])
+      setShowValidationError(true)
+      return
+    }
+
+    setLoading(true)
+    try {
+      const formData = new FormData()
+      imageFiles.forEach((file) => {
+        formData.append('images', file)
+      })
+      formData.append('courseId', courseId)
+      formData.append('professorId', selectedProfessorId?.toString() || '')
+      formData.append('year', year.toString())
+      formData.append('batch', batch)
+      formData.append('semesterNumber', semesterNumber.toString())
+      formData.append('isAnonymous', isAnonymous.toString())
+
+      const response = await fetch('/api/upload-images', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to upload images')
+      }
+
+      router.push(`/course/${courseId}`)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Error uploading images")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleNextStep = () => {
     const errors = validateStep1()
     if (errors.length > 0) {
@@ -323,7 +378,12 @@ export default function AddContentPage({
       setShowValidationError(true)
       return
     }
-    setStep(2)
+    if (contentType === 'pdf') {
+      setStep(2)
+    } else if (contentType === 'images') {
+      // For images, we can upload directly after step 1
+      handleImageUpload()
+    }
   }
 
   return (
@@ -491,16 +551,47 @@ export default function AddContentPage({
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                 <Upload className="text-indigo-500" size={20} />
-                {step === 1 ? "Basic Information" : "Upload Files"}
+                {step === 0 ? "Select Content Type" : step === 1 ? "Basic Information" : "Upload Files"}
               </h2>
             <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${step === 1 ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
-                <div className={`w-2 h-2 rounded-full ${step === 2 ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
+                {contentType === 'pdf' ? (
+                  <>
+                    <div className={`w-2 h-2 rounded-full ${step === 1 ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
+                    <div className={`w-2 h-2 rounded-full ${step === 2 ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
+                  </>
+                ) : contentType === 'images' ? (
+                  <div className={`w-2 h-2 rounded-full ${step === 1 ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
+                ) : null}
               </div>
             </div>
   
             <div className="h-[calc(100vh-20rem)] sm:h-[calc(100vh-22rem)] md:h-[28rem] overflow-y-auto pr-2 sm:pr-4 scrollbar-thin scrollbar-thumb-indigo-200 dark:scrollbar-thumb-indigo-700 scrollbar-track-transparent">
-              {step === 1 ? (
+              {step === 0 ? (
+                <div className="space-y-6 flex flex-col items-center justify-center h-full">
+                  <p className="text-zinc-600 dark:text-zinc-400 text-center mb-4">
+                    Choose the type of content you want to add
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-md">
+                    <Button
+                      onClick={() => handleContentTypeSelect('pdf')}
+                      disabled={loading}
+                      className="flex-1 h-24 sm:h-32 bg-indigo-100 dark:bg-zinc-800 hover:bg-indigo-200 dark:hover:bg-zinc-700 text-indigo-700 dark:text-zinc-200 font-medium shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-2"
+                    >
+                      <FileText size={32} />
+                      <span>Upload PDF Documents</span>
+                    </Button>
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium text-sm">or</span>
+                    <Button
+                      onClick={() => handleContentTypeSelect('images')}
+                      disabled={loading}
+                      className="flex-1 h-24 sm:h-32 bg-indigo-100 dark:bg-zinc-800 hover:bg-indigo-200 dark:hover:bg-zinc-700 text-indigo-700 dark:text-zinc-200 font-medium shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-2"
+                    >
+                      <ImageIcon size={32} />
+                      <span>Add Images</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : step === 1 ? (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
@@ -614,10 +705,50 @@ export default function AddContentPage({
                       Post anonymously
                     </label>
                   </div>
-  
+                  
+                  {contentType === 'images' && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        Images
+                      </label>
+                      <FileInput
+                        multiple
+                        onChange={handleImageChange}
+                        disabled={loading}
+                        accept="image/*"
+                        className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-700 rounded-xl p-4 sm:p-6 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors"
+                      />
+                      {imageFiles.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                          {imageFiles.map((file) => (
+                            <div
+                              key={file.name}
+                              className="flex items-center justify-between p-3 bg-white/50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700"
+                            >
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <ImageIcon size={20} className="text-indigo-500 flex-shrink-0" />
+                                <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">{file.name}</span>
+                                <span className="text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
+                                  ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => removeImage(file.name)}
+                                disabled={loading}
+                                className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-2"
+                                title="Remove image"
+                              >
+                                <X size={16} className="text-zinc-500 dark:text-zinc-400" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 </div>
-              ) : (
+              ) : step === 2 && contentType === 'pdf' ? (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
@@ -627,6 +758,7 @@ export default function AddContentPage({
                       multiple
                       onChange={handleFileChange}
                       disabled={loading}
+                      accept=".pdf,application/pdf"
                       className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-700 rounded-xl p-4 sm:p-6 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors"
                     />
                     {files.length > 0 && (
@@ -773,18 +905,45 @@ export default function AddContentPage({
                     )}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
   
             <div className="mt-4 pt-2 border-t border-zinc-200 dark:border-zinc-800">
-              {step === 1 ? (
-                <Button
-                  onClick={handleNextStep}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-sky-400 dark:from-indigo-700 dark:via-fuchsia-700 dark:to-sky-700 text-white font-semibold shadow-lg hover:scale-[1.01] hover:shadow-xl transition-all duration-200"
-                >
-                  Next Step
-                </Button>
+              {step === 0 ? null : step === 1 ? (
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <Button
+                    onClick={() => {
+                      setStep(0)
+                      setContentType(null)
+                    }}
+                    disabled={loading}
+                    variant="outline"
+                    className="sm:flex-1 border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={loading}
+                    className="sm:flex-1 bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-sky-400 dark:from-indigo-700 dark:via-fuchsia-700 dark:to-sky-700 text-white font-semibold shadow-lg hover:scale-[1.01] hover:shadow-xl transition-all duration-200"
+                  >
+                    {contentType === 'images' ? (
+                      loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Uploading...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2">
+                          <Upload size={18} />
+                          <span>Upload Images</span>
+                        </div>
+                      )
+                    ) : (
+                      "Next Step"
+                    )}
+                  </Button>
+                </div>
               ) : (
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <Button
