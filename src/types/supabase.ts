@@ -304,6 +304,36 @@ export type Database = {
         }
         Relationships: []
       }
+      QnA: {
+        Row: {
+          created_at: string
+          id: number
+          ques: string | null
+          rating: number | null
+          response: string | null
+          userid: string
+          yes_no: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          ques?: string | null
+          rating?: number | null
+          response?: string | null
+          userid: string
+          yes_no?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          ques?: string | null
+          rating?: number | null
+          response?: string | null
+          userid?: string
+          yes_no?: boolean | null
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           id: number
@@ -676,27 +706,61 @@ export type Database = {
       }
     }
     Functions: {
-      get_public_course_content: {
-        Args: Record<PropertyKey, never> | { target_course_id: number }
-        Returns: {
-          anon: boolean | null
-          batch: string | null
-          course_id: number | null
-          created_at: string | null
-          deleted: boolean | null
-          filetype: string | null
-          id: number | null
-          professor_id: number | null
-          resource_url: string | null
-          semester_number: number | null
-          tag_ids: number[] | null
-          title: string | null
-          updated_at: string | null
-          user_id: string | null
-          visible: boolean | null
-          year: number | null
-        }[]
-      }
+      get_public_course_content:
+        | {
+            Args: { target_course_id: number }
+            Returns: {
+              anon: boolean | null
+              batch: string | null
+              course_id: number | null
+              created_at: string | null
+              deleted: boolean | null
+              filetype: string | null
+              id: number | null
+              professor_id: number | null
+              resource_url: string | null
+              semester_number: number | null
+              tag_ids: number[] | null
+              title: string | null
+              updated_at: string | null
+              user_id: string | null
+              visible: boolean | null
+              year: number | null
+            }[]
+            SetofOptions: {
+              from: "*"
+              to: "course_contentnew_safe"
+              isOneToOne: false
+              isSetofReturn: true
+            }
+          }
+        | {
+            Args: never
+            Returns: {
+              anon: boolean | null
+              batch: string | null
+              course_id: number | null
+              created_at: string | null
+              deleted: boolean | null
+              filetype: string | null
+              id: number | null
+              professor_id: number | null
+              resource_url: string | null
+              semester_number: number | null
+              tag_ids: number[] | null
+              title: string | null
+              updated_at: string | null
+              user_id: string | null
+              visible: boolean | null
+              year: number | null
+            }[]
+            SetofOptions: {
+              from: "*"
+              to: "course_contentnew_safe"
+              isOneToOne: false
+              isSetofReturn: true
+            }
+          }
       professor_course_list: {
         Args: { limit_count?: number; offset_count?: number }
         Returns: {

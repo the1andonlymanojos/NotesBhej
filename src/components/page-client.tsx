@@ -32,6 +32,8 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
   semester_display?: string
 }
 
+const PREFERENCE_QUESTION = "Do you prefer using this site over Google Classroom?"
+
 const prefer_r2_url = true;
 const getContentUrl = (item: { r2_url?: string | null; resource_url?: string | null }): string | null => {
   const r2 = (item as any).r2_url as string | null | undefined
@@ -94,6 +96,9 @@ export default function CourseViewPage({
   const supabase = createClient()
   const [isNavigating, setIsNavigating] = useState(false)
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null)
+  const [showPreferenceQuestion, setShowPreferenceQuestion] = useState(false)
+  const [preferenceSubmitting, setPreferenceSubmitting] = useState(false)
+  const [preferenceError, setPreferenceError] = useState<string | null>(null)
 
   // Debouncing refs for interaction logging
   const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
@@ -679,6 +684,37 @@ if(pinnedData?.length){
     }
   }, [currentUserId, professors, tags, fetchRecentlyViewed])
 
+  useEffect(() => {
+    const checkPreferenceResponse = async () => {
+      if (!currentUserId) {
+        setShowPreferenceQuestion(false)
+        return
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("QnA")
+          .select("id")
+          .eq("userid", currentUserId)
+          .eq("ques", PREFERENCE_QUESTION)
+          .limit(1)
+
+        if (error) {
+          console.error("Error checking preference question:", error)
+          setShowPreferenceQuestion(false)
+          return
+        }
+
+        setShowPreferenceQuestion(!data || data.length === 0)
+      } catch (err) {
+        console.error("Unexpected error checking preference question:", err)
+        setShowPreferenceQuestion(false)
+      }
+    }
+
+    checkPreferenceResponse()
+  }, [currentUserId, supabase])
+
   // Set content as ready after a delay to allow animations to complete
   useEffect(() => {
     if ((course || serverCourse) && enhancedContent.length > 0) {
@@ -1161,6 +1197,41 @@ if(pinnedData?.length){
     } catch (error) {
       console.error("Error checking auth for feedback:", error)
       setShowLoginDialog(true)
+    }
+  }
+
+  const handlePreferenceResponse = async (choice: "yes" | "no" | "skip") => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setRedirectTo(`/course/${courseId}`)
+        setShowLoginDialog(true)
+        return
+      }
+
+      setPreferenceSubmitting(true)
+      setPreferenceError(null)
+
+      const payload = {
+        userid: user.id,
+        ques: PREFERENCE_QUESTION,
+        response: choice === "skip" ? "no_answer" : choice,
+        yes_no: choice === "skip" ? null : choice === "yes"
+      }
+
+      const { error } = await supabase.from("QnA").insert(payload)
+      if (error) {
+        console.error("Error saving preference response:", error)
+        setPreferenceError("Failed to save your answer. Please try again.")
+        return
+      }
+
+      setShowPreferenceQuestion(false)
+    } catch (error) {
+      console.error("Unexpected error saving preference response:", error)
+      setPreferenceError("Failed to save your answer. Please try again.")
+    } finally {
+      setPreferenceSubmitting(false)
     }
   }
 
@@ -1907,6 +1978,61 @@ if(pinnedData?.length){
                 </div>
               )
             })}
+              {currentUserId && showPreferenceQuestion && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-white/80 dark:bg-zinc-900/80 border border-indigo-100 dark:border-indigo-900 rounded-xl p-3 sm:p-4 shadow-sm flex flex-col gap-3"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-indigo-500 font-semibold mb-0.5">
+                        Quick poll
+                      </p>
+                      <p className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100">
+                        {PREFERENCE_QUESTION}
+                      </p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Answer once, we&apos;ll hide it forever.
+                      </p>
+                    </div>
+                    <div className="flex flex-1 sm:flex-none items-center justify-stretch sm:justify-end gap-1.5">
+                      <Button
+                        disabled={preferenceSubmitting}
+                        size="sm"
+                        onClick={() => handlePreferenceResponse("yes")}
+                        className="flex-1 sm:flex-none  w-32 text-xs sm:text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-100 px-3 py-1.5"
+                      >
+                        {preferenceSubmitting ? "Saving..." : "Yes"}
+                      </Button>
+                      <Button
+                        disabled={preferenceSubmitting}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePreferenceResponse("no")}
+                        className="flex-1 sm:flex-none w-32 text-xs sm:text-sm border-zinc-200 text-zinc-700 dark:border-zinc-700 dark:text-zinc-100 px-3 py-1.5"
+                      >
+                        No
+                      </Button>
+                      <Button
+                        disabled={preferenceSubmitting}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handlePreferenceResponse("skip")}
+                        className="flex-1 sm:flex-none w-32 text-xs sm:text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 px-3 py-1.5"
+                      >
+                        Skip
+                      </Button>
+                    </div>
+                  </div>
+                  {preferenceError && (
+                    <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md px-2 py-1">
+                      {preferenceError}
+                    </div>
+                  )}
+                </motion.div>
+              )}
               {/* Encourage-upload empty group (after existing groups) */}
               <div className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg">
                 <div className="flex items-center justify-between mb-3">
