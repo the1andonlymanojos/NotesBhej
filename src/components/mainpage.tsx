@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
 import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText } from "lucide-react"
+import BackgroundSelector from "@/components/background-selector"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
@@ -644,14 +645,14 @@ const allCourses = initialData.allCourses
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-3 sm:p-4">
+    <div className="min-h-screen p-3 sm:p-4">
       {/* Navigation Loading Overlay */}
       <AnimatePresence>
         {isNavigating && (
           <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-4 sm:p-6"
+          className="min-h-screen p-4 sm:p-6"
         >
         
   
@@ -858,6 +859,7 @@ const allCourses = initialData.allCourses
             
             
             
+            <BackgroundSelector />
             <ThemeToggle />
           </div>
         </div>

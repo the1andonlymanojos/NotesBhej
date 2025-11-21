@@ -76,6 +76,7 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
+  --app-background-image: linear-gradient(135deg, #0a151f 0%, #03091b 60%, #01100c 100%);
 }
 
 .dark {
@@ -118,5 +119,22 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: var(--app-background-image);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
+}
+/* TEMP — add to bottom of globals.css to confirm fix, then make permanent safely */
+:root {
+  --app-background-size: cover;
+  --app-background-color: var(--background);
+}
+html,body {
+  background-color: var(--app-background-color) !important;
+  background-image: var(--app-background-image) !important;
+  background-size: var(--app-background-size) !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
 }
