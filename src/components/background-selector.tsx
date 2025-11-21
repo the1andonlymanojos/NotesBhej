@@ -12,15 +12,21 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   DEFAULT_BACKGROUND,
+  SOFT_GRADIENT_BACKGROUND,
   persistBackgroundPreference,
   readBackgroundPreference,
 } from "@/lib/backgrounds"
 
 const BACKGROUND_OPTIONS = [
   {
+    id: "windows",
+    label: "Window View",
+    value: DEFAULT_BACKGROUND,
+  },
+  {
     id: "gradient",
     label: "Soft Gradient",
-    value: DEFAULT_BACKGROUND,
+    value: SOFT_GRADIENT_BACKGROUND,
   },
   {
     id: "aurora",

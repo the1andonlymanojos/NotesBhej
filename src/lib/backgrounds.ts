@@ -1,7 +1,8 @@
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365; // 1 year
 
 export const BACKGROUND_COOKIE_NAME = "notesbhej-background";
-export const DEFAULT_BACKGROUND =
+export const DEFAULT_BACKGROUND = "url('/bgwindows.jpg')";
+export const SOFT_GRADIENT_BACKGROUND =
   "linear-gradient(135deg,rgb(105, 155, 206) 0%,rgb(92, 113, 182) 60%,rgb(8, 99, 78) 100%)";
 
 const getCookieValue = (cookieName: string) => {
