@@ -645,7 +645,7 @@ const allCourses = initialData.allCourses
   }, [])
 
   return (
-    <div className="min-h-screen p-3 sm:p-4">
+    <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 p-3 sm:p-4">
       {/* Navigation Loading Overlay */}
       <AnimatePresence>
         {isNavigating && (

@@ -15,31 +15,39 @@ import {
   SOFT_GRADIENT_BACKGROUND,
   persistBackgroundPreference,
   readBackgroundPreference,
+  OG_GRAD_BG,
 } from "@/lib/backgrounds"
 
 const BACKGROUND_OPTIONS = [
   {
     id: "windows",
-    label: "Window View",
+    label: "Windows XP",
     value: DEFAULT_BACKGROUND,
   },
   {
-    id: "gradient",
-    label: "Soft Gradient",
-    value: SOFT_GRADIENT_BACKGROUND,
+    id: "mountain",
+    label: "Interstellar",
+    value:
+      "url('/inter.jpeg')",
   },
   {
     id: "aurora",
-    label: "Aurora Sky",
+    label: "City scape",
     value:
-      "url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80')",
+      "url('/b-004.jpg')",
+  },
+  
+  {
+    id: "gradient",
+    label: "Blue Gradient",
+    value: SOFT_GRADIENT_BACKGROUND,
   },
   {
-    id: "mountain",
-    label: "Mountain Lake",
-    value:
-      "url('https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1600&q=80')",
+    id: "og-grad",
+    label: "Original Gradient",
+    value: OG_GRAD_BG,
   },
+  
 ]
 
 export function BackgroundSelector() {
@@ -80,7 +88,7 @@ export function BackgroundSelector() {
         <Button
           variant="outline"
           size="sm"
-          className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm"
+          className="flex h-8 sm:h-10 px-2 sm:px-3 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 items-center gap-1 px-2 py-1 text-xs sm:text-sm"
         >
           <span className="whitespace-nowrap">{activeOption.label}</span>
           <ChevronDown className="h-3 w-3" />
@@ -100,6 +108,11 @@ export function BackgroundSelector() {
             {option.label}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuItem
+        key={"custom"}>
+            Custom image <br></br>(coming soon!)
+
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

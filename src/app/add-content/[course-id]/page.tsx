@@ -388,7 +388,7 @@ export default function AddContentPage({
   //bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500
 
   return (
-    <div className="min-h-screen flex items-center justify-center transition-colors duration-500  p-4 sm:p-6">
+    <div className="min-h-screen flex items-center justify-center dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 transition-colors duration-500  p-4 sm:p-6">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>

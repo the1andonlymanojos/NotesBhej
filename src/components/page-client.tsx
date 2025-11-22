@@ -306,8 +306,6 @@ export default function CourseViewPage({
     }
   }
 
-  const headingHighlightClass = "inline-flex items-center px-3 py-1 rounded-2xl bg-white/75 dark:bg-zinc-900/60 backdrop-blur-sm shadow-sm"
-
   const buildFilename = (item: EnhancedContent, contentType?: string | null) => {
     const safe = (item.title || 'file').replace(/[^a-z0-9\-_. ]/gi, '_')
     const type = (item.filetype || contentType || '').toLowerCase()
@@ -1240,7 +1238,7 @@ if(pinnedData?.length){
   //bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] 
 
   return (
-    <div className="min-h-screen transition-colors duration-500 p-4 sm:p-6">
+    <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 transition-colors duration-500 p-4 sm:p-6">
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1318,9 +1316,7 @@ if(pinnedData?.length){
                 <Heart className={`h-4 w-4 transition-all ${isPinned ? "fill-current" : ""}`} />
               </Button>
               <div>
-              <h1
-                className={`text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight break-words ${headingHighlightClass}`}
-              >
+              <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight break-words">
                 {(course || serverCourse)?.title}
               </h1>
             </div>
@@ -1348,9 +1344,7 @@ if(pinnedData?.length){
               <Heart className={`h-5 w-5 transition-all ${isPinned ? "fill-current" : ""}`} />
             </Button>
             <div className="min-w-0 flex-1">
-              <h1
-                className={`text-2xl lg:text-3xl font-bold text-zinc-900 dark:text-zinc-100 leading-tight ${headingHighlightClass}`}
-              >
+              <h1 className="text-2xl lg:text-3xl font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
                 {(course || serverCourse)?.title}
               </h1>
               {(course || serverCourse)?.abbreviation && (
@@ -1431,9 +1425,7 @@ if(pinnedData?.length){
               onClick={() => setShowRecentlyViewed(!showRecentlyViewed)}
             >
               <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
-              <h2
-                className={`text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 ${headingHighlightClass}`}
-              >
+              <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                 Recently Viewed ({recentlyViewed.length})
               </h2>
               {showRecentlyViewed ? (
@@ -1699,9 +1691,7 @@ if(pinnedData?.length){
                   <div className="flex sm:flex-row  items-center gap-2">
 
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500" />
-                    <h3
-                      className={`text-xs sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 ${headingHighlightClass}`}
-                    >
+                    <h3 className="text-xs sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                       {year} {batch} - <span className="sm:hidden">{getSemesterText(semester).mobile}</span><span className="hidden sm:inline">{getSemesterText(semester).desktop}</span> 
                     </h3>
                     {instructor && instructor !== 'Unknown' && (
@@ -2049,9 +2039,7 @@ if(pinnedData?.length){
               <div className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                  <h3
-                    className={`text-xs sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 ${headingHighlightClass}`}
-                  >
+                    <h3 className="text-xs sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                       Add new class!
                     </h3>
                   </div>
