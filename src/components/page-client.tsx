@@ -63,6 +63,7 @@ export default function CourseViewPage({
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"year" | "professor_name">("year")
+  const [groupSortBy, setGroupSortBy] = useState<"title" | "date">("date")
   const [showViewer, setShowViewer] = useState(false)
   const [selectedContent, setSelectedContent] = useState<EnhancedContent | null>(null)
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
@@ -808,9 +809,20 @@ if(pinnedData?.length){
       selectedTags.every(tag => item.tag_names?.includes(tag))
 
     return matchesSearch && matchesTags
-  }).sort((a, b) => 
-    (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
-  )
+  }).sort((a, b) => {
+    if (groupSortBy === "date") {
+      // Sort by updated_at (most recent first), fallback to created_at
+      const aDate = a.updated_at || a.created_at || ''
+      const bDate = b.updated_at || b.created_at || ''
+      if (!aDate && !bDate) return 0
+      if (!aDate) return 1
+      if (!bDate) return -1
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    } else {
+      // Sort by title (default)
+      return (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
+    }
+  })
 
   // Group content by year, semester, batch, and professor
   const groupedContent = filteredContent.reduce((groups, item) => {
@@ -821,6 +833,24 @@ if(pinnedData?.length){
     groups[key].push(item)
     return groups
   }, {} as Record<string, EnhancedContent[]>)
+
+  // Sort items within each group based on groupSortBy
+  Object.keys(groupedContent).forEach(key => {
+    groupedContent[key].sort((a, b) => {
+      if (groupSortBy === "date") {
+        // Sort by updated_at (most recent first), fallback to created_at
+        const aDate = a.updated_at || a.created_at || ''
+        const bDate = b.updated_at || b.created_at || ''
+        if (!aDate && !bDate) return 0
+        if (!aDate) return 1
+        if (!bDate) return -1
+        return new Date(bDate).getTime() - new Date(aDate).getTime()
+      } else {
+        // Sort by title (default)
+        return (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
+      }
+    })
+  })
 
   // Expand all groups by default on first load (keeps user toggles afterward)
   useEffect(() => {
@@ -1376,7 +1406,7 @@ if(pinnedData?.length){
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <div className="flex items-center gap-1 sm:gap-2">
               <Filter className="h-3 w-3 sm:h-4 sm:w-4 text-zinc-500 dark:text-zinc-400" />
-              <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">Sort by:</span>
+              <span className="text-xs sm:text-sm text-white dark:text-white">Sort by:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as "year" | "professor_name")}
@@ -1384,6 +1414,19 @@ if(pinnedData?.length){
               >
                 <option value="year">Year</option>
                 <option value="professor_name">Instructor</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-zinc-500 dark:text-zinc-400" />
+              <span className="text-xs sm:text-sm text-white dark:text-white">Within group:</span>
+              <select
+                value={groupSortBy}
+                onChange={(e) => setGroupSortBy(e.target.value as "title" | "date")}
+                className="bg-white dark:bg-zinc-900 border-2 border-indigo-200 dark:border-indigo-700 rounded-md px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs sm:text-sm focus:ring-2 focus:ring-indigo-400 transition"
+              >
+                <option value="title">Title</option>
+                <option value="date">Date</option>
               </select>
             </div>
 
