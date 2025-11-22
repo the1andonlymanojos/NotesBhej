@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      bg_images: {
+        Row: {
+          created_at: string
+          id: number
+          "image link": string | null
+          Name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          "image link"?: string | null
+          Name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          "image link"?: string | null
+          Name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       course: {
         Row: {
           abbreviation: string | null
