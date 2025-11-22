@@ -121,7 +121,8 @@ export function BackgroundSelector() {
   // Fetch custom backgrounds when authenticated
   useEffect(() => {
     const fetchCustomBackgrounds = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const  userData= await supabase.auth.getUser()
+      const user = userData?.data?.user
       if (!user) {
         setUserId(null)
         setCustomBackgrounds([])
@@ -232,7 +233,7 @@ export function BackgroundSelector() {
       }
 
       // Save to database
-      const { data, error } = await supabase
+      const {error } = await supabase
         .from("bg_images")
         .insert({
           Name: backgroundName.trim(),
