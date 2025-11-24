@@ -28,7 +28,7 @@ import {
   readBackgroundPreference,
   OG_GRAD_BG,
 } from "@/lib/backgrounds"
-import { createClient } from "@/utils/supabase/client"
+  import { createClient } from "@/utils/supabase/client"
 
 const BACKGROUND_OPTIONS = [
   {
@@ -69,6 +69,12 @@ interface CustomBackground {
   user_id: string | null
 }
 
+interface UserBackgroundPreference {
+  id: number
+  bg: string | null
+  user_id: string | null
+}
+
 export function BackgroundSelector() {
   const [selection, setSelection] = useState<string>(DEFAULT_BACKGROUND)
   const [customBackgrounds, setCustomBackgrounds] = useState<CustomBackground[]>([])
@@ -77,6 +83,7 @@ export function BackgroundSelector() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [backgroundName, setBackgroundName] = useState("")
   const [userId, setUserId] = useState<string | null>(null)
+  const [userBgPreference, setUserBgPreference] = useState<UserBackgroundPreference | null>(null)
   const hasPersistedRef = useRef(true)
   const supabase = createClient()
 
@@ -126,6 +133,7 @@ export function BackgroundSelector() {
       if (!user) {
         setUserId(null)
         setCustomBackgrounds([])
+        setUserBgPreference(null)
         return
       }
 
@@ -143,6 +151,37 @@ export function BackgroundSelector() {
 
       if (data) {
         setCustomBackgrounds(data)
+      }
+
+      const { data: prefData, error: prefError } = await supabase
+        .from("userbgpref")
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1)
+
+      if (prefError && prefError.code !== "PGRST116") {
+        console.error("Error fetching user background preference:", prefError)
+      } else if (!prefData || prefData.length === 0) {
+        try {
+          const { data: insertedPref, error: insertError } = await supabase
+            .from("userbgpref")
+            .insert({
+              user_id: user.id,
+              bg: "FRESH INSERT",
+            })
+            .select()
+            .single()
+
+          if (insertError) {
+            throw insertError
+          }
+
+          setUserBgPreference(insertedPref)
+        } catch (insertErr) {
+          console.error("Error inserting default background preference:", insertErr)
+        }
+      } else {
+        setUserBgPreference(prefData[0])
       }
     }
 
@@ -173,6 +212,50 @@ export function BackgroundSelector() {
 
     hasPersistedRef.current = false
   }, [selection])
+
+  useEffect(() => {
+    if (!userId || !selection) {
+      return
+    }
+
+    const currentBgPref = userBgPreference?.bg ?? null
+    if (currentBgPref === selection) {
+      return
+    }
+
+    let isCancelled = false
+
+    const syncPreference = async () => {
+      try {
+        console.log("userBgPreference", userBgPreference)
+        if (userBgPreference?.id) {
+          const { data, error } = await supabase
+            .from("userbgpref")
+            .update({ bg: selection })
+            .eq("id", userBgPreference.id)
+            .select()
+            .single()
+
+          if (error) {
+            throw error
+          }
+
+          if (!isCancelled) {
+            setUserBgPreference(data)
+          }
+        } 
+      } catch (error) {
+        console.log("id",userBgPreference?.id)
+        console.error("Error syncing background preference:", error)
+      }
+    }
+
+    syncPreference()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selection, userId, supabase, userBgPreference?.id, userBgPreference?.bg])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

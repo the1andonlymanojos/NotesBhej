@@ -504,6 +504,27 @@ export type Database = {
           },
         ]
       }
+      userbgpref: {
+        Row: {
+          bg: string | null
+          created_at: string
+          id: number
+          user_id: string | null
+        }
+        Insert: {
+          bg?: string | null
+          created_at?: string
+          id?: number
+          user_id?: string | null
+        }
+        Update: {
+          bg?: string | null
+          created_at?: string
+          id?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       course_contentnew_anon: {
