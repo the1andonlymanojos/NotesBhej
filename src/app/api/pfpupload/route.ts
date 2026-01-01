@@ -44,8 +44,8 @@ const s3Client = new S3Client({
 })
 
 const PublicURL = UseDev
-  ? `https://s3.manoj-shiv.tech/pfp` // profile pictures folder
-  : `https://data.miga.manoj-shiv.tech/pfp`
+  ? `https://s3.mshiv.net/pfp` // profile pictures folder
+  : `https://data.miga.mshiv.net/pfp`
 
 // Allowed image file types for profile pictures
 const ALLOWED_IMAGE_TYPES = [

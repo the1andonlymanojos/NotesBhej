@@ -33,8 +33,8 @@ const s3Client = new S3Client({
 })
 
 const PublicURL = UseDev
-  ? `https://s3.manoj-shiv.tech/notes`
-  : `https://data.miga.manoj-shiv.tech`
+  ? `https://s3.mshiv.net/notes`
+  : `https://data.miga.mshiv.net`
 
 export async function POST(request: Request) {
   try {
