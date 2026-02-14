@@ -11,8 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Database } from "@/types/supabase"
-import {  Github, Link, Unlink, Trophy, Plus, Twitch } from "lucide-react"
+import { Github, Link, Unlink, Trophy, Plus, Twitch, Heart, FileText, ArrowRight, BookOpen } from "lucide-react"
 import { toast } from "sonner"
+import BackgroundSelector from "@/components/background-selector"
 
 // Provider configuration
 const PROVIDERS: { id: string; label: string; Icon?: any }[] = [
@@ -29,8 +30,7 @@ const PROVIDERS: { id: string; label: string; Icon?: any }[] = [
 ]
 
 type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
-
-
+type CourseRow = Database["public"]["Tables"]["coursenew"]["Row"]
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -42,6 +42,9 @@ export default function ProfilePage() {
   const [identities, setIdentities] = useState<any[]>([])
   const [loadingIdentities, setLoadingIdentities] = useState(false)
   const [linkingAccount, setLinkingAccount] = useState(false)
+  const [contributionCount, setContributionCount] = useState<number>(0)
+  const [pinnedCourses, setPinnedCourses] = useState<CourseRow[]>([])
+  const [loadingPinned, setLoadingPinned] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -70,6 +73,66 @@ export default function ProfilePage() {
 
     getUser()
   }, [router, supabase])
+
+  // Fetch contribution count and pinned courses when user is available
+  useEffect(() => {
+    if (!user) {
+      setContributionCount(0)
+      setPinnedCourses([])
+      return
+    }
+    const fetchContributionCount = async () => {
+      const { count, error } = await supabase
+        .from("course_contentnew")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .or("deleted.is.null,deleted.eq.false")
+      if (!error) setContributionCount(count ?? 0)
+    }
+    const fetchPinned = async () => {
+      setLoadingPinned(true)
+      try {
+        const { data: pinnedData, error: pinnedError } = await supabase
+          .from("user_pinned_courses")
+          .select("course_id")
+          .eq("user_id", user.id)
+        if (pinnedError || !pinnedData?.length) {
+          setPinnedCourses([])
+          return
+        }
+        const courseIds = pinnedData.map((p) => p.course_id)
+        const { data: coursesData, error: coursesError } = await supabase
+          .from("coursenew")
+          .select("*")
+          .in("id", courseIds)
+        if (!coursesError && coursesData) setPinnedCourses(coursesData)
+        else setPinnedCourses([])
+      } finally {
+        setLoadingPinned(false)
+      }
+    }
+    fetchContributionCount()
+    fetchPinned()
+  }, [user, supabase])
+
+  const handleUnpin = async (courseId: number) => {
+    if (!user) return
+    try {
+      const { error } = await supabase
+        .from("user_pinned_courses")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("course_id", courseId)
+      if (error) {
+        toast.error("Could not unpin course")
+        return
+      }
+      setPinnedCourses((prev) => prev.filter((c) => c.id !== courseId))
+      toast.success("Course unpinned")
+    } catch {
+      toast.error("Could not unpin course")
+    }
+  }
 
   const fetchUserMeta = async (userId: string, user: User) => {
     try {
@@ -280,17 +343,17 @@ export default function ProfilePage() {
 
       if (error) {
         console.error("Error updating profile:", error)
-        alert("Error updating profile")
+        toast.error("Error updating profile")
         return
       }
 
       // Refresh user meta data
       await fetchUserMeta(user.id, user)
       setEditing(false)
-      alert("Profile updated successfully!")
+      toast.success("Profile updated successfully!")
     } catch (error) {
       console.error("Error:", error)
-      alert("Error updating profile")
+      toast.error("Error updating profile")
     } finally {
       setSaving(false)
     }
@@ -343,16 +406,16 @@ export default function ProfilePage() {
 
       if (error) {
         console.error("Error updating profile picture:", error)
-        alert("Error updating profile picture")
+        toast.error("Error updating profile picture")
         return
       }
 
       // Refresh user meta data
       await fetchUserMeta(user.id, user)
-      alert("Profile picture updated successfully!")
+      toast.success("Profile picture updated successfully!")
     } catch (error) {
       console.error("Error uploading profile picture:", error)
-      alert("Error uploading profile picture")
+      toast.error("Error uploading profile picture")
     } finally {
       setUploadingPfp(false)
     }
@@ -423,13 +486,13 @@ export default function ProfilePage() {
 
     // Check if it's an image
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+      toast.error('Please select an image file')
       return
     }
 
     // Check file size (limit to 10MB before processing)
     if (file.size > 10 * 1024 * 1024) {
-      alert('Image is too large. Please select an image smaller than 10MB.')
+      toast.error('Image is too large. Please select an image smaller than 10MB.')
       return
     }
 
@@ -439,7 +502,7 @@ export default function ProfilePage() {
       await handleProfilePictureUpload(processedFile)
     } catch (error) {
       console.error('Error processing image:', error)
-      alert('Error processing image. Please try a different file.')
+      toast.error('Error processing image. Please try a different file.')
     } finally {
       // uploadingPfp will be set to false in handleProfilePictureUpload
     }
@@ -447,346 +510,246 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 p-3 sm:p-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 dark:border-gray-100"></div>
-          <p className="mt-4 text-lg">Loading profile...</p>
-              </div>
-    </div>
-  )
-}
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
+          <p className="mt-4 text-lg text-zinc-700 dark:text-zinc-300">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
 
+  const cardClass = "rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/50 backdrop-blur shadow-sm"
+  const cardTight = "py-3 gap-3 [&_[data-slot=card-header]]:px-4 [&_[data-slot=card-header]]:pt-4 [&_[data-slot=card-header]]:pb-2 [&_[data-slot=card-content]]:px-4 [&_[data-slot=card-content]]:pb-4"
 
   return (
-    <div className="min-h-screen p-2 sm:p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
-        <div className="space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 p-3 sm:p-4">
+      <div className="max-w-6xl mx-auto space-y-3 lg:space-y-4">
+        {/* Header: one compact row */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <Button
               onClick={() => router.push('/')}
               variant="ghost"
-              className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent hover:bg-gray-50 dark:hover:bg-gray-800 p-2 sm:p-4"
+              className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800 p-1.5 sm:p-2 shrink-0"
             >
               NotesBhej
             </Button>
-            <Button
-              onClick={() => supabase.auth.signOut()}
-              variant="outline"
-              size="sm"
-              className="w-fit self-start sm:self-auto"
-            >
-              Sign Out
-            </Button>
+            <BackgroundSelector />
+            <h1 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 truncate">Profile</h1>
           </div>
-          <h1 className="text-2xl sm:text-3xl ml-2 sm:ml-4 font-bold">Profile</h1>
+          <Button onClick={() => supabase.auth.signOut()} variant="outline" size="sm" className="shrink-0 border-zinc-300 dark:border-zinc-700">
+            Sign Out
+          </Button>
         </div>
 
-        {/* Profile Picture and Basic Info */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg sm:text-xl">Profile Picture & Basic Info</CardTitle>
-            <CardDescription className="text-sm">Your account details and profile picture</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4 sm:gap-6">
-              <div className="relative flex-shrink-0">
-                {userMeta?.profile_picture_url ? (
-                  <Image 
-                    src={userMeta.profile_picture_url} 
-                    alt="Profile picture"
-                    width={100}
-                    height={100}
-                    className="w-20 h-20 sm:w-[120px] sm:h-[120px] rounded-full object-cover border-4 border-gray-200 dark:border-gray-700"
-                  />
-                ) : (
-                  <div className="w-20 h-20 sm:w-[120px] sm:h-[120px] rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                    <span className="text-2xl sm:text-4xl font-semibold text-gray-600 dark:text-gray-300">
-                      {formData.full_name.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || '?'}
-                    </span>
-                  </div>
-                )}
-                {uploadingPfp && (
-                  <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white"></div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="space-y-2 w-full">
-                <Label htmlFor="profile-picture" className="text-sm font-medium">Profile Picture</Label>
-                <input
-                  id="profile-picture"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  disabled={uploadingPfp}
-                  className="block w-full text-xs sm:text-sm text-gray-500 file:mr-2 sm:file:mr-4 file:py-1 sm:file:py-2 file:px-2 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                <p className="text-xs sm:text-sm text-gray-500">Upload a new profile picture - will be automatically cropped to square and resized to 400x400px</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <Label className="text-sm">Email</Label>
-                <Input value={user?.email || ""} disabled className="bg-gray-50 dark:bg-gray-800 text-sm" />
-              </div>
-              <div>
-                <Label className="text-sm">User ID</Label>
-                <Input value={user?.id || ""} disabled className="bg-gray-50 dark:bg-gray-800 text-sm break-all" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Profile Details */}
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <CardTitle className="text-lg sm:text-xl">Profile Details</CardTitle>
-                <CardDescription className="text-sm">Manage your profile information</CardDescription>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push('/manage-contributions')}
-                  className="text-xs sm:text-sm"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Manage Contributions
-                </Button>
-                {editing ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(false)
-                        // Reset form data
-                        setFormData({
-                          full_name: userMeta?.full_name || "",
-                          batch: userMeta?.batch || "",
-                          role: userMeta?.role || "",
-                          admin_request: userMeta?.admin_request || false
-                        })
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSave}
-                      disabled={saving}
-                      size="sm"
-                    >
-                      {saving ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={() => setEditing(true)} size="sm">
-                    Edit Profile
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          {editing && (
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <Label htmlFor="full_name" className="text-sm">Full Name</Label>
-                  <Input
-                    id="full_name"
-                    value={formData.full_name}
-                    onChange={(e) => handleInputChange("full_name", e.target.value)}
-                    disabled={!editing}
-                    placeholder="Enter your full name"
-                    className="text-sm"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="batch" className="text-sm">Batch</Label>
-                  <Input
-                    id="batch"
-                    value={formData.batch}
-                    onChange={(e) => handleInputChange("batch", e.target.value)}
-                    disabled={!editing}
-                    placeholder="e.g., 2024, B.Tech 2021-2025"
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <Label className="text-sm">Role</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={userMeta?.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
-                      {userMeta?.role || 'user'}
-                    </Badge>
-                    <span className="text-xs text-gray-500">(Cannot be edited)</span>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm">Admin Request</Label>
-                  <div className="flex items-start gap-2 mt-2">
-                    <input
-                      type="checkbox"
-                      id="admin_request"
-                      checked={formData.admin_request}
-                      onChange={(e) => handleInputChange("admin_request", e.target.checked)}
-                      disabled={!editing}
-                      className="rounded mt-0.5"
-                    />
-                    <Label htmlFor="admin_request" className="text-xs sm:text-sm leading-relaxed">
-                      I am willing to help with the moderation of the platform    
-                    </Label>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                <div>
-                  <Label className="text-sm">Account Created</Label>
-                  <p>{userMeta?.created_at ? new Date(userMeta.created_at).toLocaleDateString() : 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm">Last Updated</Label>
-                  <p>{userMeta?.updated_at ? new Date(userMeta.updated_at).toLocaleDateString() : 'N/A'}</p>
-                </div>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-
-        {/* Achievements */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
-              Achievements
-            </CardTitle>
-            <CardDescription className="text-sm">
-              Your accomplishments and milestones
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-gray-500">
-              <Trophy className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
-              <p className="text-sm sm:text-base">No achievements yet</p>
-              <p className="text-xs sm:text-sm">Start contributing to earn your first achievement!</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Account Information */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg sm:text-xl">Account Information</CardTitle>
-            <CardDescription className="text-sm">Additional account details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <Label className="text-sm">Last Sign In</Label>
-                <p className="text-xs sm:text-sm">{user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'N/A'}</p>
-              </div>
-              <div>
-                <Label className="text-sm">Email Confirmed</Label>
-                <p className="text-xs sm:text-sm">{user?.email_confirmed_at ? 'Yes' : 'No'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Connected Accounts (REWRITTEN) */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg sm:text-xl">Connected Accounts</CardTitle>
-            <CardDescription className="text-sm">Manage your linked social accounts</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingIdentities ? (
-              <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-gray-100"></div>
-                <span className="ml-2 text-sm">Loading connected accounts...</span>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {PROVIDERS.map((p) => {
-                  const identity = identities.find((i: any) => i.provider === p.id)
-                  const connected = !!identity
-                  const connectedAs = identity?.identity_data?.user_name
-                    || identity?.identity_data?.full_name
-                    || identity?.identity_data?.email
-                    || ''
-                  
-                  const displayText = connected ? `Connected${connectedAs ? ` as ${connectedAs}` : ''}` : 'Not connected'
-                  
-                  // Check if this is the last identity (since we're ignoring email)
-                  const isLastIdentity = identities.length === 1 && connected
-                  
-                  return (
-                    <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {p.Icon ? <p.Icon className="h-5 w-5 text-gray-600 dark:text-gray-400" /> : null}
-                        <div>
-                          <p className="font-medium text-sm">{p.label}</p>
-                          <p className="text-xs text-gray-500">{displayText}</p>
+        {/* Desktop: 2 columns. Mobile: single column */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+          {/* Left column: Hero + Contributions + Pinned */}
+          <div className="space-y-3 lg:space-y-4">
+            {/* Hero: compact row on lg */}
+            <Card className={`${cardClass} ${cardTight}`}>
+              <CardContent className="!pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                  <div className="relative flex-shrink-0 flex items-center gap-3 sm:gap-4">
+                    <div className="relative">
+                      {userMeta?.profile_picture_url ? (
+                        <Image
+                          src={userMeta.profile_picture_url}
+                          alt="Profile"
+                          width={64}
+                          height={64}
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                          <span className="text-xl sm:text-2xl font-semibold text-zinc-600 dark:text-zinc-300">
+                            {formData.full_name.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || '?'}
+                          </span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {connected ? (
-                          <>
-                            <Badge variant="secondary" className="text-xs">
-                              <Link className="h-3 w-3 mr-1" />
-                              Connected
-                            </Badge>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => handleUnlinkAccount(p.id)} 
-                              disabled={isLastIdentity}
-                              className="text-xs"
-                              title={isLastIdentity ? "Cannot unlink your last authentication method" : ""}
-                            >
-                              <Unlink className="h-3 w-3 mr-1" /> Unlink
-                            </Button>
-                          </>
-                        ) : (
-                          <Button size="sm" onClick={() => handleLinkProvider(p.id)} disabled={linkingAccount} className="text-xs">
-                            {linkingAccount ? (
-                              <>
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                                Linking...
-                              </>
-                            ) : (
-                              <>
-                                <Link className="h-3 w-3 mr-1" /> Link {p.label}
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                      )}
+                      {uploadingPfp && (
+                        <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                        </div>
+                      )}
                     </div>
-                  )
-                })}
+                    <div className="min-w-0 flex-1 sm:flex-initial">
+                      <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{formData.full_name || user?.email?.split('@')[0] || 'User'}</p>
+                      {formData.batch && <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{formData.batch}</p>}
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{user?.email}</p>
+                      <label className="mt-1.5 inline-block">
+                        <span className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">Change photo</span>
+                        <input id="profile-picture" type="file" accept="image/*" onChange={handleFileSelect} disabled={uploadingPfp} className="hidden" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                {identities.length === 0 && (
-                  <div className="text-center py-4 text-gray-500">
-                    <p className="text-sm">No additional accounts connected</p>
-                    <p className="text-xs">Link your accounts to enhance your profile</p>
+            {/* Contributions + Pinned: side by side on lg */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
+              <Card className={`${cardClass} ${cardTight}`}>
+                <CardHeader className="!pb-2">
+                  <CardTitle className="flex items-center gap-1.5 text-base">
+                    <FileText className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                    Contributions
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {contributionCount === 0 ? "None yet" : `${contributionCount} item${contributionCount !== 1 ? "s" : ""}`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => router.push('/manage-contributions')} variant="default" size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Manage
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className={`${cardClass} ${cardTight}`}>
+                <CardHeader className="!pb-2">
+                  <CardTitle className="flex items-center gap-1.5 text-base">
+                    <Heart className="h-4 w-4 text-red-500 dark:text-red-400" />
+                    Pinned
+                  </CardTitle>
+                  <CardDescription className="text-xs">Saved courses</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  {loadingPinned ? (
+                    <div className="flex items-center gap-2 py-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-zinc-300 dark:border-zinc-600 border-t-transparent" />
+                      <span className="text-xs text-zinc-500">Loading…</span>
+                    </div>
+                  ) : pinnedCourses.length === 0 ? (
+                    <>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 py-1">None. Pin from homepage.</p>
+                      <Button variant="outline" size="sm" className="border-zinc-300 dark:border-zinc-700 text-xs" onClick={() => router.push('/')}>Go home</Button>
+                    </>
+                  ) : (
+                    <>
+                      <ul className="space-y-1 max-h-32 overflow-y-auto">
+                        {pinnedCourses.slice(0, 5).map((course) => (
+                          <li key={course.id} className="flex items-center justify-between gap-1.5 py-1.5 px-2 rounded border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-800/30">
+                            <span className="text-sm text-zinc-900 dark:text-zinc-100 truncate min-w-0">{course.title}</span>
+                            <div className="flex shrink-0 gap-0.5">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => router.push(`/course/${course.id}`)}><ArrowRight className="h-3.5 w-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => handleUnpin(course.id)}><Heart className="h-3.5 w-3.5 fill-current" /></Button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      {pinnedCourses.length > 5 && <p className="text-xs text-zinc-500 pt-1">+{pinnedCourses.length - 5} more on homepage</p>}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Right column: Profile details + Achievements + Account + Connected */}
+          <div className="space-y-3 lg:space-y-4">
+            <Card className={`${cardClass} ${cardTight}`}>
+              <CardHeader className="!pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base">Profile details</CardTitle>
+                    <CardDescription className="text-xs">Name, batch, role</CardDescription>
+                  </div>
+                  {!editing ? (
+                    <Button size="sm" onClick={() => setEditing(true)}>Edit</Button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" onClick={() => { setEditing(false); setFormData({ full_name: userMeta?.full_name || "", batch: userMeta?.batch || "", role: userMeta?.role || "", admin_request: userMeta?.admin_request || false }) }}>Cancel</Button>
+                      <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              {editing && (
+                <CardContent className="space-y-3 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="full_name" className="text-xs">Full name</Label>
+                      <Input id="full_name" value={formData.full_name} onChange={(e) => handleInputChange("full_name", e.target.value)} placeholder="Name" className="text-sm h-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="batch" className="text-xs">Batch</Label>
+                      <Input id="batch" value={formData.batch} onChange={(e) => handleInputChange("batch", e.target.value)} placeholder="e.g. 2024" className="text-sm h-8" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={userMeta?.role === 'admin' ? 'default' : 'secondary'} className="text-xs">{userMeta?.role || 'user'}</Badge>
+                    <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer">
+                      <input type="checkbox" id="admin_request" checked={formData.admin_request} onChange={(e) => handleInputChange("admin_request", e.target.checked)} className="rounded" />
+                      Help with moderation
+                    </label>
+                  </div>
+                  <p className="text-xs text-zinc-500">Created {userMeta?.created_at ? new Date(userMeta.created_at).toLocaleDateString() : '—'} · Updated {userMeta?.updated_at ? new Date(userMeta.updated_at).toLocaleDateString() : '—'}</p>
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Achievements: one line */}
+            <Card className={`${cardClass} ${cardTight}`}>
+              <CardContent className="py-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0" />
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {contributionCount > 0 ? `${contributionCount} contribution${contributionCount !== 1 ? "s" : ""} so far` : "No achievements yet — contribute to get started."}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Account: one line */}
+            <Card className={`${cardClass} ${cardTight}`}>
+              <CardContent className="py-3">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Last sign-in: {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : '—'} · Email confirmed: {user?.email_confirmed_at ? 'Yes' : 'No'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Connected accounts: compact grid */}
+            <Card className={`${cardClass} ${cardTight}`}>
+              <CardHeader className="!pb-2">
+                <CardTitle className="text-base">Connected accounts</CardTitle>
+                <CardDescription className="text-xs">Link/unlink sign-in methods</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingIdentities ? (
+                  <div className="flex items-center gap-2 py-2"><div className="animate-spin rounded-full h-4 w-4 border-2 border-zinc-300 dark:border-zinc-600 border-t-transparent" /><span className="text-xs">Loading…</span></div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {PROVIDERS.map((p) => {
+                      const identity = identities.find((i: any) => i.provider === p.id)
+                      const connected = !!identity
+                      const isLastIdentity = identities.length === 1 && connected
+                      return (
+                        <div key={p.id} className="flex items-center justify-between gap-2 py-2 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {p.Icon && <p.Icon className="h-4 w-4 text-zinc-500 shrink-0" />}
+                            <span className="text-sm font-medium truncate">{p.label}</span>
+                            {connected && <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">OK</Badge>}
+                          </div>
+                          {connected ? (
+                            <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => handleUnlinkAccount(p.id)} disabled={isLastIdentity} title={isLastIdentity ? "Keep at least one" : ""}>
+                              <Unlink className="h-3 w-3 mr-0.5" /> Unlink
+                            </Button>
+                          ) : (
+                            <Button size="sm" className="h-7 text-xs shrink-0" onClick={() => handleLinkProvider(p.id)} disabled={linkingAccount}>
+                              {linkingAccount ? <span className="animate-pulse">…</span> : <><Link className="h-3 w-3 mr-0.5" /> Link</>}
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

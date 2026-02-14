@@ -824,6 +824,10 @@ const allCourses = initialData.allCourses
                     <User className="w-4 h-4 mr-2" />
                     Profile
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/manage-contributions')}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Manage contributions
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push('/profile')}>
                     <Settings className="w-4 h-4 mr-2" />
                     Settings
