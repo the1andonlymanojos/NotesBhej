@@ -178,6 +178,7 @@ export type Database = {
           deleted: boolean | null
           filetype: string | null
           id: number
+          prev_ptr: number | null
           professor_id: number | null
           r2_url: string | null
           resource_url: string
@@ -197,6 +198,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number
+          prev_ptr?: number | null
           professor_id?: number | null
           r2_url?: string | null
           resource_url: string
@@ -216,6 +218,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number
+          prev_ptr?: number | null
           professor_id?: number | null
           r2_url?: string | null
           resource_url?: string
@@ -233,6 +236,34 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_prev_ptr_fkey"
+            columns: ["prev_ptr"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_prev_ptr_fkey"
+            columns: ["prev_ptr"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_anon"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_prev_ptr_fkey"
+            columns: ["prev_ptr"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_contentnew_prev_ptr_fkey"
+            columns: ["prev_ptr"]
+            isOneToOne: false
+            referencedRelation: "course_contentnew_user"
             referencedColumns: ["id"]
           },
           {
@@ -749,11 +780,22 @@ export type Database = {
           },
         ]
       }
+      user_with_bgpref: {
+        Row: {
+          bg: string | null
+          bgpref_created_at: string | null
+          bgpref_id: number | null
+          name: string | null
+          no_bgpref: boolean | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_public_course_content:
         | {
-            Args: { target_course_id: number }
+            Args: never
             Returns: {
               anon: boolean | null
               batch: string | null
@@ -780,7 +822,7 @@ export type Database = {
             }
           }
         | {
-            Args: never
+            Args: { target_course_id: number }
             Returns: {
               anon: boolean | null
               batch: string | null

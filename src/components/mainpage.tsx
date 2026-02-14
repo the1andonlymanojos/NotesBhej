@@ -927,7 +927,7 @@ const allCourses = initialData.allCourses
                   <span className="inline xs:hidden">Prof</span>
                 </button>
               </div>
-              <span className="hidden sm:inline ml-3 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="hidden sm:inline ml-3 text-[15px] sm:text-m text-zinc-700 dark:text-zinc-200">
                 Ctrl/Cmd+click opens in new tab
               </span>
             </div>

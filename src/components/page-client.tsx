@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 // import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug, Star } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug, Star, MoreHorizontal, ExternalLink, Trash2, Layers } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from "next/dynamic"
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
@@ -85,6 +85,7 @@ export default function CourseViewPage({
   const downloadControllers = useRef<Map<number, AbortController>>(new Map())
   const [showAdminPopup, setShowAdminPopup] = useState(false)
   const [adminPopupContent, setAdminPopupContent] = useState<EnhancedContent | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: EnhancedContent } | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminApproving, setAdminApproving] = useState(false)
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
@@ -269,6 +270,23 @@ export default function CourseViewPage({
   useEffect(() => {
     localStorage.setItem('useNativeViewer', JSON.stringify(useNativeViewer))
   }, [useNativeViewer])
+
+  // Close context menu on click outside or Escape
+  useEffect(() => {
+    if (!contextMenu) return
+    const handleClose = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return
+      setContextMenu(null)
+    }
+    document.addEventListener('click', handleClose)
+    document.addEventListener('contextmenu', handleClose)
+    document.addEventListener('keydown', handleClose)
+    return () => {
+      document.removeEventListener('click', handleClose)
+      document.removeEventListener('contextmenu', handleClose)
+      document.removeEventListener('keydown', handleClose)
+    }
+  }, [contextMenu])
 
   // Helper function to get semester display name
   const getSemesterDisplay = (semesterNumber: number) => {
@@ -1024,8 +1042,49 @@ if(pinnedData?.length){
 
   const handleEditClick = (e: React.MouseEvent, item: EnhancedContent) => {
     e.stopPropagation()
+    setContextMenu(null)
     setEditingContent(item as CourseContent)
     setEditDialogOpen(true)
+  }
+
+  const handleOpenInNewTab = (e: React.MouseEvent, item: EnhancedContent) => {
+    e.stopPropagation()
+    setContextMenu(null)
+    const url = getContentUrl(item)
+    if (url) {
+      if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+        window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`, '_blank')
+      } else if (item.filetype === "") {
+        handleDownloadClick(item)
+      } else {
+        window.open(url, '_blank')
+      }
+    }
+  }
+
+  const handleAdminDelete = async (e: React.MouseEvent, item: EnhancedContent) => {
+    e.stopPropagation()
+    setContextMenu(null)
+    if (!isAdmin || !item.id) return
+
+    try {
+      const { error } = await supabase
+        .from("course_contentnew")
+        .update({ visible: false })
+        .eq("id", item.id)
+
+      if (error) {
+        console.error("Error hiding content:", error)
+        alert("Failed to hide content")
+        return
+      }
+
+      setEnhancedContent(prev => prev.map(c => c.id === item.id ? { ...c, visible: false } : c))
+      setContent(prev => prev.map(c => c.id === item.id ? { ...c, visible: false } : c))
+    } catch (error) {
+      console.error("Error hiding content:", error)
+      alert("Failed to hide content")
+    }
   }
 
   const handleEditSave = () => {
@@ -1134,7 +1193,22 @@ if(pinnedData?.length){
 
     try {
       setAdminApproving(true)
-      
+
+      // If this is a revision (has prev_ptr), mark the previous version invisible when we approve
+      const prevPtr = (adminPopupContent as { prev_ptr?: number | null }).prev_ptr
+      if (prevPtr != null) {
+        const { error: prevError } = await supabase
+          .from("course_contentnew")
+          .update({ visible: false })
+          .eq("id", prevPtr)
+
+        if (prevError) {
+          console.error("Error hiding previous version:", prevError)
+          alert("Failed to hide previous version")
+          return
+        }
+      }
+
       const { error } = await supabase
         .from("course_contentnew")
         .update({ visible: true })
@@ -1480,6 +1554,9 @@ if(pinnedData?.length){
             
             {showRecentlyViewed && (
               <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="hidden sm:block text-sm text-zinc-600 dark:text-zinc-300 mb-3">
+                  Right-click any resource for more options
+                </p>
                 <div className="overflow-x-auto">
                   <div className="flex gap-4 pb-2 min-w-min">
                     {recentlyViewed.map((item) => (
@@ -1491,6 +1568,10 @@ if(pinnedData?.length){
                             : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-700"
                         }`}
                         onClick={() => handleContentClick(item)}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          if (item.professor_id !== 71) setContextMenu({ x: e.clientX, y: e.clientY, item })
+                        }}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1 sm:gap-2 mb-1">
@@ -1507,16 +1588,24 @@ if(pinnedData?.length){
                                   <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
                                 )
                               })()}
-                              {currentUserId && item.user_id === currentUserId && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => handleEditClick(e, item)}
-                                  className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
+                              {downloadState[item.id || -1]?.active && (
+                                <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                                  {downloadState[item.id || -1]?.progress ?? 0}%
+                                </span>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
+                                  if (rect && item.professor_id !== 71) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
+                                }}
+                                className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                                title="Actions (or right-click)"
+                              >
+                                <MoreHorizontal className="h-3 w-3" />
+                              </Button>
                             </div>
                           </div>
                           <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
@@ -1568,21 +1657,6 @@ if(pinnedData?.length){
                                 </span>
                               )}
                             </div>
-                            {getContentUrl(item) && (
-                              <button
-                                className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
-                                onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
-                                aria-label="Download"
-                              >
-                                {downloadState[item.id || -1]?.active ? (
-                                  <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
-                                    {downloadState[item.id || -1]?.progress ?? 0}%
-                                  </span>
-                                ) : (
-                                  <Download className="h-5 w-5 sm:h-5 sm:w-5" />
-                                )}
-                              </button>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -1607,7 +1681,11 @@ if(pinnedData?.length){
             >
           {search ? (
             // Flat list view when searching
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            <>
+              <p className="hidden sm:block text-sm text-zinc-600 dark:text-zinc-300 mb-3">
+                Right-click any resource for more options
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filteredContent.map((item, index) => (
                 <motion.div
                   key={item.id}
@@ -1620,6 +1698,10 @@ if(pinnedData?.length){
                       : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
                   }`}
                   onClick={() => handleContentClick(item)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    if (item.professor_id !== 71) setContextMenu({ x: e.clientX, y: e.clientY, item })
+                  }}
                 >
                   
                   <div className="flex-1 min-w-0">
@@ -1648,16 +1730,24 @@ if(pinnedData?.length){
                             </div>
                           )
                         })()}
-                        {currentUserId && item.user_id === currentUserId && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => handleEditClick(e, item)}
-                            className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
+                        {downloadState[item.id || -1]?.active && (
+                          <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                            {downloadState[item.id || -1]?.progress ?? 0}%
+                          </span>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
+                            if (rect && item.professor_id !== 71) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
+                          }}
+                          className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                          title="Actions (or right-click)"
+                        >
+                          <MoreHorizontal className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
@@ -1696,26 +1786,12 @@ if(pinnedData?.length){
                           </span>
                         )}
                       </div>
-                      {getContentUrl(item) && (
-                        <button
-                          className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
-                          aria-label="Download"
-                        >
-                          {downloadState[item.id || -1]?.active ? (
-                            <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
-                              {downloadState[item.id || -1]?.progress ?? 0}%
-                            </span>
-                          ) : (
-                            <Download className="h-5 w-5 sm:h-5 sm:w-5" />
-                          )}
-                        </button>
-                      )}
                     </div>
                   </div>
                 </motion.div>
               ))}
             </div>
+            </>
           ) : (
             // Grouped view when not searching
             <>
@@ -1743,6 +1819,11 @@ if(pinnedData?.length){
                         <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 truncate">{instructor}</span>
                       </div>
                     )}
+                    <div className="flex items-center gap-1 sm:gap-2 ml-2">
+                    <p className="hidden sm:block text-sm text-zinc-600 dark:text-zinc-300">
+                    Right-click any resource for more information/options eg. download, edit
+                  </p>
+                  </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Download All Button */}
@@ -1839,6 +1920,9 @@ if(pinnedData?.length){
                     </div>
                   </div>
 
+                  {/* Desktop hint - within card cluster */}
+                  
+
                   {/* Content Display */}
                   {isExpanded ? (
                     // Expanded Grid View
@@ -1853,6 +1937,10 @@ if(pinnedData?.length){
                               : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
                           }`}
                           onClick={() => handleContentClick(item)}
+                          onContextMenu={(e) => {
+                            e.preventDefault()
+                            setContextMenu({ x: e.clientX, y: e.clientY, item })
+                          }}
                         >
                           
                           <div className="flex-1 min-w-0">
@@ -1870,31 +1958,24 @@ if(pinnedData?.length){
                                     <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
                                   )
                                 })()}
-                                {currentUserId && item.user_id === currentUserId && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => handleEditClick(e, item)}
-                                    className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
+                                {downloadState[item.id || -1]?.active && (
+                                  <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                                    {downloadState[item.id || -1]?.progress ?? 0}%
+                                  </span>
                                 )}
-                                 {getContentUrl(item) && (
-                                  <button
-                                    className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
-                                    onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
-                                    aria-label="Download"
-                                  >
-                                    {downloadState[item.id || -1]?.active ? (
-                                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
-                                        {downloadState[item.id || -1]?.progress ?? 0}%
-                                      </span>
-                                    ) : (
-                                      <Download className="h-5 w-5 sm:h-5 sm:w-5" />
-                                    )}
-                                  </button>
-                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
+                                    if (rect) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
+                                  }}
+                                  className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                                  title="Actions (or right-click)"
+                                >
+                                  <MoreHorizontal className="h-3 w-3" />
+                                </Button>
                               </div>
 
                             </div>
@@ -1935,6 +2016,10 @@ if(pinnedData?.length){
                                 : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
                             }`}
                             onClick={() => handleContentClick(item)}
+                            onContextMenu={(e) => {
+                              e.preventDefault()
+                              setContextMenu({ x: e.clientX, y: e.clientY, item })
+                            }}
                           >
                             
                             
@@ -1953,31 +2038,24 @@ if(pinnedData?.length){
                                       <EyeOff className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
                                     )
                                   })()}
-                                  {currentUserId && item.user_id === currentUserId && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={(e) => handleEditClick(e, item)}
-                                      className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
+                                  {downloadState[item.id || -1]?.active && (
+                                    <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                                      {downloadState[item.id || -1]?.progress ?? 0}%
+                                    </span>
                                   )}
-                                  {( 
-                                  <button
-                                    className="p-2 sm:p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-zinc-500 hover:text-indigo-600 transition-colors flex-shrink-0"
-                                    onClick={(e) => { e.stopPropagation(); handleDownloadClick(item) }}
-                                    aria-label="Download"
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
+                                      if (rect) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
+                                    }}
+                                    className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                                    title="Actions (or right-click)"
                                   >
-                                    {downloadState[item.id || -1]?.active ? (
-                                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
-                                        {downloadState[item.id || -1]?.progress ?? 0}%
-                                      </span>
-                                    ) : (
-                                      <Download className="h-5 w-5 dark:text-zinc-200" />
-                                    )}
-                                  </button>
-                                )}
+                                    <MoreHorizontal className="h-3 w-3" />
+                                  </Button>
                                 </div>
                               </div>
                               <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
@@ -2240,6 +2318,78 @@ if(pinnedData?.length){
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Content Context Menu (right-click or ⋮) */}
+        {contextMenu && (
+          <>
+            <div className="fixed inset-0 z-40 pointer-events-none" aria-hidden />
+            <div
+              className="fixed z-50 min-w-[10rem] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 animate-in fade-in-0 zoom-in-95"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Date info */}
+              <div className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-300 border-b border-zinc-100 dark:border-zinc-800">
+                <div>Uploaded: {formatUpdatedAt(contextMenu.item.created_at as string | null) ?? '—'}</div>
+                <div>Updated: {contextMenu.item.updated_at ? formatUpdatedAt(contextMenu.item.updated_at) : '—'}</div>
+              </div>
+              {currentUserId && (
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  onClick={(e) => handleEditClick(e, contextMenu.item)}
+                >
+                  <Edit className="h-4 w-4" />
+                  Suggest edit
+                </button>
+              )}
+              {(contextMenu.item as { r2_url?: string | null }).r2_url && (
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setContextMenu(null)
+                    const r2Url = (contextMenu.item as { r2_url?: string | null }).r2_url
+                    if (r2Url) window.open(r2Url, '_blank')
+                  }}
+                >
+                  <Layers className="h-4 w-4" />
+                  Mirror (R2)
+                </button>
+              )}
+              {getContentUrl(contextMenu.item) && (
+                <>
+                  <button
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={(e) => handleOpenInNewTab(e, contextMenu.item)}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open in new tab
+                  </button>
+                  <button
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setContextMenu(null)
+                      handleDownloadClick(contextMenu.item)
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </button>
+                </>
+              )}
+              {isAdmin && (
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  onClick={(e) => handleAdminDelete(e, contextMenu.item)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Hide content
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Edit Content Dialog */}
         <EditContentDialog

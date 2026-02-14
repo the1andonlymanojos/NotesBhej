@@ -237,10 +237,26 @@ export default function ContentModerationPage() {
     }
   }
 
-  const handleApprove = async (contentId: number, courseId: number) => {
+  const handleApprove = async (content: EnhancedContent) => {
+    const contentId = content.id
+    const courseId = content.course_id ?? 0
     try {
       setActionLoading(contentId)
-      
+
+      // If this is a revision (has prev_ptr), mark the previous version invisible when we approve
+      if (content.prev_ptr != null) {
+        const { error: prevError } = await supabase
+          .from("course_contentnew")
+          .update({ visible: false })
+          .eq("id", content.prev_ptr)
+
+        if (prevError) {
+          console.error("Error hiding previous version:", prevError)
+          toast.error("Failed to hide previous version")
+          return
+        }
+      }
+
       const { error } = await supabase
         .from("course_contentnew")
         .update({ visible: true })
@@ -323,7 +339,6 @@ export default function ContentModerationPage() {
           course_id: editingContent.course_id,
           professor_id: editingContent.professor_id,
           tag_ids: editingTag ? [editingTag] : null,
-          updated_at: new Date().toISOString()
         })
         .eq("id", editingContent.id)
 
@@ -344,7 +359,6 @@ export default function ContentModerationPage() {
                 course_name: allCourses.find(c => c.id === editingContent.course_id)?.title,
                 course_code: allCourses.find(c => c.id === editingContent.course_id)?.code,
                 professor_name: allProfessors.find(p => p.id === editingContent.professor_id)?.name,
-                updated_at: new Date().toISOString()
               }
             : item
         )
@@ -585,7 +599,7 @@ export default function ContentModerationPage() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleApprove(content.id, content.course_id == null ? 0 : content.course_id)}
+                                onClick={() => handleApprove(content)}
                                 className="bg-green-600 hover:bg-green-700"
                               >
                                 Approve

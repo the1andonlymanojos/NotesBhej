@@ -179,53 +179,50 @@ export default function EditContentDialog({
     setLoading(true)
     try {
       let newResourceUrl: string | null = null
-      let shouldSetVisible = false
 
       // Upload new file if one was selected
       if (newFile) {
         newResourceUrl = await uploadNewFile()
-        shouldSetVisible = false // Set to invisible when file is updated
       }
 
-      // Update content in database
-      const updateData: any = {
+      // Get current user for the revision
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert("You must be logged in to suggest edits.")
+        return
+      }
+
+      // INSERT new revision row with prev_ptr to original (never UPDATE - creates revision chain)
+      const insertData = {
+        prev_ptr: content.id,
+        course_id: content.course_id,
         title: title.trim(),
         year: parseInt(year as string),
         batch: batch.trim().toUpperCase(),
         semester_number: parseInt(semesterNumber as string),
         professor_id: selectedProfessorId,
         tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
-        updated_at: new Date().toISOString()
-      }
-
-      // Add new resource URL and filetype if file was uploaded
-      if (newResourceUrl) {
-        updateData.resource_url = newResourceUrl
-        updateData.filetype = newFile?.type || ""
-        updateData.visible = shouldSetVisible
+        resource_url: newResourceUrl ?? content.resource_url,
+        filetype: newFile ? (newFile.type || "") : (content.filetype || ""),
+        visible: false, // Revision needs moderation; when approved, prev gets visible=false
+        user_id: user.id,
+        anon: content.anon ?? false,
       }
 
       const { error } = await supabase
         .from("course_contentnew")
-        .update(updateData)
-        .eq("id", content.id)
+        .insert(insertData)
 
       if (error) {
         throw error
       }
 
-      // Update the content object with new values for state update
-      if (newResourceUrl) {
-        content.resource_url = newResourceUrl
-        content.visible = shouldSetVisible
-        content.updated_at = new Date().toISOString()
-      }
-
+      alert("Your edit has been submitted for approval. It will appear once approved.")
       onSave()
       onClose()
     } catch (error) {
-      console.error("Error updating content:", error)
-      alert("Failed to update content. Please try again.")
+      console.error("Error submitting edit:", error)
+      alert("Failed to submit edit. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -245,10 +242,10 @@ export default function EditContentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Save className="h-5 w-5 text-indigo-500" />
-            Edit Content Metadata
+            Suggest Edit
           </DialogTitle>
           <DialogDescription>
-            Update the metadata for "{content?.title || 'Untitled Resource'}"
+            Your changes will create a new revision (pointing to this content). Once approved, this version will be replaced.
           </DialogDescription>
         </DialogHeader>
 
@@ -403,7 +400,7 @@ export default function EditContentDialog({
           {/* File Upload */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Update File (Optional)
+              Replace File (Optional)
             </label>
             <div className="space-y-3">
               
@@ -447,7 +444,7 @@ export default function EditContentDialog({
                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
                   <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-300">
                     <Upload className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>Note: Uploading a new file will set this content to invisible for moderation.</span>
+                    <span>Your revision (with new file) will be submitted for approval. Once approved, it will replace the current version.</span>
                   </div>
                 </div>
               )}
@@ -488,12 +485,12 @@ export default function EditContentDialog({
             {loading || uploadingFile ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {uploadingFile ? "Uploading..." : "Saving..."}
+                {uploadingFile ? "Uploading..." : "Submitting..."}
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
-                Save Changes
+                Submit Revision
               </div>
             )}
           </Button>
