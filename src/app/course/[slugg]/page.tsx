@@ -23,7 +23,7 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   return (data || []).map((c: any) => ({ "slugg": String(c.id) }));
 }
 
-const SITE_URL = "https://notesbhej.manoj-shiv.tech";
+const SITE_URL = "https://notesbhej.mshiv.net";
 
 
 export async function generateMetadata({

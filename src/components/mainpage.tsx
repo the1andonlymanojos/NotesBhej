@@ -624,9 +624,14 @@ const allCourses = initialData.allCourses
   }
 
   // Handle course navigation with loading animation
-  const handleCourseNavigation = (courseId: string | number) => {
+  // Ctrl/Cmd+Click opens in new tab (background)
+  const handleCourseNavigation = (courseId: string | number, e?: React.MouseEvent) => {
+    const openInNewTab = e && (e.metaKey || e.ctrlKey)
+    if (openInNewTab) {
+      window.open(`/course/${courseId}`, '_blank', 'noopener,noreferrer')
+      return
+    }
     setIsNavigating(true)
-    // Small delay to show the loading animation
     setTimeout(() => {
       router.push(`/course/${courseId}`)
     }, 10)
@@ -922,6 +927,9 @@ const allCourses = initialData.allCourses
                   <span className="inline xs:hidden">Prof</span>
                 </button>
               </div>
+              <span className="hidden sm:inline ml-3 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400">
+                Ctrl/Cmd+click opens in new tab
+              </span>
             </div>
             
             {/* Mobile Admin Reminder */}
@@ -1032,12 +1040,12 @@ const allCourses = initialData.allCourses
                             transition: { duration: 0.15 }
                           }}
                           className="bg-white/90 dark:bg-zinc-900/90 rounded-lg p-4 border border-red-200 dark:border-red-700 shadow-sm hover:shadow-lg cursor-pointer group hover:border-red-300 dark:hover:border-red-600 relative"
-                          onClick={() => {
+                          onClick={(e) => {
                             if (mobileSearchOpen) {
                               setMobileSearchOpen(false)
                               setSearch("")
                             }
-                            router.push(`/course/${course.id}`)
+                            handleCourseNavigation(course.id, e)
                           }}
                         >
                           <div className="flex items-center justify-between">
@@ -1211,7 +1219,7 @@ const allCourses = initialData.allCourses
                                        transition: { duration: 0.15 }
                                      }}
                                     className="bg-white dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md cursor-pointer group hover:border-blue-300 dark:hover:border-blue-600"
-                                    onClick={() => handleCourseNavigation(course.course_id)}
+                                    onClick={(e) => handleCourseNavigation(course.course_id, e)}
                                   >
                                     <div className="flex items-center justify-between">
                                       <div className="flex-1 min-w-0 pr-2">
@@ -1304,12 +1312,12 @@ const allCourses = initialData.allCourses
                         transition: { duration: 0.15 }
                       }}
                       className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-lg cursor-pointer group hover:border-indigo-300 dark:hover:border-indigo-600 relative"
-                      onClick={() => {
+                      onClick={(e) => {
                         if (mobileSearchOpen) {
                           setMobileSearchOpen(false)
                           setSearch("")
                         }
-                        handleCourseNavigation(course.id)
+                        handleCourseNavigation(course.id, e)
                       }}
                     >
                       <div className="flex items-center justify-between">
