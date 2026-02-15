@@ -34,7 +34,10 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
 
 const PREFERENCE_QUESTION = "Do you prefer using this site over Google Classroom?"
 
-const prefer_r2_url = false;
+const prefer_r2_url = true; // VERY IMP!!!!!
+
+
+
 const getContentUrl = (item: { r2_url?: string | null; resource_url?: string | null }): string | null => {
   const r2 = (item as any).r2_url as string | null | undefined
   const res = (item as any).resource_url as string | null | undefined

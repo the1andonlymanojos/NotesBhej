@@ -180,7 +180,7 @@ export default function AddContentPage({
             throw new Error("Failed to get upload URL")
           }
 
-          const { signedUrl, publicUrl } = await response.json()
+          const { signedUrl, publicUrl, isR2Url } = await response.json()
 
           const xhr = new XMLHttpRequest()
           xhr.upload.onprogress = (event) => {
@@ -200,7 +200,7 @@ export default function AddContentPage({
           })
           console.log({publicUrl, title: fileTitles[file.name]})
 
-          return {publicUrl, title: fileTitles[file.name], fileName: file.name, fileType: file.type}
+          return { publicUrl, title: fileTitles[file.name], fileName: file.name, fileType: file.type, isR2Url: isR2Url === true }
         })
       )
 
@@ -218,6 +218,7 @@ export default function AddContentPage({
           batch: batch.toUpperCase(),
           semester_number: parseInt(semesterNumber as string),
           resource_url: pair.publicUrl,
+          r2_url: pair.isR2Url ? pair.publicUrl : null,
           tag_ids: fileTagIds[pair.fileName] ? [fileTagIds[pair.fileName]] : null,
           title: pair.title,
           visible: false,

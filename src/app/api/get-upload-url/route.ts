@@ -96,10 +96,12 @@ export async function POST(request: Request) {
     }
     
    console.log(signedUrl)
+    const publicUrl = `${PublicURL}/${uniqueFileName}`
     return NextResponse.json({
       signedUrl,
       fileName: uniqueFileName,
-      publicUrl: `${PublicURL}/${uniqueFileName}`,
+      publicUrl,
+      isR2Url: !UseDev, // R2 in prod; MinIO in dev — callers use this to set r2_url
       redirect: redirectParam, // Include redirect parameter in response
       userId: user.id // Include user ID for reference
     })

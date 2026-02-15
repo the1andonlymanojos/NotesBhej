@@ -108,23 +108,13 @@ export default function EditContentDialog({
     }
   }
 
-  const uploadNewFile = async (): Promise<string | null> => {
+  const uploadNewFile = async (): Promise<{ publicUrl: string; isR2Url: boolean } | null> => {
     if (!newFile) return null
 
     setUploadingFile(true)
     setUploadProgress(0)
     
     try {
-      // Get upload URL
-      // const response = await fetch("/api/update-url", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     fileKey: content?.resource_url?.split('/').pop(),
-      //     fileType: newFile.type,
-      //   }),
-      // })
-
       const response = await fetch("/api/get-upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,7 +128,7 @@ export default function EditContentDialog({
         throw new Error("Failed to get upload URL")
       }
 
-      const { signedUrl, publicUrl } = await response.json()
+      const { signedUrl, publicUrl, isR2Url } = await response.json()
 
       // Upload file with progress
       const xhr = new XMLHttpRequest()
@@ -157,7 +147,7 @@ export default function EditContentDialog({
         xhr.send(newFile)
       })
 
-      return publicUrl
+      return { publicUrl, isR2Url: isR2Url === true }
     } catch (error) {
       console.error("Error uploading file:", error)
       throw error
@@ -178,11 +168,11 @@ export default function EditContentDialog({
 
     setLoading(true)
     try {
-      let newResourceUrl: string | null = null
+      let uploadResult: { publicUrl: string; isR2Url: boolean } | null = null
 
       // Upload new file if one was selected
       if (newFile) {
-        newResourceUrl = await uploadNewFile()
+        uploadResult = await uploadNewFile()
       }
 
       // Get current user for the revision
@@ -191,6 +181,11 @@ export default function EditContentDialog({
         alert("You must be logged in to suggest edits.")
         return
       }
+
+      const resourceUrl = uploadResult ? uploadResult.publicUrl : content.resource_url
+      const r2Url = uploadResult
+        ? (uploadResult.isR2Url ? uploadResult.publicUrl : null)
+        : (content.r2_url ?? null)
 
       // INSERT new revision row with prev_ptr to original (never UPDATE - creates revision chain)
       const insertData = {
@@ -202,7 +197,8 @@ export default function EditContentDialog({
         semester_number: parseInt(semesterNumber as string),
         professor_id: selectedProfessorId,
         tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
-        resource_url: newResourceUrl ?? content.resource_url,
+        resource_url: resourceUrl,
+        r2_url: r2Url,
         filetype: newFile ? (newFile.type || "") : (content.filetype || ""),
         visible: false, // Revision needs moderation; when approved, prev gets visible=false
         user_id: user.id,

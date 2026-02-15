@@ -143,7 +143,7 @@ export async function POST(request: Request) {
 
     const publicUrl = `${PublicURL}/${uniqueFileName}`
 
-    // Save metadata to Supabase
+    // Save metadata to Supabase (r2_url only when prod/R2; clear in dev)
     const { error: dbError } = await supabase.from("course_contentnew").insert({
       course_id: courseId,
       filetype: contentType,
@@ -153,6 +153,7 @@ export async function POST(request: Request) {
       batch: batch.toUpperCase(),
       semester_number: parseInt(semesterNumber),
       resource_url: publicUrl,
+      r2_url: UseDev ? null : publicUrl,
       tag_ids: null,
       title: `Images Upload - ${new Date().toLocaleDateString()}`,
       visible: false,
