@@ -1202,7 +1202,7 @@ if(pinnedData?.length){
       if (prevPtr != null) {
         const { error: prevError } = await supabase
           .from("course_contentnew")
-          .update({ visible: false })
+          .update({ visible: false, deleted: true })
           .eq("id", prevPtr)
 
         if (prevError) {
