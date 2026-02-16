@@ -108,6 +108,7 @@ const allCourses = initialData.allCourses
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [announcementsOpen, setAnnouncementsOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [authResolved, setAuthResolved] = useState(false)
   const supabase = createClient()
   const announcementsUnreadCount = useAnnouncementsUnreadCount(user?.id ?? null)
 
@@ -322,9 +323,10 @@ const allCourses = initialData.allCourses
   }
 
   useEffect(() => {
-    // Check for user session
+    // Check for user session — only show user/appearance area after we know auth state to avoid layout jump
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      setAuthResolved(true)
     })
 
     // Listen for auth changes
@@ -760,121 +762,116 @@ const allCourses = initialData.allCourses
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Desktop: full row of controls */}
+            {/* Desktop: compact bar — Search, Bell, User menu (Appearance + Account inside) */}
             <div className="hidden sm:flex items-center gap-2">
               <Button
                 onClick={() => setOpen(true)}
-                variant="outline"
-                className="relative w-full sm:w-auto bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-md hover:shadow-lg transition-all duration-200 text-zinc-800 dark:text-zinc-200 px-3 sm:px-4 py-2 h-10"
+                variant="ghost"
+                size="sm"
+                className="h-10 gap-2 rounded-lg px-3 text-zinc-600 dark:text-zinc-400 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
+                title="Quick search (⌘K)"
               >
-                <div className="flex items-center justify-center">
-                  <Search className="mr-2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                  <span>Quick Search</span>
-                  <div className="hidden sm:flex ml-2 h-5 items-center justify-center rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                    ⌘K
-                  </div>
-                </div>
+                <Search className="h-5 w-5 shrink-0" />
+                <span className="hidden md:inline text-sm font-medium">Search</span>
+                <kbd className="hidden h-5 rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400 md:inline-flex items-center">⌘K</kbd>
               </Button>
-              {user && isAdmin(userRole) && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center gap-2"
-                >
-                  <Button
-                    onClick={() => router.push('/admin/content-moderation')}
-                    variant="outline"
-                    size="sm"
-                    className="relative w-full sm:w-auto bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-md hover:shadow-lg transition-all duration-200 text-zinc-800 dark:text-zinc-200 px-3 sm:px-4 py-2 h-10"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                      <span className="text-xs font-medium">Admin</span>
-                      {pendingContentCount > 0 && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium">
-                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                          {pendingContentCount}
-                        </div>
-                      )}
-                    </div>
-                  </Button>
-                </motion.div>
-              )}
-              <AnnouncementsDrawer />
-              {user ? (
+              <AnnouncementsDrawer triggerVariant="ghost" />
+              {!authResolved ? (
+                <div className="h-10 w-24 rounded-lg bg-zinc-100/50 dark:bg-zinc-800/30 animate-pulse" aria-hidden />
+              ) : user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
-                      variant="outline"
-                      className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 gap-1.5 rounded-lg px-2.5 pr-2 hover:bg-white/80 dark:hover:bg-zinc-800/80"
                     >
-                      <span className="flex items-center gap-1 sm:gap-2">
-                        {user.user_metadata?.avatar_url ? (
-                          <div className="relative w-4 h-4 sm:w-6 sm:h-6 rounded-full overflow-hidden">
-                            <Image
-                              src={user.user_metadata.avatar_url}
-                              alt="User avatar"
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <User className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-600 dark:text-zinc-400" />
-                        )}
-                        <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-600 dark:text-zinc-400" />
-                      </span>
+                      {user.user_metadata?.avatar_url ? (
+                        <div className="relative h-7 w-7 rounded-full overflow-hidden shrink-0">
+                          <Image
+                            src={user.user_metadata.avatar_url}
+                            alt=""
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <User className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-400" />
+                      )}
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => router.push('/profile')}>
-                      <User className="w-4 h-4 mr-2" />
+                  <DropdownMenuContent align="end" className="w-56 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-1">
+                    <div className="px-2 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Account
+                    </div>
+                    <DropdownMenuItem onClick={() => router.push('/profile')} className="rounded-lg py-2">
+                      <User className="w-4 h-4 mr-2.5" />
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push('/manage-contributions')}>
-                      <FileText className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => router.push('/manage-contributions')} className="rounded-lg py-2">
+                      <FileText className="w-4 h-4 mr-2.5" />
                       Manage contributions
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push('/profile')}>
-                      <Settings className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => router.push('/profile')} className="rounded-lg py-2">
+                      <Settings className="w-4 h-4 mr-2.5" />
                       Settings
                     </DropdownMenuItem>
                     {!roleLoading && isAdmin(userRole) && (
                       <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => router.push('/admin/content-moderation')}>
-                          <Shield className="w-4 h-4 mr-2" />
+                        <DropdownMenuSeparator className="my-1" />
+                        <div className="px-2 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Admin
+                        </div>
+                        <DropdownMenuItem onClick={() => router.push('/admin/content-moderation')} className="rounded-lg py-2">
+                          <Shield className="w-4 h-4 mr-2.5" />
                           Content Moderation
+                          {pendingContentCount > 0 && (
+                            <span className="ml-auto rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
+                              {pendingContentCount}
+                            </span>
+                          )}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push('/admin/announcements')}>
-                          <Megaphone className="w-4 h-4 mr-2" />
+                        <DropdownMenuItem onClick={() => router.push('/admin/announcements')} className="rounded-lg py-2">
+                          <Megaphone className="w-4 h-4 mr-2.5" />
                           Announcements
                         </DropdownMenuItem>
                       </>
                     )}
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className="my-1" />
+                    <div className="px-2 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Appearance
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 px-2 py-1.5">
+                      <ThemeToggle />
+                      <BackgroundSelector />
+                    </div>
+                    <DropdownMenuSeparator className="my-1" />
                     <DropdownMenuItem
                       onClick={async () => {
                         await supabase.auth.signOut()
                         router.refresh()
                       }}
-                      className="text-red-600 dark:text-red-400"
+                      className="rounded-lg py-2 text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
                     >
-                      <LogOut className="w-4 h-4 mr-2" />
+                      <LogOut className="w-4 h-4 mr-2.5" />
                       Sign out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Button
-                  onClick={() => router.push('/login')}
-                  className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
-                >
-                  <span className="text-zinc-600 dark:text-zinc-400">Sign in</span>
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push('/login')}
+                    className="h-10 rounded-lg px-3 text-zinc-600 dark:text-zinc-400 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
+                  >
+                    Sign in
+                  </Button>
+                  
+                </>
               )}
-              <BackgroundSelector />
-              <ThemeToggle />
             </div>
 
             {/* Mobile: single menu button that opens drawer */}
@@ -1026,7 +1023,7 @@ const allCourses = initialData.allCourses
         </div>
 
         {/* Notice Box */}
-        <div className="mb-6">
+        {/* <div className="mb-6">
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/50 backdrop-blur px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
             <div className="flex items-start gap-3">
               <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
@@ -1035,7 +1032,7 @@ const allCourses = initialData.allCourses
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Course Count and Search */}
         <div className="mb-6">
@@ -1086,6 +1083,11 @@ const allCourses = initialData.allCourses
               <span className="hidden sm:inline ml-3 text-[15px] sm:text-m text-zinc-700 dark:text-zinc-200">
                 Ctrl/Cmd+click opens in new tab
               </span>
+            </div>
+
+            {/* Desktop: background/theme selector to the right of View row */}
+            <div className="hidden sm:flex items-center shrink-0">
+              <BackgroundSelector triggerVariant="ghost" />
             </div>
             
             {/* Mobile Admin Reminder */}

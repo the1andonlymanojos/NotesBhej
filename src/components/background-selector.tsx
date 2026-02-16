@@ -75,7 +75,12 @@ interface UserBackgroundPreference {
   user_id: string | null
 }
 
-export function BackgroundSelector() {
+type BackgroundSelectorProps = {
+  /** Match bar styling (ghost, h-10) like Search / Sign in */
+  triggerVariant?: "default" | "ghost"
+}
+
+export function BackgroundSelector({ triggerVariant = "default" }: BackgroundSelectorProps = {}) {
   const [selection, setSelection] = useState<string>(DEFAULT_BACKGROUND)
   const [customBackgrounds, setCustomBackgrounds] = useState<CustomBackground[]>([])
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
@@ -383,12 +388,16 @@ export function BackgroundSelector() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
+            variant={triggerVariant === "ghost" ? "ghost" : "outline"}
             size="sm"
-            className="flex h-8 sm:h-10 px-2 sm:px-3 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 items-center gap-1 px-2 py-1 text-xs sm:text-sm"
+            className={
+              triggerVariant === "ghost"
+                ? "h-10 gap-1.5 rounded-lg px-3 text-zinc-600 dark:text-zinc-400 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100 text-sm font-medium"
+                : "flex h-8 sm:h-10 px-2 sm:px-3 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 items-center gap-1 px-2 py-1 text-xs sm:text-sm"
+            }
           >
             <span className="whitespace-nowrap">{activeOption.label}</span>
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="h-3 w-3 shrink-0" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

@@ -75,9 +75,11 @@ type AnnouncementsDrawerProps = {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   hideTrigger?: boolean
+  /** Use compact/ghost style for trigger (e.g. in a minimal desktop bar) */
+  triggerVariant?: "default" | "ghost"
 }
 
-export function AnnouncementsDrawer({ open: controlledOpen, onOpenChange, hideTrigger }: AnnouncementsDrawerProps = {}) {
+export function AnnouncementsDrawer({ open: controlledOpen, onOpenChange, hideTrigger, triggerVariant = "default" }: AnnouncementsDrawerProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = controlledOpen !== undefined && onOpenChange !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -170,13 +172,18 @@ export function AnnouncementsDrawer({ open: controlledOpen, onOpenChange, hideTr
     <>
       {!hideTrigger && (
         <Button
-          variant="outline"
+          variant={triggerVariant === "ghost" ? "ghost" : "outline"}
           size="icon"
-          className="relative h-8 w-8 sm:h-10 sm:w-10 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700"
+          className={cn(
+            "relative shrink-0",
+            triggerVariant === "ghost"
+              ? "h-10 w-10 text-zinc-600 dark:text-zinc-400 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
+              : "h-8 w-8 sm:h-10 sm:w-10 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700"
+          )}
           onClick={() => setOpen(true)}
           aria-label="Open announcements"
         >
-          <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-600 dark:text-zinc-400" />
+          <Bell className={cn("text-zinc-600 dark:text-zinc-400", triggerVariant === "ghost" ? "h-5 w-5" : "h-4 w-4 sm:h-5 sm:w-5")} />
           {userId && unreadCount > 0 && (
             <span
               className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold"
