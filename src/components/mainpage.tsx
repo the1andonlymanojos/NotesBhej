@@ -6,9 +6,10 @@ import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
-import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText } from "lucide-react"
+import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone } from "lucide-react"
 import BackgroundSelector from "@/components/background-selector"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { AnnouncementsDrawer } from "@/components/announcements-drawer"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
 import { motion, AnimatePresence } from "framer-motion"
@@ -792,6 +793,8 @@ const allCourses = initialData.allCourses
                 </motion.div>
               )}
             </div>
+
+            <AnnouncementsDrawer />
             
             {user ? (
               <DropdownMenu>
@@ -839,6 +842,10 @@ const allCourses = initialData.allCourses
                       <DropdownMenuItem onClick={() => router.push('/admin/content-moderation')}>
                         <Shield className="w-4 h-4 mr-2" />
                         Content Moderation
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push('/admin/announcements')}>
+                        <Megaphone className="w-4 h-4 mr-2" />
+                        Announcements
                       </DropdownMenuItem>
                     </>
                   )}

@@ -49,14 +49,13 @@ import {
   Eye, 
   Calendar, 
   User, 
-  
   Search,
- 
   Shield,
   Clock,
   AlertTriangle,
   Edit,
-  Tag
+  Tag,
+  Megaphone
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { User as SupabaseUser } from "@supabase/supabase-js"
@@ -432,6 +431,14 @@ export default function ContentModerationPage() {
               className="mr-2"
             >
               <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => router.push('/admin/announcements')}
+              variant="outline"
+              size="sm"
+            >
+              <Megaphone className="h-4 w-4 mr-1" />
+              Announcements
             </Button>
             <Shield className="text-blue-600 dark:text-blue-400 h-8 w-8" />
             <div>

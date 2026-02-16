@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from "@/components/ui/label"
 import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug, Star, MoreHorizontal, ExternalLink, Trash2, Layers } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { AnnouncementsDrawer } from "@/components/announcements-drawer"
 import dynamic from "next/dynamic"
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
 import { Database } from "@/types/supabase"
@@ -1373,6 +1374,7 @@ if(pinnedData?.length){
             )}
           </div>
         )}
+        <AnnouncementsDrawer />
         <ThemeToggle />
       </motion.div>
       {isNavigating && (

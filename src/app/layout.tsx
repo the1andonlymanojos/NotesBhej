@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next"
 import { BACKGROUND_COOKIE_NAME, DEFAULT_BACKGROUND } from "@/lib/backgrounds";
+import { QueryProvider } from "@/components/query-provider";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -70,9 +71,11 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
         >
-          {children}
-          <Footer />
-          <Toaster richColors />
+          <QueryProvider>
+            {children}
+            <Footer />
+            <Toaster richColors />
+          </QueryProvider>
         </ThemeProvider>
         <SpeedInsights />
         <Analytics />

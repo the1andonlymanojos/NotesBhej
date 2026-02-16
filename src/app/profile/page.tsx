@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Database } from "@/types/supabase"
-import { Github, Link, Unlink, Trophy, Plus, Twitch, Heart, FileText, ArrowRight, BookOpen } from "lucide-react"
+import { Github, Link, Unlink, Trophy, Plus, Twitch, Heart, FileText, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
 import BackgroundSelector from "@/components/background-selector"
 
