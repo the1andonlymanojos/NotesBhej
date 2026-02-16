@@ -6,10 +6,10 @@ import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
-import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone } from "lucide-react"
+import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone, Menu } from "lucide-react"
 import BackgroundSelector from "@/components/background-selector"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { AnnouncementsDrawer } from "@/components/announcements-drawer"
+import { AnnouncementsDrawer, useAnnouncementsUnreadCount } from "@/components/announcements-drawer"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
 import { motion, AnimatePresence } from "framer-motion"
@@ -20,6 +20,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 
 import { User as SupabaseUser } from "@supabase/supabase-js"
 import { SSGData } from "@/types/ssg"
@@ -99,7 +105,19 @@ const allCourses = initialData.allCourses
   const [roleLoading, setRoleLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [pendingContentCount, setPendingContentCount] = useState<number>(0)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [announcementsOpen, setAnnouncementsOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const supabase = createClient()
+  const announcementsUnreadCount = useAnnouncementsUnreadCount(user?.id ?? null)
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)")
+    const set = () => setIsMobile(mq.matches)
+    set()
+    mq.addEventListener("change", set)
+    return () => mq.removeEventListener("change", set)
+  }, [])
   const inputRef = useRef<HTMLInputElement>(null);
   // Add new state for professor courses
   const [professorCourses, setProfessorCourses] = useState<GroupedProfessorCourses[]>(() => {
@@ -742,14 +760,7 @@ const allCourses = initialData.allCourses
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Admin button and its placeholder */}
-{/* {user && roleLoading && (
-  // This placeholder reserves space while the role is loading, preventing layout shift.
-  // It's styled to have the same dimensions as the final button.
-  <div className="h-8 w-[60px] sm:h-10 sm:w-[110px] rounded-md" />
-)} */}
-
-
+            {/* Desktop: full row of controls */}
             <div className="hidden sm:flex items-center gap-2">
               <Button
                 onClick={() => setOpen(true)}
@@ -764,8 +775,6 @@ const allCourses = initialData.allCourses
                   </div>
                 </div>
               </Button>
-              
-              {/* Discrete Admin Reminder */}
               {user && isAdmin(userRole) && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -792,92 +801,228 @@ const allCourses = initialData.allCourses
                   </Button>
                 </motion.div>
               )}
+              <AnnouncementsDrawer />
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
+                    >
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        {user.user_metadata?.avatar_url ? (
+                          <div className="relative w-4 h-4 sm:w-6 sm:h-6 rounded-full overflow-hidden">
+                            <Image
+                              src={user.user_metadata.avatar_url}
+                              alt="User avatar"
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <User className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-600 dark:text-zinc-400" />
+                        )}
+                        <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-600 dark:text-zinc-400" />
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => router.push('/profile')}>
+                      <User className="w-4 h-4 mr-2" />
+                      Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/manage-contributions')}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Manage contributions
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/profile')}>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                    {!roleLoading && isAdmin(userRole) && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => router.push('/admin/content-moderation')}>
+                          <Shield className="w-4 h-4 mr-2" />
+                          Content Moderation
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push('/admin/announcements')}>
+                          <Megaphone className="w-4 h-4 mr-2" />
+                          Announcements
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        await supabase.auth.signOut()
+                        router.refresh()
+                      }}
+                      className="text-red-600 dark:text-red-400"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  onClick={() => router.push('/login')}
+                  className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
+                >
+                  <span className="text-zinc-600 dark:text-zinc-400">Sign in</span>
+                </Button>
+              )}
+              <BackgroundSelector />
+              <ThemeToggle />
             </div>
 
-            <AnnouncementsDrawer />
-            
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
-                  >
-                    <span className="flex items-center gap-1 sm:gap-2">
-                      {user.user_metadata?.avatar_url ? (
-                        <div className="relative w-4 h-4 sm:w-6 sm:h-6 rounded-full overflow-hidden">
-                          <Image
-                            src={user.user_metadata.avatar_url}
-                            alt="User avatar"
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-600 dark:text-zinc-400" />
-                      )}
-                    
-                      
-                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-600 dark:text-zinc-400" />
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => router.push('/profile')}>
-                    <User className="w-4 h-4 mr-2" />
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/manage-contributions')}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Manage contributions
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/profile')}>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  {/* Admin-only content moderation link */}
-                  {!roleLoading && isAdmin(userRole) && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => router.push('/admin/content-moderation')}>
-                        <Shield className="w-4 h-4 mr-2" />
-                        Content Moderation
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => router.push('/admin/announcements')}>
-                        <Megaphone className="w-4 h-4 mr-2" />
-                        Announcements
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      await supabase.auth.signOut()
-                      router.refresh()
-                    }}
-                    className="text-red-600 dark:text-red-400"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
+            {/* Mobile: single menu button that opens drawer */}
+            <div className="flex sm:hidden items-center gap-1">
+              <AnnouncementsDrawer
+                open={announcementsOpen}
+                onOpenChange={setAnnouncementsOpen}
+                hideTrigger={isMobile}
+              />
               <Button
-                onClick={() => router.push('/login')}
-                className="relative h-8 sm:h-10 w-fit bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm px-2 sm:px-3"
+                variant="outline"
+                size="icon"
+                className="relative h-9 w-9 bg-white/80 dark:bg-zinc-900/80 border border-zinc-300 dark:border-zinc-700 shadow-sm"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Open menu"
               >
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  Sign in 
-                </span>
+                <Menu className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+                {announcementsUnreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
+                    {announcementsUnreadCount > 99 ? "99+" : announcementsUnreadCount}
+                  </span>
+                )}
               </Button>
-            )}
-            
-            
-            
-            <BackgroundSelector />
-            <ThemeToggle />
+            </div>
           </div>
+
+          {/* Mobile menu sheet */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetContent side="right" className="flex flex-col w-[min(100vw-2rem,320px)] p-0">
+              <SheetHeader className="shrink-0 border-b border-zinc-200/80 dark:border-zinc-700/80 px-5 pt-5 pb-4">
+                <SheetTitle className="text-lg">Menu</SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-1 flex-col overflow-y-auto px-4 pb-6">
+                {/* Actions */}
+                <div className="space-y-1 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => { setAnnouncementsOpen(true); setMobileMenuOpen(false) }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                  >
+                    <Megaphone className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                    Announcements
+                    {announcementsUnreadCount > 0 && (
+                      <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
+                        {announcementsUnreadCount > 99 ? "99+" : announcementsUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Admin */}
+                {user && isAdmin(userRole) && (
+                  <div className="mt-6 space-y-1">
+                    <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Admin
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { router.push('/admin/content-moderation'); setMobileMenuOpen(false) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                    >
+                      <Shield className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                      Content Moderation
+                      {pendingContentCount > 0 && (
+                        <span className="ml-auto rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">
+                          {pendingContentCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { router.push('/admin/announcements'); setMobileMenuOpen(false) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                    >
+                      <Megaphone className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                      Manage Announcements
+                    </button>
+                  </div>
+                )}
+
+                {/* Account */}
+                <div className="mt-6 space-y-1">
+                  <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Account
+                  </p>
+                  {user ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { router.push('/profile'); setMobileMenuOpen(false) }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                      >
+                        <User className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                        Profile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { router.push('/manage-contributions'); setMobileMenuOpen(false) }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                      >
+                        <FileText className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                        Manage contributions
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { router.push('/profile'); setMobileMenuOpen(false) }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                      >
+                        <Settings className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                        Settings
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await supabase.auth.signOut()
+                          setMobileMenuOpen(false)
+                          router.refresh()
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50/70 dark:hover:bg-red-950/30 active:bg-red-100/50 dark:active:bg-red-900/40"
+                      >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { router.push('/login'); setMobileMenuOpen(false) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </div>
+
+                {/* Theme & background at bottom */}
+                <div className="mt-auto border-t border-zinc-200/80 dark:border-zinc-700/80 pt-4 mt-6">
+                  <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Appearance
+                  </p>
+                  <div className="flex items-center gap-2 px-4 py-2">
+                    <BackgroundSelector />
+                    <ThemeToggle />
+                  </div>
+                </div>
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
 
         {/* Notice Box */}

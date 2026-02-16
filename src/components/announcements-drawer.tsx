@@ -45,8 +45,44 @@ async function markAsRead(userId: string, announcementId: number) {
   })
 }
 
-export function AnnouncementsDrawer() {
-  const [open, setOpen] = useState(false)
+/** Shared hook so menu (or anywhere) can show announcements unread badge. Uses same query cache as drawer. */
+export function useAnnouncementsUnreadCount(userId: string | null) {
+  const { data: announcements = [] } = useQuery({
+    queryKey: ["announcements"],
+    queryFn: async () => {
+      const { data, error } = await fetchAnnouncements()
+      if (error) throw error
+      return (data ?? []) as Announcement[]
+    },
+    staleTime: ANNOUNCEMENTS_STALE_MS,
+  })
+  const { data: readRows = [] } = useQuery({
+    queryKey: ["announcement-reads", userId],
+    queryFn: async () => {
+      if (!userId) return []
+      const { data, error } = await fetchAnnouncementReads(userId)
+      if (error) throw error
+      return (data ?? []) as Pick<AnnouncementRead, "announcement_id">[]
+    },
+    enabled: !!userId,
+    staleTime: ANNOUNCEMENTS_STALE_MS,
+  })
+  const readSet = new Set(readRows.map((r) => r.announcement_id))
+  return announcements.filter((a) => !readSet.has(a.id)).length
+}
+
+type AnnouncementsDrawerProps = {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  hideTrigger?: boolean
+}
+
+export function AnnouncementsDrawer({ open: controlledOpen, onOpenChange, hideTrigger }: AnnouncementsDrawerProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined && onOpenChange !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled ? onOpenChange : setInternalOpen
+
   const [userId, setUserId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
   const queryClient = useQueryClient()
@@ -132,23 +168,25 @@ export function AnnouncementsDrawer() {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="icon"
-        className="relative h-8 w-8 sm:h-10 sm:w-10 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700"
-        onClick={() => setOpen(true)}
-        aria-label="Open announcements"
-      >
-        <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-600 dark:text-zinc-400" />
-        {userId && unreadCount > 0 && (
-          <span
-            className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold"
-            aria-label={`${unreadCount} unread announcements`}
-          >
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </Button>
+      {!hideTrigger && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative h-8 w-8 sm:h-10 sm:w-10 bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700"
+          onClick={() => setOpen(true)}
+          aria-label="Open announcements"
+        >
+          <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-600 dark:text-zinc-400" />
+          {userId && unreadCount > 0 && (
+            <span
+              className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold"
+              aria-label={`${unreadCount} unread announcements`}
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </Button>
+      )}
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetContent side="right" className="flex flex-col p-0 sm:max-w-sm">
           <SheetHeader className="p-4 border-b space-y-1">
