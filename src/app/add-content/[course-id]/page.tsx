@@ -416,7 +416,7 @@ export default function AddContentPage({
       </ul>
       
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        You can try compressing your PDF files using online tools or PDF software before uploading.
+        You can try compressing your files using appropriate tools before uploading.
       </p>
     </div>
     
@@ -580,7 +580,7 @@ export default function AddContentPage({
                       className="flex-1 h-24 sm:h-32 bg-indigo-100 dark:bg-zinc-800 hover:bg-indigo-200 dark:hover:bg-zinc-700 text-indigo-700 dark:text-zinc-200 font-medium shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-2"
                     >
                       <FileText size={32} />
-                      <span>Upload PDF Documents</span>
+                      <span>Upload Documents</span>
                     </Button>
                     <span className="text-zinc-500 dark:text-zinc-400 font-medium text-sm">or</span>
                     <Button
@@ -760,7 +760,7 @@ export default function AddContentPage({
                       multiple
                       onChange={handleFileChange}
                       disabled={loading}
-                      accept=".pdf,application/pdf"
+                      accept=".pdf,.ipynb,.pptx,.docx,.xlsx,application/pdf,application/x-ipynb+json,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-700 rounded-xl p-4 sm:p-6 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors"
                     />
                     {files.length > 0 && (

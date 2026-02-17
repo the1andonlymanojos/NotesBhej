@@ -331,6 +331,13 @@ export default function CourseViewPage({
 
   const buildFilename = (item: EnhancedContent, contentType?: string | null) => {
     const safe = (item.title || 'file').replace(/[^a-z0-9\-_. ]/gi, '_')
+    if(item.resource_url){
+    const extension = item.resource_url.split('.').pop()?.toLowerCase()
+    if (extension) {
+
+      console.log("extension", safe + '.' + extension)
+      return safe + '.' + extension
+    }}
     const type = (item.filetype || contentType || '').toLowerCase()
     if (!type) return safe + '.pdf'
     if (type.includes('pdf')) return safe + '.pdf'
@@ -1021,12 +1028,18 @@ if(pinnedData?.length){
 
       setSelectedContent(item)
       setSelectedFileId(item.id)
-      if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+      if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || item.filetype === "application/wps-office.pptx") {
         setNavigatingTo("Office Viewer")
         setIsNavigating(true)
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
         setTimeout(() => setIsNavigating(false), 1500)
       } 
+      else if (url && (url.toLowerCase().endsWith('.pptx') || url.toLowerCase().endsWith('.docx') || url.toLowerCase().endsWith('.xlsx'))) {
+        setNavigatingTo("Office Viewer")
+        setIsNavigating(true)
+        window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
+        setTimeout(() => setIsNavigating(false), 1500)
+      }
       else if(item.filetype === ""){
         handleDownloadClick(item)
       }
