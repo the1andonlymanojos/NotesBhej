@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileInput } from "@/components/ui/file-input"
-import { Upload, FileText, Tag, X, AlertCircle, ArrowLeft, Check, ChevronsUpDown, ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react"
+import { Upload, FileText, Tag, X, AlertCircle, ArrowLeft, Check, ChevronsUpDown, ChevronDown, ChevronUp, Image as ImageIcon, Plus } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Progress } from "@/components/ui/progress"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
@@ -53,7 +53,19 @@ export default function AddContentPage({
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [showValidationError, setShowValidationError] = useState(false)
   const [isAnonymous, setIsAnonymous] = useState(false)
+  const [creatingProfessor, setCreatingProfessor] = useState(false)
   const supabase = createClient()
+
+  const normalizedProfessorInput = selectedProfessorName.trim()
+  const filteredProfessors = professors.filter((professor) =>
+    (professor.name ?? "").toLowerCase().includes(selectedProfessorName.toLowerCase())
+  )
+  const exactMatchProfessor = normalizedProfessorInput
+    ? professors.find(
+        (p) => (p.name ?? "").toLowerCase() === normalizedProfessorInput.toLowerCase()
+      )
+    : undefined
+  const canCreateProfessor = normalizedProfessorInput.length > 0 && !exactMatchProfessor
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,6 +128,52 @@ export default function AddContentPage({
       setSemesterNumber(semesterParam)
     }
   }, [searchParams, professors])
+
+  const createProfessorIfMissing = async () => {
+    const nameToCreate = normalizedProfessorInput
+    if (!nameToCreate) return
+
+    // If it already exists (case-insensitive), just select it.
+    if (exactMatchProfessor) {
+      setSelectedProfessorId(exactMatchProfessor.id)
+      setSelectedProfessorName(exactMatchProfessor.name ?? nameToCreate)
+      setOpenCombobox(false)
+      return
+    }
+
+    setCreatingProfessor(true)
+    try {
+      const { data: created, error } = await supabase
+        .from("professorsnew")
+        .insert({
+          name: nameToCreate,
+          // Simple dummy values (optional columns)
+          department: "Unknown",
+          designation: "Unknown",
+          email: null,
+          phone: null,
+          address: null,
+          research_interests: null,
+        })
+        .select("*")
+        .single()
+
+      if (error) throw error
+
+      setProfessors((prev) => {
+        const next = [created, ...prev]
+        next.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""))
+        return next
+      })
+      setSelectedProfessorId(created.id)
+      setSelectedProfessorName(created.name ?? nameToCreate)
+      setOpenCombobox(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to create instructor")
+    } finally {
+      setCreatingProfessor(false)
+    }
+  }
 
   // Check if all files have the same tag
   const getAllFilesTagStatus = () => {
@@ -620,18 +678,36 @@ export default function AddContentPage({
                             onValueChange={setSelectedProfessorName}
                           />
                           <CommandList>
-                            <CommandEmpty>No instructor found.</CommandEmpty>
+                            <CommandEmpty>
+                              {canCreateProfessor ? (
+                                <span className="text-sm">
+                                  No instructor found. Create{" "}
+                                  <span className="font-medium">"{normalizedProfessorInput}"</span>.
+                                </span>
+                              ) : (
+                                "No instructor found."
+                              )}
+                            </CommandEmpty>
                             <CommandGroup>
-                              {professors
-                                .filter(professor =>
-                                  professor.name?.toLowerCase().includes(selectedProfessorName.toLowerCase())
-                                )
-                                .map((professor) => (
+                              {canCreateProfessor && (
+                                <CommandItem
+                                  key="__create_professor__"
+                                  value={`Create ${normalizedProfessorInput}`}
+                                  onSelect={() => {
+                                    if (!creatingProfessor && !loading) createProfessorIfMissing()
+                                  }}
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Create "{normalizedProfessorInput}"
+                                </CommandItem>
+                              )}
+
+                              {filteredProfessors.map((professor) => (
                                 <CommandItem
                                   key={professor.id}
                                   value={professor.name || ""}
                                   onSelect={(currentValue) => {
-                                    setSelectedProfessorName(currentValue);
+                                    setSelectedProfessorName(professor.name || currentValue);
                                     setSelectedProfessorId(professor.id);
                                     setOpenCombobox(false);
                                   }}
@@ -639,7 +715,9 @@ export default function AddContentPage({
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
-                                      selectedProfessorName === professor.name ? "opacity-100" : "opacity-0"
+                                      (selectedProfessorName ?? "").toLowerCase() === (professor.name ?? "").toLowerCase()
+                                        ? "opacity-100"
+                                        : "opacity-0"
                                     )}
                                   />
                                   {professor.name}
