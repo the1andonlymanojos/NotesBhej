@@ -1837,10 +1837,10 @@ if(pinnedData?.length){
                         <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 truncate">{instructor}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-1 sm:gap-2 ml-2">
+                  <div className="flex items-center gap-1 sm:gap-2 ml-2">
                     <p className="hidden sm:block text-sm text-zinc-600 dark:text-zinc-300">
-                    Right-click any resource for more information/options eg. download, edit
-                  </p>
+                      🫵 you can add content too... just two clicks 👉
+                    </p>
                   </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1912,9 +1912,12 @@ if(pinnedData?.length){
                             setShowLoginDialog(true)
                           }
                         }}
-                        className="hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400"
+                        className="hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400 animate-pulse"
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline text-xs font-medium uppercase tracking-wide">
+                          Add content
+                        </span>
                       </Button>
                       {items.length > 3 && (
                         <Button
@@ -2186,13 +2189,16 @@ if(pinnedData?.length){
                     variant="ghost"
                     size="sm"
                     onClick={handleAddContent}
-                    className="hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400"
+                    className="hover:bg-green-100 dark:hover:bg-green-900 text-green-600 dark:text-green-400 animate-pulse"
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     <span className="hidden sm:inline">Upload content</span>
                   </Button>
                 </div>
                 <div className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    You can add content to this page in just two clicks. If you like using this site, please upload content 🙏 
+                  </p>
                   <p>
                     Prefer privacy? Toggle <span className="font-medium text-zinc-800 dark:text-zinc-200">Anonymous</span> on the upload form.
                   </p>
@@ -2287,7 +2293,7 @@ if(pinnedData?.length){
 
             <Button
               onClick={handleAddContent}
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10"
+              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10 animate-pulse"
             >
               <Plus className="h-5 w-5 sm:mr-2" />
               <span className="hidden sm:inline">Add Content</span>
