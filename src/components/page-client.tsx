@@ -1626,24 +1626,26 @@ if(pinnedData?.length){
               </select>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-2">
-              <span className="text-xs sm:text-sm text-white dark:text-white">Reorder:</span>
-              <Button
-                variant={reorderMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  if (!currentUserId) {
-                    setRedirectTo(`/course/${courseId}`)
-                    setShowLoginDialog(true)
-                    return
-                  }
-                  setReorderMode(!reorderMode)
-                }}
-                className="text-xs sm:text-sm px-2 py-1"
-              >
-                {reorderMode ? "Done" : "Reorder"}
-              </Button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-xs sm:text-sm text-white dark:text-white">Reorder:</span>
+                <Button
+                  variant={reorderMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    if (!currentUserId) {
+                      setRedirectTo(`/course/${courseId}`)
+                      setShowLoginDialog(true)
+                      return
+                    }
+                    setReorderMode(!reorderMode)
+                  }}
+                  className="text-xs sm:text-sm px-2 py-1"
+                >
+                  {reorderMode ? "Done" : "Reorder"}
+                </Button>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-1 sm:gap-2">
               {availableTags.map((tag, index) => (
