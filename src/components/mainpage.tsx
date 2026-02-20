@@ -430,24 +430,14 @@ const allCourses = initialData.allCourses
           .eq("course_id", courseId)
 
         if (!error) {
-          // Remove from pinned courses and add back to main courses
-          const courseToUnpin = pinnedCourses.find(course => course.id === courseId)
-          if (courseToUnpin) {
-            setPinnedCourses(prev => prev.filter(course => course.id !== courseId))
-            setPinnedCourseIds(prev => {
-              const newSet = new Set(prev)
-              newSet.delete(courseId)
-              return newSet
-            })
-            // Add back to main courses list if it's not already there
-            setCourses(prev => {
-              const exists = prev.some(course => course.id === courseId)
-              if (!exists) {
-                return [...prev, courseToUnpin].sort((a, b) => a.title.localeCompare(b.title))
-              }
-              return prev
-            })
-          }
+        // Remove from pinned courses and refresh main list
+        setPinnedCourses(prev => prev.filter(course => course.id !== courseId))
+        setPinnedCourseIds(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(courseId)
+          return newSet
+        })
+        fetchCourses()
         }
       } else {
         // Pin the course
@@ -456,14 +446,13 @@ const allCourses = initialData.allCourses
           .insert({ user_id: user.id, course_id: courseId })
 
         if (!error) {
-          // Find course in main courses and move to pinned
-          const courseToPin = courses.find(course => course.id === courseId)
-          if (courseToPin) {
-            setPinnedCourses(prev => [...prev, courseToPin])
-            setPinnedCourseIds(prev => new Set([...prev, courseId]))
-            // Remove from main courses list
-            setCourses(prev => prev.filter(course => course.id !== courseId))
-          }
+        // Find course in main courses, add to pinned, and refresh main list
+        const courseToPin = courses.find(course => course.id === courseId)
+        if (courseToPin) {
+          setPinnedCourses(prev => [...prev, courseToPin])
+          setPinnedCourseIds(prev => new Set([...prev, courseId]))
+        }
+        fetchCourses()
         }
       }
     } catch (error) {
@@ -556,25 +545,33 @@ const allCourses = initialData.allCourses
     })
   }
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      setLoading(true)
-      
-      // Get paginated data
-      const from = (currentPage - 1) * ITEMS_PER_PAGE
-      const to = from + ITEMS_PER_PAGE - 1
-      
-      const { data } = await supabase
-        .from("coursenew")
-        .select("*")
-        .order('created_at', { ascending: false })
-        .range(from, to)
-      
-      setCourses(data || [])
-      setLoading(false)
+  const fetchCourses = async () => {
+    setLoading(true)
+    
+    // Get paginated data
+    const from = (currentPage - 1) * ITEMS_PER_PAGE
+    const to = from + ITEMS_PER_PAGE - 1
+    
+    let query = supabase
+      .from("coursenew")
+      .select("*")
+      .order('id', { ascending: false })
+      .range(from, to)
+
+    if (pinnedCourseIds.size > 0) {
+      const pinnedIdsArray = Array.from(pinnedCourseIds)
+      query = query.not('id', 'in', `(${pinnedIdsArray.join(',')})`)
     }
+
+    const { data } = await query
+    
+    setCourses(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
     fetchCourses()
-  }, [supabase, currentPage])
+  }, [supabase, currentPage, pinnedCourseIds])
 
   // All courses are already loaded from initial data, no need to fetch again
 
@@ -1453,7 +1450,6 @@ const allCourses = initialData.allCourses
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                   {(search && mobileSearchOpen ? filteredCourses : courses)
-                    .filter(course => !pinnedCourseIds.has(course.id))
                     .map((course, index) => (
                     <motion.div
                       key={course.id}
@@ -1615,8 +1611,7 @@ const allCourses = initialData.allCourses
 
         {/* Empty State */}
         {viewMode === 'list' && !loading && (
-          (search && mobileSearchOpen ? filteredCourses : courses)
-            .filter(course => !pinnedCourseIds.has(course.id)).length === 0
+          (search && mobileSearchOpen ? filteredCourses : courses).length === 0
         ) && (
           <div className="text-center py-12 col-span-full bg-white/30 dark:bg-zinc-900/30 rounded-xl border border-zinc-200 dark:border-zinc-800">
             <BookOpen className="h-12 w-12 text-zinc-400 dark:text-zinc-600 mx-auto mb-4" />
