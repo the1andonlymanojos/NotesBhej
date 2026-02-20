@@ -9,7 +9,7 @@ import { Command } from "cmdk"
 import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone, Menu } from "lucide-react"
 import BackgroundSelector from "@/components/background-selector"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { AnnouncementsDrawer, useAnnouncementsUnreadCount } from "@/components/announcements-drawer"
+import { AnnouncementsDrawer, useTotalUnreadCount } from "@/components/announcements-drawer"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Database } from "@/types/supabase"
 import { motion, AnimatePresence } from "framer-motion"
@@ -110,7 +110,7 @@ const allCourses = initialData.allCourses
   const [isMobile, setIsMobile] = useState(false)
   const [authResolved, setAuthResolved] = useState(false)
   const supabase = createClient()
-  const announcementsUnreadCount = useAnnouncementsUnreadCount(user?.id ?? null)
+  const totalUnreadCount = useTotalUnreadCount(user?.id ?? null)
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)")
@@ -889,9 +889,9 @@ const allCourses = initialData.allCourses
                 aria-label="Open menu"
               >
                 <Menu className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-                {announcementsUnreadCount > 0 && (
+                {totalUnreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
-                    {announcementsUnreadCount > 99 ? "99+" : announcementsUnreadCount}
+                    {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
                   </span>
                 )}
               </Button>
@@ -914,9 +914,9 @@ const allCourses = initialData.allCourses
                   >
                     <Megaphone className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                     Announcements
-                    {announcementsUnreadCount > 0 && (
+                    {totalUnreadCount > 0 && (
                       <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
-                        {announcementsUnreadCount > 99 ? "99+" : announcementsUnreadCount}
+                        {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
                       </span>
                     )}
                   </button>

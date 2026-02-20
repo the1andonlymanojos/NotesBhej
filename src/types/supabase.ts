@@ -234,6 +234,7 @@ export type Database = {
           deleted: boolean | null
           filetype: string | null
           id: number
+          order: number | null
           prev_ptr: number | null
           professor_id: number | null
           r2_url: string | null
@@ -254,6 +255,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number
+          order?: number | null
           prev_ptr?: number | null
           professor_id?: number | null
           r2_url?: string | null
@@ -274,6 +276,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number
+          order?: number | null
           prev_ptr?: number | null
           professor_id?: number | null
           r2_url?: string | null
@@ -378,6 +381,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          aggregation_bucket: number
+          course_id: number | null
+          created_at: string
+          first_event_at: string
+          id: number
+          is_read: boolean
+          last_event_at: string
+          read_at: string | null
+          title: string
+          type: string
+          upload_count: number
+          user_id: string
+        }
+        Insert: {
+          aggregation_bucket: number
+          course_id?: number | null
+          created_at?: string
+          first_event_at?: string
+          id?: never
+          is_read?: boolean
+          last_event_at?: string
+          read_at?: string | null
+          title: string
+          type: string
+          upload_count?: number
+          user_id: string
+        }
+        Update: {
+          aggregation_bucket?: number
+          course_id?: number | null
+          created_at?: string
+          first_event_at?: string
+          id?: never
+          is_read?: boolean
+          last_event_at?: string
+          read_at?: string | null
+          title?: string
+          type?: string
+          upload_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_course_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "coursenew"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       professorsnew: {
         Row: {
@@ -614,6 +670,25 @@ export type Database = {
       }
     }
     Views: {
+      announcement_read_details: {
+        Row: {
+          announcement_id: number | null
+          announcement_title: string | null
+          email: string | null
+          full_name: string | null
+          read_at: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_contentnew_anon: {
         Row: {
           anon: boolean | null
@@ -698,6 +773,7 @@ export type Database = {
           deleted: boolean | null
           filetype: string | null
           id: number | null
+          order: number | null
           professor_id: number | null
           resource_url: string | null
           semester_number: number | null
@@ -716,6 +792,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number | null
+          order?: number | null
           professor_id?: number | null
           resource_url?: never
           semester_number?: number | null
@@ -734,6 +811,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number | null
+          order?: number | null
           professor_id?: number | null
           resource_url?: never
           semester_number?: number | null
@@ -770,6 +848,7 @@ export type Database = {
           deleted: boolean | null
           filetype: string | null
           id: number | null
+          order: number | null
           professor_id: number | null
           r2_url: string | null
           resource_url: string | null
@@ -789,6 +868,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number | null
+          order?: number | null
           professor_id?: number | null
           r2_url?: string | null
           resource_url?: string | null
@@ -808,6 +888,7 @@ export type Database = {
           deleted?: boolean | null
           filetype?: string | null
           id?: number | null
+          order?: number | null
           professor_id?: number | null
           r2_url?: string | null
           resource_url?: string | null
@@ -860,6 +941,7 @@ export type Database = {
               deleted: boolean | null
               filetype: string | null
               id: number | null
+              order: number | null
               professor_id: number | null
               resource_url: string | null
               semester_number: number | null
@@ -887,6 +969,7 @@ export type Database = {
               deleted: boolean | null
               filetype: string | null
               id: number | null
+              order: number | null
               professor_id: number | null
               resource_url: string | null
               semester_number: number | null
