@@ -31,6 +31,7 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
   professor_name?: string
   tag_names?: string[]
   semester_display?: string
+  order?: number | null
 }
 
 const PREFERENCE_QUESTION = "Do you prefer using this site over Google Classroom?"
@@ -105,6 +106,7 @@ export default function CourseViewPage({
   const [showPreferenceQuestion, setShowPreferenceQuestion] = useState(false)
   const [preferenceSubmitting, setPreferenceSubmitting] = useState(false)
   const [preferenceError, setPreferenceError] = useState<string | null>(null)
+  const [reorderMode, setReorderMode] = useState(false)
 
   // Debouncing refs for interaction logging
   const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
@@ -223,7 +225,8 @@ export default function CourseViewPage({
               ...item,
               professor_name: professor?.name,
               tag_names: itemTags,
-              semester_display: getSemesterDisplay(item.semester_number)
+              semester_display: getSemesterDisplay(item.semester_number),
+              order: (item as any).order ?? null
             }
           })
           
@@ -596,6 +599,47 @@ export default function CourseViewPage({
     return { text: "Click to approve", icon: "eye-off" }
   }
 
+  const getGroupKey = (item: EnhancedContent) => {
+    const year = item.year ?? ''
+    const semester = item.semester_display ?? ''
+    const batch = item.batch ?? ''
+    const professor = item.professor_name || 'Unknown'
+    return `${year}*${semester}*${batch}*${professor}`
+  }
+
+  const sortGroupItems = (items: EnhancedContent[]): EnhancedContent[] => {
+    if (items.length === 0) return items
+
+    const hasCustomOrder = items.some((i) => i.order != null)
+    const sorted = [...items]
+
+    const sortByDate = (a: EnhancedContent, b: EnhancedContent) => {
+      const aDate = a.updated_at || a.created_at || ''
+      const bDate = b.updated_at || b.created_at || ''
+      if (!aDate && !bDate) return 0
+      if (!aDate) return 1
+      if (!bDate) return -1
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    }
+
+    const sortByTitle = (a: EnhancedContent, b: EnhancedContent) => {
+      return (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
+    }
+
+    if (hasCustomOrder) {
+      sorted.sort((a, b) => {
+        const aOrder = a.order ?? Number.MAX_SAFE_INTEGER
+        const bOrder = b.order ?? Number.MAX_SAFE_INTEGER
+        if (aOrder !== bOrder) return aOrder - bOrder
+        return groupSortBy === "date" ? sortByDate(a, b) : sortByTitle(a, b)
+      })
+    } else {
+      sorted.sort((a, b) => (groupSortBy === "date" ? sortByDate(a, b) : sortByTitle(a, b)))
+    }
+
+    return sorted
+  }
+
   // Initialize enhanced content from server props
   useEffect(() => {
     if (content.length > 0 && professors.length > 0) {
@@ -610,7 +654,8 @@ export default function CourseViewPage({
           ...item,
           professor_name: professor?.name,
           tag_names: itemTags,
-          semester_display: getSemesterDisplay(item.semester_number || 0)
+          semester_display: getSemesterDisplay(item.semester_number || 0),
+          order: (item as any).order ?? null
         }
       })
       setEnhancedContent(enhanced)
@@ -827,7 +872,7 @@ if(pinnedData?.length){
   }, [sortBy])
 
   // Compute filtered content before potential early return to keep hooks order consistent
-  const filteredContent = enhancedContent.filter(item => {
+  const filteredContent = sortGroupItems(enhancedContent.filter(item => {
     const matchesSearch = 
       item.title?.toLowerCase().includes(search.toLowerCase()) ||
       item.professor_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -838,20 +883,7 @@ if(pinnedData?.length){
       selectedTags.every(tag => item.tag_names?.includes(tag))
 
     return matchesSearch && matchesTags
-  }).sort((a, b) => {
-    if (groupSortBy === "date") {
-      // Sort by updated_at (most recent first), fallback to created_at
-      const aDate = a.updated_at || a.created_at || ''
-      const bDate = b.updated_at || b.created_at || ''
-      if (!aDate && !bDate) return 0
-      if (!aDate) return 1
-      if (!bDate) return -1
-      return new Date(bDate).getTime() - new Date(aDate).getTime()
-    } else {
-      // Sort by title (default)
-      return (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
-    }
-  })
+  }))
 
   // Group content by year, semester, batch, and professor
   const groupedContent = filteredContent.reduce((groups, item) => {
@@ -863,22 +895,9 @@ if(pinnedData?.length){
     return groups
   }, {} as Record<string, EnhancedContent[]>)
 
-  // Sort items within each group based on groupSortBy
+  // Sort items within each group based on groupSortBy and optional order
   Object.keys(groupedContent).forEach(key => {
-    groupedContent[key].sort((a, b) => {
-      if (groupSortBy === "date") {
-        // Sort by updated_at (most recent first), fallback to created_at
-        const aDate = a.updated_at || a.created_at || ''
-        const bDate = b.updated_at || b.created_at || ''
-        if (!aDate && !bDate) return 0
-        if (!aDate) return 1
-        if (!bDate) return -1
-        return new Date(bDate).getTime() - new Date(aDate).getTime()
-      } else {
-        // Sort by title (default)
-        return (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase())
-      }
-    })
+    groupedContent[key] = sortGroupItems(groupedContent[key])
   })
 
   // Expand all groups by default on first load (keeps user toggles afterward)
@@ -1356,6 +1375,91 @@ if(pinnedData?.length){
       setPreferenceSubmitting(false)
     }
   }
+
+  const normalizeGroupOrder = (items: EnhancedContent[]): EnhancedContent[] => {
+    const base = sortGroupItems(items)
+    return base.map((item, index) => ({
+      ...item,
+      order: index + 1,
+    }))
+  }
+
+  const saveGroupOrder = async (items: EnhancedContent[]) => {
+    const updatable = items.filter((item) => item.id != null)
+    if (updatable.length === 0) return
+
+    try {
+      await Promise.all(
+        updatable.map((item) =>
+          supabase
+            .from("course_contentnew")
+            .update({ order: item.order ?? null })
+            .eq("id", item.id!)
+        )
+      )
+    } catch (error) {
+      console.error("Error saving group order:", error)
+    }
+  }
+
+  const moveItemInGroup = async (item: EnhancedContent, direction: "up" | "down") => {
+    if (!item.id) return
+    const key = getGroupKey(item)
+
+    const groupItems = enhancedContent.filter(
+      (c) => getGroupKey(c) === key && c.professor_id !== 71
+    )
+    if (groupItems.length <= 1) return
+
+    const hasCustomOrder = groupItems.some((c) => c.order != null)
+    let working: EnhancedContent[]
+
+    if (hasCustomOrder) {
+      working = sortGroupItems(groupItems)
+    } else {
+      working = normalizeGroupOrder(groupItems)
+    }
+
+    const currentIndex = working.findIndex((c) => c.id === item.id)
+    if (currentIndex === -1) return
+
+    const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
+    if (swapIndex < 0 || swapIndex >= working.length) return
+
+    const temp = working[currentIndex]
+    working[currentIndex] = working[swapIndex]
+    working[swapIndex] = temp
+
+    const withOrders = working.map((c, index) => ({
+      ...c,
+      order: index + 1,
+    }))
+
+    const idToOrder: Record<number, number> = {}
+    withOrders.forEach((c) => {
+      if (c.id != null && c.order != null) {
+        idToOrder[c.id] = c.order
+      }
+    })
+
+    setEnhancedContent((prev) =>
+      prev.map((c) =>
+        c.id != null && idToOrder[c.id] != null
+          ? { ...c, order: idToOrder[c.id] }
+          : c
+      )
+    )
+
+    setContent((prev) =>
+      prev.map((c) =>
+        (c as any).id != null && idToOrder[(c as any).id] != null
+          ? { ...(c as any), order: idToOrder[(c as any).id as number] }
+          : c
+      )
+    )
+
+    await saveGroupOrder(withOrders)
+  }
   //bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] 
 
   return (
@@ -1522,6 +1626,25 @@ if(pinnedData?.length){
               </select>
             </div>
 
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="text-xs sm:text-sm text-white dark:text-white">Reorder:</span>
+              <Button
+                variant={reorderMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  if (!currentUserId) {
+                    setRedirectTo(`/course/${courseId}`)
+                    setShowLoginDialog(true)
+                    return
+                  }
+                  setReorderMode(!reorderMode)
+                }}
+                className="text-xs sm:text-sm px-2 py-1"
+              >
+                {reorderMode ? "Done" : "Reorder"}
+              </Button>
+            </div>
+
             <div className="flex flex-wrap gap-1 sm:gap-2">
               {availableTags.map((tag, index) => (
                 <motion.button
@@ -1624,6 +1747,30 @@ if(pinnedData?.length){
                               >
                                 <MoreHorizontal className="h-3 w-3" />
                               </Button>
+                              {reorderMode && item.professor_id !== 71 && (
+                                <div className="flex flex-col ml-1">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      moveItemInGroup(item, "up")
+                                    }}
+                                    className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                                  >
+                                    <ChevronUp className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      moveItemInGroup(item, "down")
+                                    }}
+                                    className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                                  >
+                                    <ChevronDown className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
@@ -1766,6 +1913,30 @@ if(pinnedData?.length){
                         >
                           <MoreHorizontal className="h-3 w-3" />
                         </Button>
+                        {reorderMode && item.professor_id !== 71 && (
+                          <div className="flex flex-col ml-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                moveItemInGroup(item, "up")
+                              }}
+                              className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                            >
+                              <ChevronUp className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                moveItemInGroup(item, "down")
+                              }}
+                              className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                            >
+                              <ChevronDown className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2 mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
@@ -1997,6 +2168,30 @@ if(pinnedData?.length){
                                 >
                                   <MoreHorizontal className="h-3 w-3" />
                                 </Button>
+                                {reorderMode && item.professor_id !== 71 && (
+                                  <div className="flex flex-col ml-1">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        moveItemInGroup(item, "up")
+                                      }}
+                                      className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                                    >
+                                      <ChevronUp className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        moveItemInGroup(item, "down")
+                                      }}
+                                      className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                                    >
+                                      <ChevronDown className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
 
                             </div>
@@ -2077,6 +2272,30 @@ if(pinnedData?.length){
                                   >
                                     <MoreHorizontal className="h-3 w-3" />
                                   </Button>
+                                  {reorderMode && item.professor_id !== 71 && (
+                                    <div className="flex flex-col ml-1">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          moveItemInGroup(item, "up")
+                                        }}
+                                        className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                                      >
+                                        <ChevronUp className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          moveItemInGroup(item, "down")
+                                        }}
+                                        className="p-0.5 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                                      >
+                                        <ChevronDown className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex flex-wrap justify-between gap-1 sm:gap-2 mt-1 sm:mt-2">
