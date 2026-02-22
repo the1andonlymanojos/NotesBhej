@@ -278,20 +278,34 @@ export default function CourseViewPage({
     localStorage.setItem('useNativeViewer', JSON.stringify(useNativeViewer))
   }, [useNativeViewer])
 
-  // Close context menu on click outside or Escape
+  // Close context menu on click outside or Escape (use capture + delay on mobile so the tap that opened the menu doesn't close it)
   useEffect(() => {
     if (!contextMenu) return
+    let mounted = true
     const handleClose = (e: MouseEvent | KeyboardEvent) => {
       if (e instanceof KeyboardEvent && e.key !== 'Escape') return
+      if (!mounted) return
       setContextMenu(null)
     }
-    document.addEventListener('click', handleClose)
-    document.addEventListener('contextmenu', handleClose)
-    document.addEventListener('keydown', handleClose)
+    const attachListeners = () => {
+      document.addEventListener('keydown', handleClose)
+      document.addEventListener('contextmenu', handleClose)
+      // Delay adding click listener so the tap that opened the menu (on mobile) doesn't immediately close it
+      const t = setTimeout(() => {
+        if (!mounted) return
+        document.addEventListener('click', handleClose)
+      }, 0)
+      return () => {
+        clearTimeout(t)
+        document.removeEventListener('click', handleClose)
+        document.removeEventListener('contextmenu', handleClose)
+        document.removeEventListener('keydown', handleClose)
+      }
+    }
+    const teardown = attachListeners()
     return () => {
-      document.removeEventListener('click', handleClose)
-      document.removeEventListener('contextmenu', handleClose)
-      document.removeEventListener('keydown', handleClose)
+      mounted = false
+      teardown()
     }
   }, [contextMenu])
 
@@ -1464,36 +1478,6 @@ if(pinnedData?.length){
 
   return (
     <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 transition-colors duration-500 p-4 sm:p-6">
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.4 }}
-        className="fixed top-4 right-4 z-10 flex items-center gap-2"
-      >
-        {!isMobile && (
-          <div className="flex flex-col items-end gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => setUseNativeViewer(!useNativeViewer)}
-              className="hover:bg-white/50 dark:hover:bg-zinc-800/50 text-sm"
-            >
-              {useNativeViewer ? "Using Browser viewer" : "Using In-App viewer"}
-            </Button>
-            {!useNativeViewer && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-1 rounded border border-amber-200 dark:border-amber-800 max-w-xs text-right"
-              >
-                Having issues? Try the toggle above
-              </motion.div>
-            )}
-          </div>
-        )}
-        <AnnouncementsDrawer />
-        <ThemeToggle />
-      </motion.div>
       {isNavigating && (
         <div className="fixed inset-0 z-50 backdrop-blur-sm bg-black/30 flex items-center justify-center">
           <motion.div
@@ -1541,11 +1525,15 @@ if(pinnedData?.length){
               >
                 <Heart className={`h-4 w-4 transition-all ${isPinned ? "fill-current" : ""}`} />
               </Button>
-              <div>
-              <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight break-words">
-                {(course || serverCourse)?.title}
-              </h1>
-            </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight break-words">
+                  {(course || serverCourse)?.title}
+                </h1>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <AnnouncementsDrawer />
+                <ThemeToggle />
+              </div>
             </div>
           </div>
 
@@ -1578,6 +1566,31 @@ if(pinnedData?.length){
                   {(course || serverCourse)?.abbreviation}
                 </p>
               )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {!isMobile && (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setUseNativeViewer(!useNativeViewer)}
+                    className="hover:bg-white/50 dark:hover:bg-zinc-800/50 text-sm"
+                  >
+                    {useNativeViewer ? "Browser viewer" : "In-App viewer"}
+                  </Button>
+                  {!useNativeViewer && (
+                    <motion.span
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-xs text-amber-600 dark:text-amber-400"
+                      title="Having issues? Try the toggle"
+                    >
+                      •
+                    </motion.span>
+                  )}
+                </>
+              )}
+              <AnnouncementsDrawer />
+              <ThemeToggle />
             </div>
           </div>
         </motion.div>
@@ -1744,10 +1757,10 @@ if(pinnedData?.length){
                                   const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
                                   if (rect && item.professor_id !== 71) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
                                 }}
-                                className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                                className="h-10 w-10 min-h-[44px] min-w-[44px] sm:h-6 sm:w-6 sm:min-h-0 sm:min-w-0 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"
                                 title="Actions (or right-click)"
                               >
-                                <MoreHorizontal className="h-3 w-3" />
+                                <MoreHorizontal className="h-4 w-4 sm:h-3 sm:w-3" />
                               </Button>
                               {reorderMode && item.professor_id !== 71 && (
                                 <div className="flex flex-col ml-1">
@@ -1910,10 +1923,10 @@ if(pinnedData?.length){
                             const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
                             if (rect && item.professor_id !== 71) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
                           }}
-                          className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                          className="h-10 w-10 min-h-[44px] min-w-[44px] sm:h-6 sm:w-6 sm:min-h-0 sm:min-w-0 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"
                           title="Actions (or right-click)"
                         >
-                          <MoreHorizontal className="h-3 w-3" />
+                          <MoreHorizontal className="h-4 w-4 sm:h-3 sm:w-3" />
                         </Button>
                         {reorderMode && item.professor_id !== 71 && (
                           <div className="flex flex-col ml-1">
@@ -2165,10 +2178,10 @@ if(pinnedData?.length){
                                     const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
                                     if (rect) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
                                   }}
-                                  className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                                  className="h-10 w-10 min-h-[44px] min-w-[44px] sm:h-6 sm:w-6 sm:min-h-0 sm:min-w-0 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"
                                   title="Actions (or right-click)"
                                 >
-                                  <MoreHorizontal className="h-3 w-3" />
+                                  <MoreHorizontal className="h-4 w-4 sm:h-3 sm:w-3" />
                                 </Button>
                                 {reorderMode && item.professor_id !== 71 && (
                                   <div className="flex flex-col ml-1">
@@ -2269,10 +2282,10 @@ if(pinnedData?.length){
                                       const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect()
                                       if (rect) setContextMenu({ x: rect.left, y: rect.bottom + 4, item })
                                     }}
-                                    className="h-6 w-6 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                                    className="h-10 w-10 min-h-[44px] min-w-[44px] sm:h-6 sm:w-6 sm:min-h-0 sm:min-w-0 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"
                                     title="Actions (or right-click)"
                                   >
-                                    <MoreHorizontal className="h-3 w-3" />
+                                    <MoreHorizontal className="h-4 w-4 sm:h-3 sm:w-3" />
                                   </Button>
                                   {reorderMode && item.professor_id !== 71 && (
                                     <div className="flex flex-col ml-1">
@@ -2565,12 +2578,28 @@ if(pinnedData?.length){
         </Dialog>
 
         {/* Content Context Menu (right-click or ⋮) */}
-        {contextMenu && (
+        {contextMenu && (() => {
+          const menuMinWidth = 160
+          const menuMaxHeight = 320
+          const padding = 8
+          const leftOffset = 24
+          const isClient = typeof window !== 'undefined'
+          const x = isClient
+            ? Math.max(padding, Math.min(contextMenu.x - leftOffset, window.innerWidth - menuMinWidth - padding))
+            : contextMenu.x
+          const y = isClient
+            ? Math.max(padding, Math.min(contextMenu.y, window.innerHeight - menuMaxHeight - padding))
+            : contextMenu.y
+          return (
           <>
-            <div className="fixed inset-0 z-40 pointer-events-none" aria-hidden />
+            <div
+              className="fixed inset-0 z-40"
+              aria-hidden
+              onClick={() => setContextMenu(null)}
+            />
             <div
               className="fixed z-50 min-w-[10rem] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 animate-in fade-in-0 zoom-in-95"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
+              style={{ left: x, top: y }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Date info */}
@@ -2634,7 +2663,8 @@ if(pinnedData?.length){
               )}
             </div>
           </>
-        )}
+          )
+        })()}
 
         {/* Edit Content Dialog */}
         <EditContentDialog
