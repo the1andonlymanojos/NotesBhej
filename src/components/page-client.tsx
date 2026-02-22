@@ -46,6 +46,34 @@ const getContentUrl = (item: { r2_url?: string | null; resource_url?: string | n
   if (prefer_r2_url && r2) return r2
   return res || null
 }
+
+const TAG_CARD_STYLES = [
+  "bg-indigo-50/20 dark:bg-indigo-950/10 border-zinc-200 dark:border-zinc-700 border-l-4 border-l-indigo-300 dark:border-l-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-700",
+  "bg-slate-50/25 dark:bg-slate-900/10 border-zinc-200 dark:border-zinc-700 border-l-4 border-l-slate-300 dark:border-l-slate-600 hover:border-slate-300 dark:hover:border-slate-600",
+  "bg-teal-50/20 dark:bg-teal-950/10 border-zinc-200 dark:border-zinc-700 border-l-4 border-l-teal-300 dark:border-l-teal-700 hover:border-teal-300 dark:hover:border-teal-700",
+  "bg-blue-50/20 dark:bg-blue-950/10 border-zinc-200 dark:border-zinc-700 border-l-4 border-l-blue-300 dark:border-l-blue-700 hover:border-blue-300 dark:hover:border-blue-700",
+  "bg-zinc-50/35 dark:bg-zinc-900/20 border-zinc-200 dark:border-zinc-700 border-l-4 border-l-zinc-300 dark:border-l-zinc-600 hover:border-zinc-300 dark:hover:border-zinc-600",
+  "bg-cyan-50/20 dark:bg-cyan-950/10 border-zinc-200 dark:border-zinc-700 border-l-4 border-l-cyan-300 dark:border-l-cyan-700 hover:border-cyan-300 dark:hover:border-cyan-700",
+]
+
+const getTagCardStyleClass = (tagNames?: string[]): string => {
+  if (!tagNames?.length) return ""
+
+  const normalizedTags = tagNames
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+
+  if (!normalizedTags.length) return ""
+
+  const key = normalizedTags.join("|")
+  let hash = 0
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0
+  }
+  return TAG_CARD_STYLES[hash % TAG_CARD_STYLES.length]
+}
+
 export default function CourseViewPage({
   params,
   serverCourse,
@@ -278,34 +306,20 @@ export default function CourseViewPage({
     localStorage.setItem('useNativeViewer', JSON.stringify(useNativeViewer))
   }, [useNativeViewer])
 
-  // Close context menu on click outside or Escape (use capture + delay on mobile so the tap that opened the menu doesn't close it)
+  // Close context menu on click outside or Escape
   useEffect(() => {
     if (!contextMenu) return
-    let mounted = true
     const handleClose = (e: MouseEvent | KeyboardEvent) => {
       if (e instanceof KeyboardEvent && e.key !== 'Escape') return
-      if (!mounted) return
       setContextMenu(null)
     }
-    const attachListeners = () => {
-      document.addEventListener('keydown', handleClose)
-      document.addEventListener('contextmenu', handleClose)
-      // Delay adding click listener so the tap that opened the menu (on mobile) doesn't immediately close it
-      const t = setTimeout(() => {
-        if (!mounted) return
-        document.addEventListener('click', handleClose)
-      }, 0)
-      return () => {
-        clearTimeout(t)
-        document.removeEventListener('click', handleClose)
-        document.removeEventListener('contextmenu', handleClose)
-        document.removeEventListener('keydown', handleClose)
-      }
-    }
-    const teardown = attachListeners()
+    document.addEventListener('click', handleClose)
+    document.addEventListener('contextmenu', handleClose)
+    document.addEventListener('keydown', handleClose)
     return () => {
-      mounted = false
-      teardown()
+      document.removeEventListener('click', handleClose)
+      document.removeEventListener('contextmenu', handleClose)
+      document.removeEventListener('keydown', handleClose)
     }
   }, [contextMenu])
 
@@ -2134,14 +2148,22 @@ if(pinnedData?.length){
                   {isExpanded ? (
                     // Expanded Grid View
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {items.map((item: EnhancedContent) => (
-                        item.professor_id!=71?
+                      {items.map((item: EnhancedContent) => {
+                        const itemTagNames = item.tag_names ?? []
+                        const hasTags = itemTagNames.length > 0
+                        const tagStyleClass = getTagCardStyleClass(itemTagNames)
+                        if (typeof window !== "undefined") {
+                          console.log("[card tags]", { id: item.id, title: item.title, tag_names: itemTagNames, tag_ids: (item as any).tag_ids })
+                        }
+                        return item.professor_id != 71 ? (
                         <div
                           key={item.id}
                           className={`group flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
                             item.visible === false
                               ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
-                              : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
+                              : hasTags
+                                ? tagStyleClass
+                                : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
                           }`}
                           onClick={() => handleContentClick(item)}
                           onContextMenu={(e) => {
@@ -2149,7 +2171,6 @@ if(pinnedData?.length){
                             setContextMenu({ x: e.clientX, y: e.clientY, item })
                           }}
                         >
-                          
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 sm:gap-2 mb-1">
                               <h4 className="text-xs sm:text-base font-medium text-zinc-900 dark:text-zinc-100 flex-1 line-clamp-2 leading-tight">
@@ -2218,7 +2239,7 @@ if(pinnedData?.length){
                               </div>
                             )}
                           </div>
-                        </div> : <div
+                        </div> ) : ( <div
                         key={item.id}
                         >
                           <div className="flex flex-col p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer">
@@ -2231,20 +2252,26 @@ if(pinnedData?.length){
                             </div>
                           </div>
                         </div>
-                      ))}
+                      ) })
+                    }
                     </div>
                   ) : (
                     // Collapsed Horizontal Scroll View
                     <div className="overflow-x-auto">
                       <div className="flex gap-4 pb-2 min-w-min">
-                        {displayItems.map((item: EnhancedContent) => (
-                          item.professor_id!=71?
+                        {displayItems.map((item: EnhancedContent) => {
+                          const itemTagNames = item.tag_names ?? []
+                          const hasTags = itemTagNames.length > 0
+                          const tagStyleClass = getTagCardStyleClass(itemTagNames)
+                          return item.professor_id!=71?
                           <div
                             key={item.id}
                             className={`group flex flex-col w-52 sm:w-64 flex-shrink-0 p-2 sm:p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
                               item.visible === false
                                 ? "bg-white/30 dark:bg-zinc-800/30 border-zinc-300 dark:border-zinc-600 opacity-60 border-dashed"
-                                : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
+                                : hasTags
+                                  ? tagStyleClass
+                                  : "bg-white/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700"
                             }`}
                             onClick={() => handleContentClick(item)}
                             onContextMenu={(e) => {
@@ -2349,7 +2376,7 @@ if(pinnedData?.length){
                               </div>
                             </div>
                           </div>
-                        ))}
+                        })}
                       </div>
                     </div>
                   )}
@@ -2578,19 +2605,7 @@ if(pinnedData?.length){
         </Dialog>
 
         {/* Content Context Menu (right-click or ⋮) */}
-        {contextMenu && (() => {
-          const menuMinWidth = 160
-          const menuMaxHeight = 320
-          const padding = 8
-          const leftOffset = 24
-          const isClient = typeof window !== 'undefined'
-          const x = isClient
-            ? Math.max(padding, Math.min(contextMenu.x - leftOffset, window.innerWidth - menuMinWidth - padding))
-            : contextMenu.x
-          const y = isClient
-            ? Math.max(padding, Math.min(contextMenu.y, window.innerHeight - menuMaxHeight - padding))
-            : contextMenu.y
-          return (
+        {contextMenu && (
           <>
             <div
               className="fixed inset-0 z-40"
@@ -2599,11 +2614,23 @@ if(pinnedData?.length){
             />
             <div
               className="fixed z-50 min-w-[10rem] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 animate-in fade-in-0 zoom-in-95"
-              style={{ left: x, top: y }}
+              style={{ left: contextMenu.x, top: contextMenu.y }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Date info */}
               <div className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-300 border-b border-zinc-100 dark:border-zinc-800">
+                {contextMenu.item.tag_names && contextMenu.item.tag_names.length > 0 && (
+                  <div className="mb-1 flex flex-wrap gap-1">
+                    {contextMenu.item.tag_names.map((tag: string, index: number) => (
+                      <span
+                        key={`${tag}-${index}`}
+                        className="px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div>Uploaded: {formatUpdatedAt(contextMenu.item.created_at as string | null) ?? '—'}</div>
                 <div>Updated: {contextMenu.item.updated_at ? formatUpdatedAt(contextMenu.item.updated_at) : '—'}</div>
               </div>
@@ -2663,8 +2690,7 @@ if(pinnedData?.length){
               )}
             </div>
           </>
-          )
-        })()}
+        )}
 
         {/* Edit Content Dialog */}
         <EditContentDialog
