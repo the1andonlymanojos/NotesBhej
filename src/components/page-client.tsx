@@ -79,11 +79,13 @@ export default function CourseViewPage({
   serverCourse,
   serverContent,
   serverProfessors,
+  serverTags,
 }: {
   params: Promise<{ "slugg": string }>,
   serverCourse?: CourseNew | null,
   serverContent?: (Course_content_anon | Course_content_user)[],
   serverProfessors?: Professor[],
+  serverTags?: Tag[],
 }) {
   const router = useRouter()
   const courseId = use(params)["slugg"]
@@ -91,7 +93,7 @@ export default function CourseViewPage({
   const [content, setContent] = useState<(Course_content_anon | Course_content_user)[]>(serverContent || [])
   const professors = serverProfessors || []
   const [enhancedContent, setEnhancedContent] = useState<EnhancedContent[]>([])
-  const [tags, setTags] = useState<Tag[]>([])
+  const [tags, setTags] = useState<Tag[]>(serverTags || [])
   const [search, setSearch] = useState("")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
@@ -728,7 +730,7 @@ export default function CourseViewPage({
           .from("tags")
           .select("*")
 
-        setTags(tagsData || [])
+        setTags(tagsData || serverTags || [])
 
         // If user is authenticated and we have server content, we might need to refetch for user-specific data
         if (isAuthenticated && serverContent && serverContent.length > 0) {

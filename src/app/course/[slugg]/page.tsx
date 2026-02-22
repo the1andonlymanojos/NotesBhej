@@ -197,12 +197,13 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     supabase.from("coursenew").select("*").eq("id", courseId).single(),
     supabase.rpc("get_public_course_content", { target_course_id: courseId }),
   ]);
+  const resolvedContent = (content || coursecontent || []) as any[]
   console.log("err",err)
   console.log("contentError",contentError)
   console.log("coursecontent",coursecontent)
-  if(coursecontent.length == 0){
+  if(resolvedContent.length == 0){
     //generate dummy content
-    coursecontent.push({
+    resolvedContent.push({
       id: 0,
     course_id: courseId,
     user_id: 'NA',
@@ -220,7 +221,7 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   
 
   // Gather professors (if you want to show names)
-  const profIds = Array.from(new Set((content || []).map((c: any) => c.professor_id).filter(Boolean)));
+  const profIds = Array.from(new Set(resolvedContent.map((c: any) => c.professor_id).filter(Boolean)));
   let professors: any[] = [];
   if (profIds.length) {
     const { data: profs } = await supabase.from("professorsnew").select("id,name").in("id", profIds);
@@ -233,15 +234,32 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       name: "Dummy Professor",
     })
   }
+  const tagIds = Array.from(
+    new Set(
+      resolvedContent
+        .flatMap((c: any) => (Array.isArray(c?.tag_ids) ? c.tag_ids : []))
+        .filter((id: any) => id != null)
+    )
+  )
+  let tags: any[] = []
+  if (tagIds.length > 0) {
+    const { data: tagsData } = await supabase
+      .from("tags")
+      .select("id,name")
+      .in("id", tagIds)
+    tags = tagsData || []
+  }
 
   //log all the parametes: 
   console.log("Course", course)
-  console.log("Content", coursecontent)
+  console.log("Content", resolvedContent)
   console.log("Professors", professors)
+  console.log("Tags", tags)
   console.log("Course ID", courseId)
   //console.log("Params", params)
 
   return <CourseViewPage params={params} serverCourse={course}
-  serverContent={content}
-  serverProfessors={professors} />
+  serverContent={resolvedContent}
+  serverProfessors={professors}
+  serverTags={tags} />
 }                           
