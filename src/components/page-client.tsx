@@ -451,7 +451,7 @@ export default function CourseViewPage({
       } else {
         setDownloadState(prev => ({ ...prev, [id]: { progress: 0, active: false } }))
         console.error('Download error', e)
-        alert('Failed to download file.')
+        alert(`Failed to download file. ${e.message}`)
       }
     }
   }
