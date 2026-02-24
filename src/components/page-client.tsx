@@ -8,13 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 // import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug, Star, MoreHorizontal, ExternalLink, Trash2, Layers } from "lucide-react"
+import { FileText, Calendar, User, ArrowLeft, Plus, Search, Filter, AlertTriangle, Heart, EyeOff, Clock, ChevronDown, ChevronUp, Edit, Download, RefreshCcw, MessageSquare, Bug, Star, MoreHorizontal, ExternalLink, Trash2, Layers, Share2 } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { AnnouncementsDrawer } from "@/components/announcements-drawer"
 import dynamic from "next/dynamic"
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
 import { Database } from "@/types/supabase"
-import Chatbox from "@/components/chatbox"
 import EditContentDialog from "@/components/edit-content-dialog"
 import { motion, AnimatePresence } from "framer-motion"
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
@@ -137,6 +136,7 @@ export default function CourseViewPage({
   const [preferenceSubmitting, setPreferenceSubmitting] = useState(false)
   const [preferenceError, setPreferenceError] = useState<string | null>(null)
   const [reorderMode, setReorderMode] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
   // Debouncing refs for interaction logging
   const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
@@ -1371,6 +1371,46 @@ if(pinnedData?.length){
     }
   }
 
+  const handleShare = async () => {
+    if (typeof window === "undefined") return
+    if (sharing) return
+
+    const shareUrl = window.location.href
+    const shareTitle = (course || serverCourse)?.title || "Course page"
+    const shareCount = enhancedContent.filter((item) => item.professor_id !== 71).length
+    const shareText = [
+      `📚 ${shareTitle}`,
+      shareCount > 0
+        ? `Found ${shareCount} resources here.`
+        : "Found notes and resources here.",
+      "",
+      shareUrl,
+    ].join("\n")
+
+    try {
+      setSharing(true)
+      if (navigator.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        })
+        return
+      }
+
+      await navigator.clipboard.writeText(shareText)
+      alert("Share message copied. Paste it anywhere.")
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return
+      }
+      console.error("Share failed:", error)
+      alert("Could not share right now. Please try again.")
+    } finally {
+      setSharing(false)
+    }
+  }
+
   const handlePreferenceResponse = async (choice: "yes" | "no" | "skip") => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -2521,7 +2561,7 @@ if(pinnedData?.length){
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.8, duration: 0.4 }}
-          className="fixed bottom-6 right-6 flex items-center justify-center gap-4"
+          className="fixed bottom-6 right-6 z-50 flex items-center justify-center gap-4"
         >
           <motion.div
             whileHover={{ scale: 1.02 }}
@@ -2555,14 +2595,22 @@ if(pinnedData?.length){
             </Button>
 
             <Button
-              onClick={handleAddContent}
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10 animate-pulse"
+              onClick={handleShare}
+              disabled={sharing}
+              className="bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-700 hover:to-cyan-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10"
             >
-              <Plus className="h-5 w-5 sm:mr-2" />
-              <span className="hidden sm:inline">Add Content</span>
+              <Share2 className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">{sharing ? "Sharing..." : "Share"}</span>
             </Button>
+
           </motion.div>
-          <Chatbox />
+          <Button
+            onClick={handleAddContent}
+            className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-full sm:px-4 sm:py-2 flex items-center justify-center ring-1 ring-white/30 dark:ring-white/10 animate-pulse"
+          >
+            <Plus className="h-5 w-5 sm:mr-2" />
+            <span className="hidden sm:inline">Add Content</span>
+          </Button>
         </motion.div>
 
         {/* Sassy Login Dialog */}
