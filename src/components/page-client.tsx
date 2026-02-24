@@ -1375,6 +1375,9 @@ if(pinnedData?.length){
     if (typeof window === "undefined") return
     if (sharing) return
 
+    // Log share intent on click (debounced + user-aware in helper).
+    logUserInteraction("share")
+
     const shareUrl = window.location.href
     const shareTitle = (course || serverCourse)?.title || "Course page"
     const shareCount = enhancedContent.filter((item) => item.professor_id !== 71).length
