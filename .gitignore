@@ -45,3 +45,7 @@ public/robots.txt
 public/sitemap.xml
 
 certificates
+
+/bin
+/lib
+pyvenv.cfg
