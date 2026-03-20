@@ -1,4 +1,5 @@
 import { Database } from "./supabase";
+import type { ApiUser } from "@/lib/api/types";
 
 // Base types from database schema
 export type Course = Database["public"]["Tables"]["coursenew"]["Row"];
@@ -24,6 +25,17 @@ export interface SSGData {
   totalCount: number;
   allCourses: SafeCourseIndex[];
   professorData: ProfessorCourseData[];
+  user?: ApiUser | null;
+  pinnedCourses?: SSRPinnedCourseData[];
+  authResolved?: boolean;
+}
+
+export interface SSRPinnedCourseData {
+  id: number;
+  courseId: number;
+  courseTitle: string;
+  courseCode: string;
+  pinnedAt: string;
 }
 
 export interface CoursePageSSGData {

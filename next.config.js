@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   images: {
     domains: ['lh3.googleusercontent.com', 'data.miga.manoj-shiv.tech', 'avatars.githubusercontent.com','i.scdn.co', 'static-cdn.jtvnw.net', 'cdn.discordapp.com', 's3.manoj-shiv.tech'], // Allow Google user content images
   },

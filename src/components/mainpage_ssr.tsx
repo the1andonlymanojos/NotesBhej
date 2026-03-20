@@ -1,0 +1,1658 @@
+"use client"
+
+import { useState, useEffect, useRef, useMemo } from "react"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
+import {
+  apiGetMe,
+  apiLogout,
+  apiGetProfessorCourses,
+  apiGetPinnedCoursesMe,
+  apiPinCourse,
+  apiUnpinCourse,
+} from "@/lib/api/client"
+import type { ApiUser } from "@/lib/api/types"
+import { Button } from "@/components/ui/button"
+import { Command } from "cmdk"
+import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone, Menu } from "lucide-react"
+import BackgroundSelector from "@/components/background-selector"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { AnnouncementsDrawer, useTotalUnreadCount } from "@/components/announcements-drawer"
+import { DialogTitle } from "@radix-ui/react-dialog"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+
+import { SSGData, SafeCourseIndex } from "@/types/ssg"
+
+type CourseNew = {
+  id: number
+  title: string
+  code: string
+  abbreviation: string | null
+  created_at: string
+}
+//type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
+//type logbook = Database['public']['Tables']['user_course_interaction']['Row']
+
+// Add type for professor course data
+type ProfessorCourse = {
+  professor_id: number
+  professor_name: string
+  professor_email: string
+  course_id: number
+  course_title: string
+  course_code: string
+}
+
+type GroupedProfessorCourses = {
+  professor_id: number
+  professor_name: string
+  professor_email: string
+  courses: Array<{
+    course_id: number
+    course_title: string
+    course_code: string
+  }>
+}
+
+const ITEMS_PER_PAGE = 16
+
+// LocalStorage utility functions
+const getLocalStorageItem = (key: string, defaultValue: any) => {
+  if (typeof window === 'undefined') return defaultValue
+  try {
+    const item = localStorage.getItem(key)
+    return item ? JSON.parse(item) : defaultValue
+  } catch (error) {
+    console.error(`Error reading localStorage key "${key}":`, error)
+    return defaultValue
+  }
+}
+
+const setLocalStorageItem = (key: string, value: any) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.error(`Error setting localStorage key "${key}":`, error)
+  }
+}
+
+interface HomePageProps {
+  initialData: SSGData
+}
+
+export default function HomePage({ initialData }: HomePageProps) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [courseComboboxOpen, setCourseComboboxOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [mobileActionOpen, setMobileActionOpen] = useState(false)
+  // Cache: all courses from initial load; list view is derived from this (no refetch on page change or pin/unpin)
+  const [cachedAllCourses] = useState<SafeCourseIndex[]>(initialData.allCourses)
+  const [user, setUser] = useState<ApiUser | null>(() => initialData.user ?? null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pinnedCourses, setPinnedCourses] = useState<CourseNew[]>(() =>
+    (initialData.pinnedCourses ?? []).map((dto) => ({
+      id: dto.courseId,
+      title: dto.courseTitle,
+      code: dto.courseCode,
+      abbreviation: null,
+      created_at: dto.pinnedAt,
+    }))
+  )
+  const [pinnedCourseIds, setPinnedCourseIds] = useState<Set<number>>(
+    () => new Set((initialData.pinnedCourses ?? []).map((dto) => dto.courseId))
+  )
+  // Map courseId -> pinned entry id (for unpin without refetching pinned list)
+  const [pinnedIdByCourseId, setPinnedIdByCourseId] = useState<Record<number, number>>(
+    () =>
+      (initialData.pinnedCourses ?? []).reduce((acc, dto) => {
+        acc[dto.courseId] = dto.id
+        return acc
+      }, {} as Record<number, number>)
+  )
+  const [showPinnedSection, setShowPinnedSection] = useState(true)
+  const [userRole, setUserRole] = useState<string | null>(() => initialData.user?.role ?? null)
+  const [roleLoading, setRoleLoading] = useState<boolean>(() => !(initialData.authResolved ?? false))
+  const [mounted, setMounted] = useState(false)
+  const [pendingContentCount, setPendingContentCount] = useState<number>(0)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [announcementsOpen, setAnnouncementsOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [authResolved, setAuthResolved] = useState<boolean>(() => initialData.authResolved ?? false)
+  const totalUnreadCount = useTotalUnreadCount(typeof user?.id === "number" ? user.id : null)
+  const safeUnreadCount = mounted ? totalUnreadCount : 0
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)")
+    const set = () => setIsMobile(mq.matches)
+    set()
+    mq.addEventListener("change", set)
+    return () => mq.removeEventListener("change", set)
+  }, [])
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const skipInitialPinnedFetch = useRef(initialData.authResolved === true)
+  const skipInitialProfessorFetch = useRef((initialData.professorData?.length ?? 0) > 0)
+  // Add new state for professor courses
+  const [professorCourses, setProfessorCourses] = useState<GroupedProfessorCourses[]>(() => {
+    // Group initial professor data
+    const grouped = initialData.professorData?.reduce((acc: GroupedProfessorCourses[], item: any) => {
+      const existingProf = acc.find(p => p.professor_id === item.professor_id)
+      
+      if (existingProf) {
+        existingProf.courses.push({
+          course_id: item.course_id,
+          course_title: item.course_title,
+          course_code: item.course_code
+        })
+      } else {
+        acc.push({
+          professor_id: item.professor_id,
+          professor_name: item.professor_name,
+          professor_email: item.professor_email,
+          courses: [{
+            course_id: item.course_id,
+            course_title: item.course_title,
+            course_code: item.course_code
+          }]
+        })
+      }
+      
+      return acc
+    }, []) || []
+    return grouped
+  })
+
+  const [professorCoursesLoading, setProfessorCoursesLoading] = useState(false)
+  const [expandedProfessors, setExpandedProfessors] = useState<Set<number>>(new Set())
+  const [professorCurrentPage, setProfessorCurrentPage] = useState(1)
+  //const [totalProfessorEntries, setTotalProfessorEntries] = useState(initialData.professorData?.length || 0)
+  const totalProfessorEntries = initialData.professorData?.length || 0
+  const [isNavigating, setIsNavigating] = useState(false)
+  
+  const resolveAuthUser = async () => {
+    try {
+      const me = await apiGetMe()
+      setUser(me)
+      setUserRole(me?.role ?? null)
+    } catch {
+      setUser(null)
+      setUserRole(null)
+    } finally {
+      setRoleLoading(false)
+      setAuthResolved(true)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await apiLogout()
+    } catch (error) {
+      console.error("Error logging out:", error)
+    } finally {
+      setUser(null)
+      setUserRole(null)
+      setRoleLoading(false)
+      router.refresh()
+    }
+  }
+
+  // Add view mode state (will be hydrated from localStorage after mount)
+  const [viewMode, setViewMode] = useState<'list' | 'professor'>('list')
+
+  // List view: derive from cache (exclude pinned, sort by id desc, paginate) — no API calls
+  const sortedUnpinnedCourses = useMemo(() => {
+    return cachedAllCourses
+      .filter((c) => !pinnedCourseIds.has(c.id))
+      .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
+  }, [cachedAllCourses, pinnedCourseIds])
+
+  const listViewCourses = useMemo(() => {
+    const from = (currentPage - 1) * ITEMS_PER_PAGE
+    return sortedUnpinnedCourses.slice(from, from + ITEMS_PER_PAGE)
+  }, [sortedUnpinnedCourses, currentPage])
+
+  const listViewTotal = sortedUnpinnedCourses.length
+  const totalPages = Math.ceil(listViewTotal / ITEMS_PER_PAGE)
+  const totalProfessorPages = Math.ceil(totalProfessorEntries / ITEMS_PER_PAGE)
+
+  const isAdmin = (role: string | null) => {
+    if (!role) return false
+    const normalized = role.toUpperCase()
+    return normalized === "ADMIN" || normalized === "MODERATOR" || normalized === "SUPER_ADMIN"
+  }
+
+  // Fetch pending content count for admins
+  const fetchPendingContentCount = async () => {
+    if (!isAdmin(userRole)) {
+      setPendingContentCount(0)
+      return
+    }
+    // Pending moderation count endpoint is not exposed yet in the new API.
+    // Keep behavior safe by showing no badge until backend supports it.
+    setPendingContentCount(0)
+  }
+
+  useEffect(() => {
+    if (!authResolved) {
+      resolveAuthUser()
+    }
+  }, [authResolved])
+
+  // Fetch pending content count when user role changes
+  useEffect(() => {
+    if (user && !roleLoading) {
+      fetchPendingContentCount()
+    } else if (!user) {
+      setPendingContentCount(0)
+    }
+  }, [user, userRole, roleLoading])
+
+  // Fetch pinned courses once when user is set; uses PinnedCourseDTO (id + courseId for unpin)
+  const fetchPinnedCourses = async () => {
+    if (!user) {
+      setPinnedCourses([])
+      setPinnedCourseIds(new Set())
+      setPinnedIdByCourseId({})
+      return
+    }
+    try {
+      const list = await apiGetPinnedCoursesMe()
+      if (list?.length > 0) {
+        const asCourseNew: CourseNew[] = list.map((dto) => ({
+          id: dto.courseId ?? 0,
+          title: dto.courseTitle ?? "",
+          code: dto.courseCode ?? "",
+          abbreviation: null,
+          created_at: dto.pinnedAt ?? new Date().toISOString(),
+        }))
+        const ids = new Set(asCourseNew.map((c) => c.id))
+        const byCourseId: Record<number, number> = {}
+        list.forEach((dto) => {
+          if (dto.id != null && dto.courseId != null) byCourseId[dto.courseId] = dto.id
+        })
+        setPinnedCourses(asCourseNew)
+        setPinnedCourseIds(ids)
+        setPinnedIdByCourseId(byCourseId)
+      } else {
+        setPinnedCourses([])
+        setPinnedCourseIds(new Set())
+        setPinnedIdByCourseId({})
+      }
+    } catch (error) {
+      console.error("Error fetching pinned courses:", error)
+      setPinnedCourses([])
+      setPinnedCourseIds(new Set())
+      setPinnedIdByCourseId({})
+    }
+  }
+
+  useEffect(() => {
+    if (skipInitialPinnedFetch.current) {
+      skipInitialPinnedFetch.current = false
+      return
+    }
+    fetchPinnedCourses()
+  }, [user])
+
+  // Pin/unpin: update API then local state only; no refetch of full course list
+  const togglePin = async (courseId: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    if (!user) return
+    const isPinned = pinnedCourseIds.has(courseId)
+    try {
+      if (isPinned) {
+        const pinnedId = pinnedIdByCourseId[courseId]
+        if (pinnedId == null) return
+        await apiUnpinCourse(pinnedId)
+        setPinnedCourses((prev) => prev.filter((c) => c.id !== courseId))
+        setPinnedCourseIds((prev) => {
+          const next = new Set(prev)
+          next.delete(courseId)
+          return next
+        })
+        setPinnedIdByCourseId((prev) => {
+          const next = { ...prev }
+          delete next[courseId]
+          return next
+        })
+      } else {
+        await apiPinCourse(courseId)
+        const course = cachedAllCourses.find((c) => c.id === courseId)
+        const toAdd: CourseNew = course
+          ? { id: course.id!, title: course.title ?? "", code: course.code ?? "", abbreviation: course.abbreviation ?? null, created_at: new Date().toISOString() }
+          : { id: courseId, title: "", code: "", abbreviation: null, created_at: new Date().toISOString() }
+        setPinnedCourses((prev) => [...prev, toAdd])
+        setPinnedCourseIds((prev) => new Set([...prev, courseId]))
+        // Refetch pinned (me) to get new entry id for future unpin
+        const list = await apiGetPinnedCoursesMe()
+        const byCourseId: Record<number, number> = { ...pinnedIdByCourseId }
+        list?.forEach((dto) => {
+          if (dto.id != null && dto.courseId != null) byCourseId[dto.courseId] = dto.id
+        })
+        setPinnedIdByCourseId(byCourseId)
+      }
+    } catch (error) {
+      console.error("Error toggling pin:", error)
+    }
+  }
+
+
+  useEffect(() => {
+    if (courseComboboxOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+  
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [courseComboboxOpen]);
+  
+
+  // Fetch professor courses (backend API)
+  const fetchProfessorCourses = async () => {
+    setProfessorCoursesLoading(true)
+    try {
+      const offset = (professorCurrentPage - 1) * ITEMS_PER_PAGE
+      const data = await apiGetProfessorCourses(offset, ITEMS_PER_PAGE)
+      const asProfessorCourse: ProfessorCourse[] = (data ?? []).map((p) => ({
+        professor_id: p.professorId ?? 0,
+        professor_name: p.professorName ?? "",
+        professor_email: p.professorEmail ?? "",
+        course_id: p.courseId ?? 0,
+        course_title: p.courseTitle ?? "",
+        course_code: p.courseCode ?? "",
+      }))
+      const grouped = asProfessorCourse.reduce((acc: GroupedProfessorCourses[], item: ProfessorCourse) => {
+        const existingProf = acc.find((p) => p.professor_id === item.professor_id)
+        if (existingProf) {
+          existingProf.courses.push({
+            course_id: item.course_id,
+            course_title: item.course_title,
+            course_code: item.course_code,
+          })
+        } else {
+          acc.push({
+            professor_id: item.professor_id,
+            professor_name: item.professor_name,
+            professor_email: item.professor_email,
+            courses: [{ course_id: item.course_id, course_title: item.course_title, course_code: item.course_code }],
+          })
+        }
+        return acc
+      }, [])
+      setProfessorCourses(grouped)
+    } catch (error) {
+      console.error("Error fetching professor courses:", error)
+    } finally {
+      setProfessorCoursesLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (skipInitialProfessorFetch.current && professorCurrentPage === 1) {
+      skipInitialProfessorFetch.current = false
+      return
+    }
+    fetchProfessorCourses()
+  }, [professorCurrentPage])
+
+  // Toggle professor section collapse
+  const toggleProfessorCollapse = (professorId: number) => {
+    setExpandedProfessors(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(professorId)) {
+        newSet.delete(professorId)
+      } else {
+        newSet.add(professorId)
+      }
+      return newSet
+    })
+  }
+
+  // List view uses cached courses (no API refetch on page change or pin/unpin)
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setOpen((open) => !open)
+      }
+      if (e.key === "Escape" && mobileSearchOpen) {
+        setMobileSearchOpen(false)
+        setSearch("")
+      }
+      if (e.key === "Escape" && courseComboboxOpen) {
+        setCourseComboboxOpen(false)
+        setSearch("")
+      }
+      if (e.key === "Enter" ){
+        inputRef.current?.blur();
+      }
+    }
+
+    document.addEventListener("keydown", down)
+    return () => document.removeEventListener("keydown", down)
+  }, [mobileSearchOpen, courseComboboxOpen])
+
+  const filteredCourses = cachedAllCourses.filter((course) => {
+    return course.title.toLowerCase().includes(search.toLowerCase()) ||
+           course.code.toLowerCase().includes(search.toLowerCase()) ||
+           (course.abbreviation && course.abbreviation.toLowerCase().includes(search.toLowerCase()))
+  })
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const goToProfessorPage = (page: number) => {
+    setProfessorCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Save view mode to localStorage when it changes
+  useEffect(() => {
+    if (mounted) {
+      setLocalStorageItem('viewMode', viewMode)
+    }
+  }, [viewMode, mounted])
+
+  // Save pinned section state to localStorage when it changes
+  useEffect(() => {
+    if (mounted) {
+      setLocalStorageItem('showPinnedSection', showPinnedSection)
+    }
+  }, [showPinnedSection, mounted])
+
+  // Helper function to change view mode and reset pagination
+  const changeViewMode = (newMode: 'list' | 'professor') => {
+    setViewMode(newMode)
+    if (newMode === 'list') {
+      setProfessorCurrentPage(1) // Reset professor page when switching to list
+    } else {
+      setCurrentPage(1) // Reset course page when switching to professor
+    }
+  }
+
+  // Handle course navigation with loading animation
+  // Ctrl/Cmd+Click opens in new tab (background)
+  const handleCourseNavigation = (courseId: string | number, e?: React.MouseEvent) => {
+    const openInNewTab = e && (e.metaKey || e.ctrlKey)
+    if (openInNewTab) {
+      window.open(`/course/${courseId}`, '_blank', 'noopener,noreferrer')
+      return
+    }
+    setIsNavigating(true)
+    setTimeout(() => {
+      router.push(`/course/${courseId}`)
+    }, 10)
+  }
+
+  // Hydrate localStorage values after component mounts (client-side only)
+  useEffect(() => {
+    setMounted(true)
+    
+    // Load saved preferences from localStorage
+    const savedViewMode = getLocalStorageItem('viewMode', 'list')
+    const savedPinnedSection = getLocalStorageItem('showPinnedSection', true)
+    
+    setViewMode(savedViewMode)
+    setShowPinnedSection(savedPinnedSection)
+  }, [])
+
+  return (
+    <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 p-3 sm:p-4">
+      {/* Navigation Loading Overlay */}
+      <AnimatePresence>
+        {isNavigating && (
+          <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="min-h-screen p-4 sm:p-6"
+        >
+        
+  
+          <div className="max-w-7xl mx-auto">
+            {/* Simple Loading State */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="flex flex-col items-center justify-center min-h-[60vh] text-center"
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="mb-6"
+              >
+                <FileText className="h-16 w-16 text-indigo-500 dark:text-indigo-400 mx-auto" />
+              </motion.div>
+              
+              <motion.h2 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2"
+              >
+                Loading Course Content
+              </motion.h2>
+              
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base"
+              >
+                Gathering all the good stuff for you...
+              </motion.p>
+              
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.7 }}
+                className="mt-6"
+              >
+                <div className="flex space-x-1">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ 
+                        scale: [1, 1.2, 1],
+                        opacity: [0.5, 1, 0.5]
+                      }}
+                      transition={{ 
+                        duration: 1.5,
+                        repeat: Infinity,
+                        delay: i * 0.2
+                      }}
+                      className="w-2 h-2 bg-indigo-500 dark:bg-indigo-400 rounded-full"
+                    />
+                      ))}
+                    </div>
+              </motion.div>
+            </motion.div>
+                  </div>
+        </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="max-w-7xl mx-auto pt-10 sm:pt-6">
+        <div className="flex  justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <BookOpen className="text-indigo-500 dark:text-indigo-300 h-6 w-6 sm:h-8 sm:w-8" />
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-sky-400 dark:from-indigo-300 dark:via-fuchsia-400 dark:to-sky-300 bg-clip-text text-transparent">
+              NotesBhej
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Desktop: compact bar — Search, Bell, User menu (Appearance + Account inside) */}
+            <div className="hidden sm:flex items-center gap-2">
+              <Button
+                onClick={() => setOpen(true)}
+                variant="ghost"
+                size="sm"
+                className="h-10 gap-2 rounded-lg px-3 text-zinc-600 dark:text-zinc-400 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
+                title="Quick search (⌘K)"
+              >
+                <Search className="h-5 w-5 shrink-0" />
+                <span className="hidden md:inline text-sm font-medium">Search</span>
+                <kbd className="hidden h-5 rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400 md:inline-flex items-center">⌘K</kbd>
+              </Button>
+              <AnnouncementsDrawer triggerVariant="ghost" />
+              {!authResolved ? (
+                <div className="h-10 w-24 rounded-lg bg-zinc-100/50 dark:bg-zinc-800/30 animate-pulse" aria-hidden />
+              ) : user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 gap-1.5 rounded-lg px-2.5 pr-2 hover:bg-white/80 dark:hover:bg-zinc-800/80"
+                    >
+                      {user.profilePictureUrl ? (
+                        <div className="relative h-7 w-7 rounded-full overflow-hidden shrink-0">
+                          <Image
+                            src={user.profilePictureUrl}
+                            alt=""
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <User className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-400" />
+                      )}
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-1">
+                    <div className="px-2 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Account
+                    </div>
+                    <DropdownMenuItem onClick={() => router.push('/profile')} className="rounded-lg py-2">
+                      <User className="w-4 h-4 mr-2.5" />
+                      Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/manage-contributions')} className="rounded-lg py-2">
+                      <FileText className="w-4 h-4 mr-2.5" />
+                      Manage contributions
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/profile')} className="rounded-lg py-2">
+                      <Settings className="w-4 h-4 mr-2.5" />
+                      Settings
+                    </DropdownMenuItem>
+                    {!roleLoading && isAdmin(userRole) && (
+                      <>
+                        <DropdownMenuSeparator className="my-1" />
+                        <div className="px-2 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                          Admin
+                        </div>
+                        <DropdownMenuItem onClick={() => router.push('/admin/content-moderation')} className="rounded-lg py-2">
+                          <Shield className="w-4 h-4 mr-2.5" />
+                          Content Moderation
+                          {pendingContentCount > 0 && (
+                            <span className="ml-auto rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
+                              {pendingContentCount}
+                            </span>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push('/admin/announcements')} className="rounded-lg py-2">
+                          <Megaphone className="w-4 h-4 mr-2.5" />
+                          Announcements
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator className="my-1" />
+                    <div className="px-2 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Appearance
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 px-2 py-1.5">
+                      <ThemeToggle />
+                      <BackgroundSelector />
+                    </div>
+                    <DropdownMenuSeparator className="my-1" />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="rounded-lg py-2 text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
+                    >
+                      <LogOut className="w-4 h-4 mr-2.5" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push('/login')}
+                    className="h-10 rounded-lg px-3 text-zinc-600 dark:text-zinc-400 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
+                  >
+                    Sign in
+                  </Button>
+                  
+                </>
+              )}
+            </div>
+
+            {/* Mobile: single menu button that opens drawer */}
+            <div className="flex sm:hidden items-center gap-1">
+              <AnnouncementsDrawer
+                open={announcementsOpen}
+                onOpenChange={setAnnouncementsOpen}
+                hideTrigger={isMobile}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                className="relative h-9 w-9 bg-white/80 dark:bg-zinc-900/80 border border-zinc-300 dark:border-zinc-700 shadow-sm"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+                {safeUnreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
+                    {safeUnreadCount > 99 ? "99+" : safeUnreadCount}
+                  </span>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile menu sheet */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetContent side="right" className="flex flex-col w-[min(100vw-2rem,320px)] p-0">
+              <SheetHeader className="shrink-0 border-b border-zinc-200/80 dark:border-zinc-700/80 px-5 pt-5 pb-4">
+                <SheetTitle className="text-lg">Menu</SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-1 flex-col overflow-y-auto px-4 pb-6">
+                {/* Actions */}
+                <div className="space-y-1 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => { setAnnouncementsOpen(true); setMobileMenuOpen(false) }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                  >
+                    <Megaphone className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                    Announcements
+                    {safeUnreadCount > 0 && (
+                      <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
+                        {safeUnreadCount > 99 ? "99+" : safeUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Admin */}
+                {user && isAdmin(userRole) && (
+                  <div className="mt-6 space-y-1">
+                    <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Admin
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { router.push('/admin/content-moderation'); setMobileMenuOpen(false) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                    >
+                      <Shield className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                      Content Moderation
+                      {pendingContentCount > 0 && (
+                        <span className="ml-auto rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">
+                          {pendingContentCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { router.push('/admin/announcements'); setMobileMenuOpen(false) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                    >
+                      <Megaphone className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                      Manage Announcements
+                    </button>
+                  </div>
+                )}
+
+                {/* Account */}
+                <div className="mt-6 space-y-1">
+                  <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Account
+                  </p>
+                  {user ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { router.push('/profile'); setMobileMenuOpen(false) }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                      >
+                        <User className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                        Profile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { router.push('/manage-contributions'); setMobileMenuOpen(false) }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                      >
+                        <FileText className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                        Manage contributions
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { router.push('/profile'); setMobileMenuOpen(false) }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                      >
+                        <Settings className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                        Settings
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleLogout()
+                          setMobileMenuOpen(false)
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50/70 dark:hover:bg-red-950/30 active:bg-red-100/50 dark:active:bg-red-900/40"
+                      >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { router.push('/login'); setMobileMenuOpen(false) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </div>
+
+                {/* Theme & background at bottom */}
+                <div className="mt-auto border-t border-zinc-200/80 dark:border-zinc-700/80 pt-4 mt-6">
+                  <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Appearance
+                  </p>
+                  <div className="flex items-center gap-2 px-4 py-2">
+                    <BackgroundSelector />
+                    <ThemeToggle />
+                  </div>
+                </div>
+              </nav>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        {/* Notice Box */}
+        {/* <div className="mb-6">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/50 backdrop-blur px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm sm:text-base text-zinc-700 dark:text-zinc-300">
+                <span className="font-medium"></span> If this page has helped you, please consider uploading content
+              </p>
+            </div>
+          </div>
+        </div> */}
+
+        {/* Course Count and Search */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            
+            <Button
+              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              variant="outline"
+              size="sm"
+              className="sm:hidden bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 h-8 px-3 text-xs"
+            >
+              <Search className="mr-1 h-3 w-3" />
+              Search
+            </Button>
+          </div>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 mr-1 sm:mr-2">View:</span>
+              <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 sm:p-1">
+
+                <button
+                  onClick={() => changeViewMode('list')}
+                  className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
+                    viewMode === 'list'
+                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                  }`}
+                >
+                  <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
+                  <span className="hidden xs:inline">List All</span>
+                  <span className="inline xs:hidden">List</span>
+                </button>
+                <button
+                  onClick={() => changeViewMode('professor')}
+                  className={`px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
+                    viewMode === 'professor'
+                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 inline" />
+                  <span className="hidden xs:inline">Sort by Prof</span>
+                  <span className="inline xs:hidden">Prof</span>
+                </button>
+              </div>
+              <span className="hidden sm:inline ml-3 text-[15px] sm:text-m text-zinc-700 dark:text-zinc-200">
+                Ctrl/Cmd+click opens in new tab
+              </span>
+            </div>
+
+            {/* Desktop: background/theme selector to the right of View row */}
+            <div className="hidden sm:flex items-center shrink-0">
+              <BackgroundSelector triggerVariant="ghost" />
+            </div>
+            
+            {/* Mobile Admin Reminder */}
+            {user && isAdmin(userRole) && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+                className="sm:hidden"
+              >
+                <Button
+                  onClick={() => router.push('/admin/content-moderation')}
+                  variant="outline"
+                  size="sm"
+                  className="relative bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all duration-200 text-zinc-700 dark:text-zinc-300 px-2 py-1 h-7"
+                >
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                    {pendingContentCount > 0 && (
+                      <div className="flex items-center gap-1 px-1 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium">
+                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                        {pendingContentCount}
+                      </div>
+                    )}
+                  </div>
+                </Button>
+              </motion.div>
+            )}
+          </div>
+          
+          {/* Mobile Search Input */}
+          {mobileSearchOpen && (
+            <div className="sm:hidden mb-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-4 text-zinc-400" />
+                
+                <input
+                  type="text"
+                  placeholder="Search courses..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  ref={inputRef}
+                  className="w-full pl-10 pr-10 py-2 text-base border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  autoFocus
+                />
+                
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-0.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <X className="h-3 w-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" />
+                  </button>
+                )}
+              </div>
+              {search && (
+                <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  {filteredCourses.length} course{filteredCourses.length === 1 ? '' : 's'} found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Pinned Courses Section */}
+        {user && (
+          <div className="mb-2">
+            <div 
+              className="flex items-center gap-3 mb-4 cursor-pointer group"
+              onClick={() => setShowPinnedSection(!showPinnedSection)}
+            >
+              <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+              <h2 className="text-md font-semibold text-zinc-900 dark:text-zinc-100">
+                Pinned Courses ({pinnedCourses.length})
+              </h2>
+              <motion.div
+                animate={{ rotate: showPinnedSection ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors" />
+              </motion.div>
+            </div>
+            
+            <AnimatePresence>
+              {showPinnedSection && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-2 p-4 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                    {pinnedCourses.length > 0 ? (
+                      pinnedCourses.map((course, index) => (
+                        <motion.div
+                          key={course.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ 
+                            duration: 0.2, 
+                            delay: index * 0.03,
+                            ease: "easeOut"
+                          }}
+                          whileHover={{ 
+                            scale: 1.02, 
+                            y: -2,
+                            transition: { duration: 0.15 }
+                          }}
+                          className="bg-white/90 dark:bg-zinc-900/90 rounded-lg p-4 border border-red-200 dark:border-red-700 shadow-sm hover:shadow-lg cursor-pointer group hover:border-red-300 dark:hover:border-red-600 relative"
+                          onClick={(e) => {
+                            if (mobileSearchOpen) {
+                              setMobileSearchOpen(false)
+                              setSearch("")
+                            }
+                            handleCourseNavigation(course.id, e)
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0 pr-3">
+                                                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors leading-tight mb-1 truncate">
+                            {course.title}
+                          </h3>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.95 }}
+                                transition={{ duration: 0.1 }}
+                                onClick={(e) => togglePin(course.id, e)}
+                                className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors z-10"
+                              >
+                                <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                              </motion.button>
+                              <motion.div
+                                whileHover={{ x: 3 }}
+                                transition={{ duration: 0.15 }}
+                              >
+                                <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
+                              </motion.div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="col-span-full text-center py-8">
+                        <Heart className="h-8 w-8 text-red-300 dark:text-red-600 mx-auto mb-2" />
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                          No pinned courses yet. Pin your favorite courses to see them here!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+
+
+        {/* Course Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
+
+        {/* Professor View */}
+        {viewMode === 'professor' && (
+          <div className="col-span-full">
+            <AnimatePresence mode="wait">
+              {professorCoursesLoading ? (
+                <motion.div
+                  key="professor-loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-center py-12"
+                >
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ 
+                        duration: 0.8, 
+                        repeat: Infinity, 
+                        ease: "linear" 
+                      }}
+                      className="w-6 h-6 border-2 border-blue-200 border-t-blue-500 rounded-full"
+                    />
+                    <span className="text-zinc-600 dark:text-zinc-400 text-sm">
+                      Loading professors...
+                    </span>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="professor-content"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                                     {professorCourses.map((professor, index) => (
+                     <motion.div
+                       key={professor.professor_id}
+                       initial={{ opacity: 0, y: 10 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       transition={{ 
+                         duration: 0.2, 
+                         delay: index * 0.05,
+                         ease: "easeOut"
+                       }}
+                       whileHover={{ 
+                         scale: 1.01,
+                         transition: { duration: 0.15 }
+                       }}
+                       className="bg-white/90 dark:bg-zinc-900/90 rounded-lg border border-blue-200 dark:border-blue-700 shadow-sm"
+                     >
+                      <div
+                        className="flex items-center justify-between p-4 cursor-pointer group hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-colors"
+                        onClick={() => toggleProfessorCollapse(professor.professor_id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <motion.div 
+                            whileHover={{ scale: 1.05 }}
+                            transition={{ duration: 0.2 }}
+                            className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"
+                          >
+                            <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </motion.div>
+                          <div>
+                            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                              {professor.professor_name}
+                            </h3>
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                              {professor.professor_email}
+                            </p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                              {professor.courses.length} course{professor.courses.length === 1 ? '' : 's'}
+                            </p>
+                          </div>
+                        </div>
+                        <motion.div 
+                                                     animate={{ 
+                             rotate: expandedProfessors.has(professor.professor_id) ? 180 : 0 
+                           }}
+                           transition={{ duration: 0.15 }}
+                          className="flex items-center gap-2"
+                        >
+                          <ChevronDown className="h-4 w-4 text-zinc-500 group-hover:text-blue-500 transition-colors" />
+                        </motion.div>
+                      </div>
+                      
+                      <AnimatePresence>
+                        {expandedProfessors.has(professor.professor_id) && (
+                                                     <motion.div
+                             initial={{ opacity: 0, height: 0 }}
+                             animate={{ opacity: 1, height: "auto" }}
+                             exit={{ opacity: 0, height: 0 }}
+                             transition={{ duration: 0.2, ease: "easeInOut" }}
+                             className="overflow-hidden"
+                           >
+                            <div className="px-4 pb-4">
+                              <motion.div 
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-3"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.1 }}
+                              >
+                                                                 {professor.courses.map((course, courseIndex) => (
+                                   <motion.div
+                                     key={course.course_id}
+                                     initial={{ opacity: 0, y: 8 }}
+                                     animate={{ opacity: 1, y: 0 }}
+                                     transition={{ 
+                                       duration: 0.2, 
+                                       delay: courseIndex * 0.03,
+                                       ease: "easeOut"
+                                     }}
+                                     whileHover={{ 
+                                       scale: 1.01, 
+                                       y: -1,
+                                       transition: { duration: 0.15 }
+                                     }}
+                                    className="bg-white dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md cursor-pointer group hover:border-blue-300 dark:hover:border-blue-600"
+                                    onClick={(e) => handleCourseNavigation(course.course_id, e)}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1 min-w-0 pr-2">
+                                        <h4 className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight mb-1 truncate text-sm">
+                                          {course.course_title}
+                                        </h4>
+                                      </div>
+                                                                             <motion.div
+                                         whileHover={{ x: 2 }}
+                                         transition={{ duration: 0.15 }}
+                                       >
+                                        <ArrowRight className="h-3 w-3 text-zinc-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                                      </motion.div>
+                                    </div>
+                                  </motion.div>
+                                ))}
+                              </motion.div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Regular Course Grid — derived from cache, no loading */}
+        {viewMode === 'list' && (
+          <>
+          <AnimatePresence mode="wait">
+              <motion.div
+                key="content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="col-span-full"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {(search && mobileSearchOpen ? filteredCourses : listViewCourses)
+                    .map((course, index) => (
+                    <motion.div
+                      key={course.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ 
+                        duration: 0.2, 
+                        delay: index * 0.02,
+                        ease: "easeOut"
+                      }}
+                      whileHover={{ 
+                        scale: 1.01, 
+                        y: -2,
+                        transition: { duration: 0.15 }
+                      }}
+                      className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-lg cursor-pointer group hover:border-indigo-300 dark:hover:border-indigo-600 relative"
+                      onClick={(e) => {
+                        if (mobileSearchOpen) {
+                          setMobileSearchOpen(false)
+                          setSearch("")
+                        }
+                        handleCourseNavigation(course.id, e)
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight mb-1 truncate">
+                            {course.title}
+                          </h3>
+                          {course.abbreviation && (
+                            <p className="hidden sm:block text-sm text-zinc-600 dark:text-zinc-400 mb-1 truncate">
+                              {course.abbreviation}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {user && (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.95 }}
+                              transition={{ duration: 0.1 }}
+                              onClick={(e) => togglePin(course.id, e)}
+                              className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-10"
+                            >
+                              <Heart 
+                                className={`h-4 w-4 transition-colors ${
+                                  pinnedCourseIds.has(course.id) 
+                                    ? "text-red-500 fill-red-500" 
+                                    : "text-zinc-400 hover:text-red-400"
+                                }`} 
+                              />
+                            </motion.button>
+                          )}
+                          <motion.div
+                            whileHover={{ x: 3 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-indigo-500 transition-colors" />
+                          </motion.div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+          </AnimatePresence>
+          </>
+        )}
+        </div>
+        <div className="text-sm text-zinc-600 dark:text-zinc-400">
+              {viewMode === 'list' 
+                ? `Showing ${((currentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, listViewTotal)} of ${listViewTotal} courses`
+                : `Showing ${((professorCurrentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(professorCurrentPage * ITEMS_PER_PAGE, totalProfessorEntries)} of ${totalProfessorEntries} professor entries`
+              }
+            </div>
+
+        {/* Pagination */}
+        {((viewMode === 'list' && totalPages > 1 && !(search && mobileSearchOpen)) || 
+          (viewMode === 'professor' && totalProfessorPages > 1)) && (
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <Button
+              onClick={() => viewMode === 'list' ? goToPage(currentPage - 1) : goToProfessorPage(professorCurrentPage - 1)}
+              disabled={viewMode === 'list' ? currentPage === 1 : professorCurrentPage === 1}
+              variant="outline"
+              size="sm"
+              className="h-9 px-3"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Previous</span>
+            </Button>
+            
+            <div className="flex items-center gap-1">
+              {/* First page */}
+              {(viewMode === 'list' ? currentPage : professorCurrentPage) > 3 && (
+                <>
+                  <Button
+                    onClick={() => viewMode === 'list' ? goToPage(1) : goToProfessorPage(1)}
+                    variant={1 === (viewMode === 'list' ? currentPage : professorCurrentPage) ? "default" : "outline"}
+                    size="sm"
+                    className="h-9 w-9"
+                  >
+                    1
+                  </Button>
+                  {(viewMode === 'list' ? currentPage : professorCurrentPage) > 4 && <span className="px-2 text-zinc-500">...</span>}
+                </>
+              )}
+              
+              {/* Current page and surrounding pages */}
+              {Array.from({ length: Math.min(5, viewMode === 'list' ? totalPages : totalProfessorPages) }, (_, i) => {
+                const activePage = viewMode === 'list' ? currentPage : professorCurrentPage
+                const maxPages = viewMode === 'list' ? totalPages : totalProfessorPages
+                const page = Math.max(1, Math.min(maxPages - 4, activePage - 2)) + i
+                if (page > maxPages) return null
+                return (
+                  <Button
+                    key={page}
+                    onClick={() => viewMode === 'list' ? goToPage(page) : goToProfessorPage(page)}
+                    variant={page === activePage ? "default" : "outline"}
+                    size="sm"
+                    className="h-9 w-9"
+                  >
+                    {page}
+                  </Button>
+                )
+              })}
+              
+              {/* Last page */}
+              {(viewMode === 'list' ? currentPage : professorCurrentPage) < (viewMode === 'list' ? totalPages : totalProfessorPages) - 2 && (
+                <>
+                  {(viewMode === 'list' ? currentPage : professorCurrentPage) < (viewMode === 'list' ? totalPages : totalProfessorPages) - 3 && <span className="px-2 text-zinc-500">...</span>}
+                  <Button
+                    onClick={() => {
+                      const lastPage = viewMode === 'list' ? totalPages : totalProfessorPages
+                      return viewMode === 'list' ? goToPage(lastPage) : goToProfessorPage(lastPage)
+                    }}
+                    variant={(viewMode === 'list' ? totalPages : totalProfessorPages) === (viewMode === 'list' ? currentPage : professorCurrentPage) ? "default" : "outline"}
+                    size="sm"
+                    className="h-9 w-9"
+                  >
+                    {viewMode === 'list' ? totalPages : totalProfessorPages}
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            <Button
+              onClick={() => viewMode === 'list' ? goToPage(currentPage + 1) : goToProfessorPage(professorCurrentPage + 1)}
+              disabled={viewMode === 'list' ? currentPage === totalPages : professorCurrentPage === totalProfessorPages}
+              variant="outline"
+              size="sm"
+              className="h-9 px-3"
+            >
+              <span className="hidden sm:inline mr-1">Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {viewMode === 'list' && (
+          (search && mobileSearchOpen ? filteredCourses : listViewCourses).length === 0
+        ) && (
+          <div className="text-center py-12 col-span-full bg-white/30 dark:bg-zinc-900/30 rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <BookOpen className="h-12 w-12 text-zinc-400 dark:text-zinc-600 mx-auto mb-4" />
+            <p className="text-zinc-500 dark:text-zinc-400 text-lg mb-4">
+              {search && mobileSearchOpen ? 'No courses found matching your search.' : 'No courses found.'}
+            </p>
+            {!(search && mobileSearchOpen) && (
+              <Button 
+                className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                onClick={() => router.push('/create-course')}
+              >
+                Create your first course
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Create Course Button */}
+        <div className="fixed bottom-6 right-6">
+          <DropdownMenu open={mobileActionOpen} onOpenChange={setMobileActionOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 rounded-full w-12 h-12 sm:w-auto sm:h-auto sm:rounded-md sm:px-4 sm:py-2 flex items-center justify-center"
+              >
+                <Plus className="h-5 w-5 sm:mr-2" />
+                <span className="hidden sm:inline">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="end" 
+              side="top" 
+              className="w-56 mb-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl"
+            >
+              <DropdownMenuItem 
+                onClick={() => {
+                  setMobileActionOpen(false)
+                  router.push('/create-course')
+                }}
+                className="cursor-pointer"
+              >
+                <Plus className="w-4 h-4 mr-3 text-indigo-600 dark:text-indigo-400" />
+                <div>
+                  <div className="font-medium">Create Course</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">Start a new course from scratch</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => {
+                  setMobileActionOpen(false)
+                  setCourseComboboxOpen(true)
+                }}
+                className="cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4 mr-3 text-green-600 dark:text-green-400" />
+                <div>
+                  <div className="font-medium">Upload Content</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">Add content to existing course</div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Course Selection for Quick Search */}
+      <Command.Dialog
+        open={open}
+        onOpenChange={setOpen}
+        className="fixed inset-0 z-50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+      >
+        <DialogTitle className="sr-only">Search Courses</DialogTitle>
+        <div className="fixed inset-0 bg-black/20 dark:bg-black/50" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4 sm:p-6">
+          <Command className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-200">
+            <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
+              <Search className="h-5 w-5 text-zinc-500 dark:text-zinc-400 mr-2 flex-shrink-0" />
+              <Command.Input
+                placeholder="Search courses..."
+                value={search}
+                onValueChange={setSearch}
+                className="flex-1 bg-transparent outline-none text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
+              />
+              <kbd className="hidden sm:inline-flex h-6 items-center gap-1 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                ESC
+              </kbd>
+            </div>
+            
+            <Command.List className="max-h-[400px] overflow-y-auto p-2">
+              {filteredCourses.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-12">
+                  <Search className="h-8 w-8 text-zinc-400 dark:text-zinc-500 mb-3 opacity-60" />
+                  <p className="text-zinc-500 dark:text-zinc-400 mb-1">No courses found{search && ` for "${search}"`}</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Try a different search term</p>
+                  {search && (
+                    <Button
+                      onClick={() => {
+                        router.push(`/create-course?name=${encodeURIComponent(search)}`);
+                        setOpen(false);
+                        setSearch("");
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create &quot;{search}&quot; course
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                filteredCourses.map((course) => (
+                  <Command.Item
+                    key={course.id}
+                    onSelect={() => {
+                      setOpen(false);
+                      handleCourseNavigation(course.id)
+                    }}
+                    className="flex items-center px-3 py-3 text-sm rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 text-zinc-700 dark:text-zinc-200 transition-colors relative group"
+                  >
+                    <div className="flex items-center flex-1">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 mr-3 flex-shrink-0">
+                        <BookOpen className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{course.title}</div>
+                        <div className="hidden sm:flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">
+                          {course.abbreviation && (
+                            <span className="truncate">{course.abbreviation}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Command.Item>
+                ))
+              )}
+            </Command.List>
+            
+            <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 py-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex items-center justify-between">
+                <div>
+                  {filteredCourses.length} course{filteredCourses.length === 1 ? '' : 's'} found
+                </div>
+                <div className="flex items-center gap-1">
+                  <span>Navigate</span>
+                  <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">↑↓</kbd>
+                  <span>Select</span>
+                  <kbd className="px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">↵</kbd>
+                </div>
+              </div>
+            </div>
+          </Command>
+        </div>
+      </Command.Dialog>
+
+      {/* Course Selection Combobox for Upload Content */}
+      {courseComboboxOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 dark:bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl rounded-lg overflow-hidden">
+            <Command className="rounded-lg">
+              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-3 py-3 bg-zinc-50 dark:bg-zinc-800/50">
+                <div className="flex items-center">
+                  <BookOpen className="h-4 w-4 text-zinc-500 dark:text-zinc-400 mr-2 flex-shrink-0" />
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Select Course to Upload Content</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setCourseComboboxOpen(false);
+                    setSearch("");
+                  }}
+                  className="p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  <X className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                </button>
+              </div>
+              <Command.Input
+                placeholder="Search courses..."
+                className="h-10 px-3 py-2 text-base bg-transparent border-none outline-none focus:ring-0 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
+                value={search}
+                onValueChange={setSearch}
+              />
+              <Command.List className="max-h-64 overflow-y-auto p-1">
+                <Command.Empty className="py-6 text-center">
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+                    No courses found{search && ` for "${search}"`}.
+                  </div>
+                  {search && (
+                    <Button
+                      onClick={() => {
+                        router.push(`/create-course?name=${encodeURIComponent(search)}`);
+                        setCourseComboboxOpen(false);
+                        setSearch("");
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Create 
+                      &quot;{search}&quot; course
+                    </Button>
+                  )}
+                </Command.Empty>
+                {cachedAllCourses.map((course) => (
+                  <Command.Item
+                    key={course.id}
+                    value={`${course.title} ${course.code} ${course.abbreviation || ""}`}
+                    onSelect={() => {
+                      router.push(`/add-content/${course.id}`);
+                      setCourseComboboxOpen(false);
+                      setSearch("");
+                    }}
+                    className="flex items-center px-2 py-2 text-sm rounded-md cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 transition-colors"
+                  >
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 mr-3 flex-shrink-0">
+                      <BookOpen className="h-3 w-3" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{course.title}</div>
+                      <div className="hidden sm:flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs">
+                        {course.abbreviation && (
+                          <span className="truncate">{course.abbreviation}</span>
+                        )}
+                      </div>
+                    </div>
+                  </Command.Item>
+                ))}
+              </Command.List>
+            </Command>
+          </div>
+                 </div>
+       )}
+    </div>
+  );
+}
+

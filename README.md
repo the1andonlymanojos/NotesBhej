@@ -86,6 +86,34 @@ pnpm dev
 
 4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Docker
+
+This repo now includes a production-ready multi-stage Docker setup.
+
+### Run with Docker Compose
+
+1. Make sure `.env.local` exists in the project root (same vars as above).
+2. Build and start the container:
+
+```bash
+docker compose up --build
+```
+
+3. Open [http://localhost:3000](http://localhost:3000).
+
+To stop:
+
+```bash
+docker compose down
+```
+
+### Run with Docker (without Compose)
+
+```bash
+docker build -t notesbhej .
+docker run --rm -p 3000:3000 --env-file .env.local notesbhej
+```
+
 ## Contributing
 
 We welcome contributions! The codebase is a mess, I know, but it's just Next.js, shadcn, etc. Feel free to make it better.
