@@ -1,87 +1,79 @@
 import HomePage from "@/components/mainpage";
-import { adminSupabase } from "@/utils/supabase/admin";
-import { 
-  SafeCourse, 
+import { getCourses, getProfessorCourses } from "@/lib/api/client";
+import {
+  SafeCourse,
   SafeCourseIndex,
   SSGData,
-   
 } from "@/types/ssg";
+import type { ProfessorCourseData } from "@/types/ssg";
 
 export const runtime = "nodejs";
 export const revalidate = 3600; // ISR: 1 hour
 
+const ITEMS_PER_PAGE = 16;
+
 export default async function HomePageTwo() {
-  const ITEMS_PER_PAGE = 16;
+  let safeCourses: SafeCourse[] = [];
+  let totalCount = 0;
+  let safeAllCourses: SafeCourseIndex[] = [];
+  let professorData: ProfessorCourseData[] = [];
 
-  // 1) Paginated public courses (page 1)
-  const { data: courses = [], error: coursesErr } = await adminSupabase
-    .from("coursenew")
-    .select("id,title,code,abbreviation,created_at")
-    .order("created_at", { ascending: false })
-    .range(0, ITEMS_PER_PAGE - 1);
+  try {
+    console.log("............................................\nHOMEPAGERENDER")
+    // 1) All courses from backend API
+    const allCoursesFromApi = await getCourses();
 
-  if (coursesErr) {
-    console.error("Error fetching courses (server):", coursesErr);
-  }
+    console.log("from api", allCoursesFromApi)
+  
 
-  // 2) Total count (exact)
-  const { count, error: countErr } = await adminSupabase
-    .from("coursenew")
-    .select("*", { head: true, count: "exact" });
-
-  if (countErr) {
-    console.error("Error fetching course count (server):", countErr);
-  }
-    
-
-  // 3) Small index for search/autocomplete (only necessary fields)
-  const { data: allCourses = [], error: allCoursesErr } = await adminSupabase
-    .from("coursenew")
-    .select("id,title,code,abbreviation")
-    .order("title");
-
-  if (allCoursesErr) {
-    console.error("Error fetching all courses (server):", allCoursesErr);
-  }
-
-  // 4) Professor-course RPC (limit to reasonable number)
-  const { data: professorData = [], error: professorErr } = await adminSupabase
-    .rpc("professor_course_list", {
-      limit_count: 100,
-      offset_count: 0
+    // Sort by createdAt desc and take first page
+    const sorted = [...allCoursesFromApi].sort((a, b) => {
+      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tB - tA;
     });
+    const paginated = sorted.slice(0, ITEMS_PER_PAGE);
 
-  if (professorErr) {
-    console.error("Error fetching professor data (server):", professorErr);
+    safeCourses = paginated.map((c) => ({
+      id: c.id!,
+      title: c.title ?? "",
+      code: c.code ?? "",
+      abbreviation: c.abbreviation ?? null,
+      created_at: c.createdAt ?? new Date().toISOString(),
+    }));
+
+    totalCount = allCoursesFromApi.length;
+
+    // 2) Index for search/autocomplete (all courses, sort by title)
+    safeAllCourses = [...allCoursesFromApi]
+      .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""))
+      .map((c) => ({
+        id: c.id!,
+        title: c.title ?? "",
+        code: c.code ?? "",
+        abbreviation: c.abbreviation ?? null,
+      }));
+
+    // 3) Professor-course list from backend API
+    const professorCoursesFromApi = await getProfessorCourses(0, 100);
+    professorData = professorCoursesFromApi.map((p) => ({
+      professor_id: p.professorId ?? 0,
+      professor_name: p.professorName ?? "",
+      professor_email: p.professorEmail ?? "",
+      course_id: p.courseId ?? 0,
+      course_title: p.courseTitle ?? "",
+      course_code: p.courseCode ?? "",
+    }));
+  } catch (err) {
+    console.error("Error fetching homepage data from API:", err);
   }
-    
 
-  // Map to "safe" shapes (strip any sensitive fields)
-  const safeCourses: SafeCourse[] = (courses || []).map((c) => ({
-    id: c.id,
-    title: c.title,
-    code: c.code,
-    abbreviation: c.abbreviation,
-    created_at: c.created_at
-  }));
-
-  const safeAllCourses: SafeCourseIndex[] = (allCourses || []).map((c) => ({
-    id: c.id, 
-    title: c.title, 
-    code: c.code, 
-    abbreviation: c.abbreviation
-  }));
-
-
-
-  // Prepare SSG data
   const ssgData: SSGData = {
     courses: safeCourses,
-    totalCount: count || 0,
+    totalCount,
     allCourses: safeAllCourses,
-    professorData: professorData || []
+    professorData,
   };
-  console.log("Server page data: ", ssgData);
 
   return <HomePage initialData={ssgData} />;
 }

@@ -1,20 +1,19 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { createClient } from "@/utils/supabase/client"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sparkles, BookOpen, ArrowLeft } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LoginPopup } from "@/components/loginpopup"
-import { User } from "@supabase/supabase-js"
+import { apiCreateCourse, apiGetMe } from "@/lib/api/client"
+import type { ApiUser } from "@/lib/api/types"
 
 function CreateCourseForm() {
-  const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<ApiUser | null>(null)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -34,18 +33,16 @@ function CreateCourseForm() {
 
   useEffect(() => {
     const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-      } else {
+      try {
+        const me = await apiGetMe()
+        setUser(me)
+      } catch {
         setShowLoginPopup(true)
       }
       setAuthLoading(false)
     }
     getUser()
-  }, [supabase, router])
+  }, [])
 
   const handleCancelLogin = () => {
     setShowLoginPopup(false)
@@ -53,7 +50,6 @@ function CreateCourseForm() {
   }
 
   const handleCreateCourse = async () => {
-    console.log("randomly printing user email because i cant have unused variables", user?.email)
     if (!user) {
       setShowLoginPopup(true)
       return
@@ -65,31 +61,22 @@ function CreateCourseForm() {
     }
 
     setLoading(true)
-    // By default, Supabase insert does not return the inserted row(s) unless you chain .select() after .insert().
-    // So, we need to add .select() to get the inserted row(s) back.
-    const { data, error } = await supabase
-      .from("coursenew")
-      .insert([{ title: title.trim(), code: "NA", abbreviation: description.trim() }])
-      .select() // This will return the inserted row(s)
-    console.log(data)
-    const id = data?.[0]?.id ?? 0;
-    console.log("ID", id);
-    console.log(error)
-    if (error) {
-      alert("Error creating course." + error)
-      setLoading(false)
-      return
-    }
-    setLoading(false)
-    // Defensive: data could be null or empty, so check before accessing [0].id
-    if (data && data.length > 0) {
-
-      console.log("data", data)
-
-      //wait for 5 seconds, so that the course is created, show a countdown as well
-      router.push(`/add-content/${id}`)
-    } else {
+    try {
+      const createdCourse = await apiCreateCourse({
+        title: title.trim(),
+        code: "NA",
+        abbreviation: description.trim(),
+      })
+      const id = createdCourse?.id
+      if (typeof id === "number") {
+        router.push(`/add-content/${id}`)
+        return
+      }
       alert("Course created, but could not retrieve new course ID.")
+    } catch (error) {
+      alert(`Error creating course. ${error instanceof Error ? error.message : "Please try again."}`)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -102,7 +89,7 @@ function CreateCourseForm() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500">
+    <div className="min-h-screen flex flex-col items-center justify-center transition-colors duration-500">
       <LoginPopup
         open={showLoginPopup}
         onOpenChange={setShowLoginPopup}

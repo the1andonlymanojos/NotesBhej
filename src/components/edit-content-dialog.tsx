@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, ChangeEvent } from "react"
-import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileInput } from "@/components/ui/file-input"
@@ -12,6 +11,7 @@ import { Check, ChevronsUpDown, Loader2, Save, X, Upload, FileText } from "lucid
 import { cn } from "@/lib/utils"
 import { Database } from "@/types/supabase"
 import { Progress } from "@/components/ui/progress"
+import { apiCreateCourseContent, apiGetMe, apiGetUploadUrl } from "@/lib/api/client"
 
 type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
@@ -47,7 +47,6 @@ export default function EditContentDialog({
   const [newFile, setNewFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [uploadingFile, setUploadingFile] = useState(false)
-  const supabase = createClient()
 
   // Initialize form when content changes
   useEffect(() => {
@@ -115,20 +114,13 @@ export default function EditContentDialog({
     setUploadProgress(0)
     
     try {
-      const response = await fetch("/api/get-upload-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileType: newFile.type,
-          fileName: newFile.name
-        }),
-      })
-
-      if (!response.ok) {
+      const { signedURL, publicFileUrl } = await apiGetUploadUrl(
+        newFile.name,
+        newFile.type
+      )
+      if (!signedURL || !publicFileUrl) {
         throw new Error("Failed to get upload URL")
       }
-
-      const { signedUrl, publicUrl, isR2Url } = await response.json()
 
       // Upload file with progress
       const xhr = new XMLHttpRequest()
@@ -140,14 +132,14 @@ export default function EditContentDialog({
       }
 
       await new Promise((resolve, reject) => {
-        xhr.open("PUT", signedUrl)
+        xhr.open("PUT", signedURL)
         xhr.setRequestHeader("Content-Type", newFile.type)
         xhr.onload = () => resolve(xhr.response)
         xhr.onerror = () => reject(new Error("Upload failed"))
         xhr.send(newFile)
       })
 
-      return { publicUrl, isR2Url: isR2Url === true }
+      return { publicUrl: publicFileUrl, isR2Url: true }
     } catch (error) {
       console.error("Error uploading file:", error)
       throw error
@@ -175,10 +167,14 @@ export default function EditContentDialog({
         uploadResult = await uploadNewFile()
       }
 
-      // Get current user for the revision
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        alert("You must be logged in to suggest edits.")
+      // Ensure user is authenticated before submitting an edit request.
+      const me = await apiGetMe()
+      if (!me?.id) {
+      alert("You must be logged in to submit edits.")
+        return
+      }
+      if (content.course_id == null) {
+        alert("Unable to submit edit: missing course reference.")
         return
       }
 
@@ -187,38 +183,26 @@ export default function EditContentDialog({
         ? (uploadResult.isR2Url ? uploadResult.publicUrl : null)
         : (content.r2_url ?? null)
 
-      // INSERT new revision row with prev_ptr to original (never UPDATE - creates revision chain)
-      const insertData = {
-        prev_ptr: content.id,
-        course_id: content.course_id,
+      await apiCreateCourseContent({
+        course: { id: content.course_id },
+        professor: selectedProfessorId != null ? { id: selectedProfessorId } : null,
         title: title.trim(),
         year: parseInt(year as string),
         batch: batch.trim().toUpperCase(),
-        semester_number: parseInt(semesterNumber as string),
-        professor_id: selectedProfessorId,
-        tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
-        resource_url: resourceUrl,
-        r2_url: r2Url,
-        filetype: newFile ? (newFile.type || "") : (content.filetype || ""),
-        visible: false, // Revision needs moderation; when approved, prev gets visible=false
-        user_id: user.id,
-        anon: content.anon ?? false,
-      }
+        semesterNumber: parseInt(semesterNumber as string),
+        resourceUrl: resourceUrl,
+        r2Url: r2Url,
+        fileType: newFile ? (newFile.type || "") : (content.filetype || ""),
+        visibility: "PENDING_REVIEW",
+        tags: selectedTagIds.map((id) => ({ id })),
+      })
 
-      const { error } = await supabase
-        .from("course_contentnew")
-        .insert(insertData)
-
-      if (error) {
-        throw error
-      }
-
-      alert("Your edit has been submitted for approval. It will appear once approved.")
+      alert("Your edit has been submitted for approval.")
       onSave()
       onClose()
     } catch (error) {
       console.error("Error submitting edit:", error)
-      alert("Failed to submit edit. Please try again.")
+      alert("Failed to submit your edit. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -238,10 +222,10 @@ export default function EditContentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Save className="h-5 w-5 text-indigo-500" />
-            Suggest Edit
+            Edit Content
           </DialogTitle>
           <DialogDescription>
-            Your changes will create a new revision (pointing to this content). Once approved, this version will be replaced.
+            Your changes will be submitted for moderation and applied once approved.
           </DialogDescription>
         </DialogHeader>
 
@@ -440,7 +424,7 @@ export default function EditContentDialog({
                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
                   <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-300">
                     <Upload className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>Your revision (with new file) will be submitted for approval. Once approved, it will replace the current version.</span>
+                    <span>Your edit (with new file) will be submitted for approval.</span>
                   </div>
                 </div>
               )}
@@ -486,7 +470,7 @@ export default function EditContentDialog({
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
-                Submit Revision
+                Submit Edit
               </div>
             )}
           </Button>

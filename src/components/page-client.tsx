@@ -2,7 +2,6 @@
 
 import { useState, useEffect, use, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -16,6 +15,19 @@ const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false 
 import { Database } from "@/types/supabase"
 import EditContentDialog from "@/components/edit-content-dialog"
 import { motion, AnimatePresence } from "framer-motion"
+import {
+  apiGetMyCourseInteractions,
+  apiGetCourseContentForCourse,
+  apiCreateInteraction,
+  apiGetMe,
+  apiGetPinnedCoursesMe,
+  apiPinCourse,
+  apiUnpinCourse,
+  apiGetTags,
+  apiPatchCourseContentVisibility,
+  apiCreateFeedback,
+  apiReorderCourseContent,
+} from "@/lib/api/client"
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
 type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
@@ -32,8 +44,6 @@ type EnhancedContent = (Course_content_anon | Course_content_user) & {
   semester_display?: string
   order?: number | null
 }
-
-const PREFERENCE_QUESTION = "Do you prefer using this site over Google Classroom?"
 
 const prefer_r2_url = true; // VERY IMP!!!!!
 
@@ -129,156 +139,118 @@ export default function CourseViewPage({
   const [adminRejecting, setAdminRejecting] = useState(false)
   const [downloadAllState, setDownloadAllState] = useState<Record<string, { progress: number, active: boolean, completed: number, total: number }>>({})
   const downloadAllControllers = useRef<Map<string, AbortController>>(new Map())
-  const supabase = createClient()
   const [isNavigating, setIsNavigating] = useState(false)
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null)
-  const [showPreferenceQuestion, setShowPreferenceQuestion] = useState(false)
-  const [preferenceSubmitting, setPreferenceSubmitting] = useState(false)
-  const [preferenceError, setPreferenceError] = useState<string | null>(null)
   const [reorderMode, setReorderMode] = useState(false)
   const [sharing, setSharing] = useState(false)
 
-  // Debouncing refs for interaction logging
-  const logTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
-  const loggedInteractions = useRef<Set<string>>(new Set())
+  // Debounced interaction logging (Spring Boot API)
+  const interactionTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const recentInteractionKeys = useRef<Set<string>>(new Set())
 
-  // Debounced logging function to prevent excessive interaction logs
-  const logUserInteraction = useCallback(async (
-    interactionType: string, 
-    contentId?: number,
-    debounceMs: number = 5000 // 5 second debounce by default
-  ) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+  const logInteraction = useCallback(
+    (message: string, contentId?: number, debounceMs: number = 5000) => {
+      const courseNumericId = Number(courseId)
+      if (!courseNumericId || Number.isNaN(courseNumericId)) return
 
-      // Create a unique key for this interaction
-      const interactionKey = `${user.id}-${courseId}-${contentId || 'course'}-${interactionType}`
-      
-      // Clear existing timeout for this interaction
-      const existingTimeout = logTimeouts.current.get(interactionKey)
-      if (existingTimeout) {
-        clearTimeout(existingTimeout)
+      const key = `${courseNumericId}-${contentId ?? "course"}-${message}`
+
+      const existing = interactionTimeouts.current.get(key)
+      if (existing) {
+        clearTimeout(existing)
       }
 
-      // Set new timeout for debounced logging
       const timeoutId = setTimeout(async () => {
-        console.log("Logging interaction:", selectedContent)
-        // Check if we've already logged this exact interaction recently
-        if (loggedInteractions.current.has(interactionKey)) {
+        if (recentInteractionKeys.current.has(key)) {
           return
         }
 
         try {
-          await supabase
-            .from("user_course_interaction")
-            .insert({
-              user_id: user.id,
-              course_id: courseId,
-              content_id: contentId || null,
-              interaction_type: interactionType
-            })
+          // We treat message as the primary semantic field.
+          // Type is a coarse bucket so analytics can group by it if needed.
+          let type: "VIEW" | "DOWNLOAD" | "PIN" | "UNPIN" = "VIEW"
+          if (message.toLowerCase().includes("download")) {
+            type = "DOWNLOAD"
+          } else if (message.toLowerCase().includes("pin")) {
+            type = "PIN"
+          } else if (message.toLowerCase().includes("unpin")) {
+            type = "UNPIN"
+          }
 
-          // Mark this interaction as logged
-          loggedInteractions.current.add(interactionKey)
-          
-          // Clean up the logged interaction after some time to allow future logging
+          await apiCreateInteraction({
+            courseId: courseNumericId,
+            contentId,
+            type,
+            message,
+          })
+
+          recentInteractionKeys.current.add(key)
+
           setTimeout(() => {
-            loggedInteractions.current.delete(interactionKey)
-          }, 30000) // Clean up after 30 seconds
-
+            recentInteractionKeys.current.delete(key)
+          }, 30000)
         } catch (error) {
-          console.error("Error logging user interaction:", error)
+          console.error("Error logging interaction via API:", error)
         } finally {
-          // Clean up timeout reference
-          logTimeouts.current.delete(interactionKey)
+          interactionTimeouts.current.delete(key)
         }
       }, debounceMs)
 
-      // Store the timeout reference
-      logTimeouts.current.set(interactionKey, timeoutId)
+      interactionTimeouts.current.set(key, timeoutId)
+    },
+    [courseId]
+  )
 
-    } catch (error) {
-      console.error("Error in logUserInteraction:", error)
-    }
-  }, [courseId, supabase])
-
-  // Fetch recently viewed content for authenticated user
+  // Fetch recently viewed content for authenticated user from Spring Boot API
   const fetchRecentlyViewed = useCallback(async () => {
-    if (!currentUserId) {
-      setRecentlyViewed([])
-      return
-    }
-
     try {
-      // Get recent content interactions for this user in the current course
-      const { data: recentInteractions } = await supabase
-        .from("user_course_interaction")
-        .select("content_id, created_at")
-        .eq("user_id", currentUserId)
-        .eq("course_id", courseId)
-        .eq("interaction_type", "view")
-        .not("content_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(5)
-
-      if (recentInteractions) {
-        // Get unique content IDs to avoid duplicates
-        const seenContentIds = new Set()
-        const uniqueContentIds = recentInteractions
-          .map(interaction => interaction.content_id)
-          .filter(contentId => {
-            if (seenContentIds.has(contentId)) {
-              return false
-            }
-            seenContentIds.add(contentId)
-            return true
-          })
-          .slice(0, 10)
-
-        // Get content details for these IDs
-        const { data: contentData } = await supabase
-          .from("course_contentnew_user")
-          .select("*")
-          .in("id", uniqueContentIds)
-          .or("deleted.is.null,deleted.eq.false");
-
-        if (contentData) {
-          // Enhance with professor and tag info
-          const enhanced = contentData.map(item => {
-            const professor = professors.find(p => p.id === item.professor_id)
-            const itemTags = item.tag_ids ? 
-              tags.filter((tag: Tag) => item.tag_ids!.includes(tag.id)).map(tag => tag.name) : 
-              []
-            
-            return {
-              ...item,
-              professor_name: professor?.name,
-              tag_names: itemTags,
-              semester_display: getSemesterDisplay(item.semester_number),
-              order: (item as any).order ?? null
-            }
-          })
-          
-          setRecentlyViewed(enhanced as EnhancedContent[])
-        }
+      const courseNumericId = Number(courseId)
+      if (!courseNumericId || Number.isNaN(courseNumericId)) {
+        setRecentlyViewed([])
+        return
       }
+
+      const interactions = await apiGetMyCourseInteractions(courseNumericId, 10)
+      if (!interactions || interactions.length === 0) {
+        setRecentlyViewed([])
+        return
+      }
+
+      const seenContentIds = new Set<number>()
+      const uniqueContentIds = interactions
+        .map((interaction) => interaction.contentId)
+        .filter((contentId): contentId is number => {
+          if (contentId == null) return false
+          if (seenContentIds.has(contentId)) return false
+          seenContentIds.add(contentId)
+          return true
+        })
+
+      if (!uniqueContentIds.length) {
+        setRecentlyViewed([])
+        return
+      }
+
+      const enhanced = uniqueContentIds
+        .map((id) => enhancedContent.find((item) => item.id === id))
+        .filter((item): item is EnhancedContent => !!item)
+
+      setRecentlyViewed(enhanced)
     } catch (error) {
       console.error("Error fetching recently viewed content:", error)
       setRecentlyViewed([])
     }
-  }, [currentUserId, supabase, professors, tags])
+  }, [courseId, enhancedContent])
 
   // Cleanup timeouts on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
-      // Clear all pending timeouts
-      logTimeouts.current.forEach((timeout) => {
+      interactionTimeouts.current.forEach((timeout) => {
         clearTimeout(timeout)
       })
-      logTimeouts.current.clear()
-      loggedInteractions.current.clear()
-      
+      interactionTimeouts.current.clear()
+      recentInteractionKeys.current.clear()
+
       // Clean up download controllers
       downloadControllers.current.forEach((controller) => {
         controller.abort()
@@ -466,7 +438,9 @@ export default function CourseViewPage({
       setShowLoginDialog(true)
       return
     }
-    logUserInteraction('download', item.id)
+    if (item.id) {
+      logInteraction("download", item.id)
+    }
     const id = item.id
     const state = downloadState[id]
     if (state?.active) {
@@ -585,8 +559,9 @@ export default function CourseViewPage({
     }
     
     // Check if user is authenticated before allowing download
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    try {
+      await apiGetMe()
+    } catch {
       setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
       return
@@ -703,47 +678,84 @@ export default function CourseViewPage({
   useEffect(() => {
     const fetchClientData = async () => {
       try {
-        // Check if user is authenticated
-        const { data: { user } } = await supabase.auth.getUser()
-        const isAuthenticated = !!user
-        setCurrentUserId(user?.id || null)
-
-        // Check if user is admin
-        if (user) {
-          const { data: userMeta } = await supabase
-            .from("user_meta")
-            .select("role")
-            .eq("user_id", user.id)
-            .single()
-          
-          const userRole = userMeta?.role
-          setIsAdmin(userRole === 'admin' || userRole === 'moderator' || userRole === 'super_admin')
+        // Check if user is authenticated through backend session cookies
+        let me: Awaited<ReturnType<typeof apiGetMe>> | null = null
+        try {
+          me = await apiGetMe()
+        } catch {
+          me = null
         }
 
-        // Log user course interaction if authenticated (debounced)
-        if (isAuthenticated && user) {
-          logUserInteraction('view')
+        const isAuthenticated = !!me
+        setCurrentUserId(me?.userId || (me?.id != null ? String(me.id) : null))
+
+        // Log course view once per user/course (debounced via API)
+        if (isAuthenticated) {
+          logInteraction("COURSE_VIEW")
         }
 
-        // Fetch tags (needed for filtering and enhanced content)
-        const { data: tagsData } = await supabase
-          .from("tags")
-          .select("*")
+        // Resolve role from backend /api/v1/me
+        const role = (me?.role || "").toString().toUpperCase()
+        setIsAdmin(role === "ADMIN" || role === "MODERATOR")
 
-        setTags(tagsData || serverTags || [])
+        // Fetch tags from backend API (fallback to server tags)
+        try {
+          const tagsData = await apiGetTags()
+          const normalizedTags = (tagsData || [])
+            .filter((tag) => tag.id != null && tag.name)
+            .map((tag) => ({ id: tag.id!, name: tag.name! })) as Tag[]
+          setTags(normalizedTags.length > 0 ? normalizedTags : (serverTags || []))
+        } catch {
+          setTags(serverTags || [])
+        }
 
-        // If user is authenticated and we have server content, we might need to refetch for user-specific data
-        if (isAuthenticated && serverContent && serverContent.length > 0) {
-          // Check if we need to fetch user-specific content (with resource URLs)
-          const { data: userContentData, error: contentError } = await supabase
-            .from("course_contentnew_user")
-            .select("*")
-            .eq("course_id", courseId)
-            .or("deleted.is.null,deleted.eq.false")
-            .order("year", { ascending: true });
+        // Fetch course content from Spring Boot API instead of Supabase view
+        const courseNumericId = Number(courseId)
+        if (!Number.isNaN(courseNumericId)) {
+          try {
+            const response = await apiGetCourseContentForCourse(courseNumericId)
+            const dtoList = response.content ?? []
+            const profMap = response.professors ?? {}
 
-          if (!contentError && userContentData) {
-            setContent(userContentData)
+            if (dtoList.length > 0) {
+              const mapped = dtoList.map((item) => {
+                const prof =
+                  item.professorId != null
+                    ? profMap[String(item.professorId)] ?? null
+                    : null
+
+                return {
+                  id: item.id ?? null,
+                  course_id: courseNumericId,
+                  professor_id: item.professorId ?? null,
+                  uploaded_by_id: null,
+                  year: item.year ?? null,
+                  batch: item.batch ?? null,
+                  semester_number: item.semesterNumber ?? null,
+                  title: item.title ?? "",
+                  resource_url: null,
+                  r2_url: item.r2Url ?? null,
+                  filetype: item.fileType ?? "",
+                  created_at: null,
+                  updated_at: null,
+                  visible: item.visibility === "VISIBLE",
+                  deleted: item.visibility === "DELETED",
+                  prev_ptr: null,
+                  tag_ids: [],
+                  professor_name: prof?.name,
+                  tag_names: [],
+                  semester_display:
+                    item.semesterNumber != null
+                      ? getSemesterDisplay(item.semesterNumber)
+                      : undefined,
+                  order: item.orderIndex ?? null,
+                } as any
+              })
+
+              setContent(mapped as (Course_content_anon | Course_content_user)[])
+            }
+          } catch (e) {
+            console.error("Error fetching course content from API:", e)
           }
         }
       } catch (error) {
@@ -752,26 +764,26 @@ export default function CourseViewPage({
     }
 
     fetchClientData()
-  }, [courseId, supabase, serverContent])
+  }, [courseId, serverContent, serverTags, logInteraction])
 
   // Check if course is pinned
   useEffect(() => {
     const checkPinnedStatus = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        const me = await apiGetMe()
+        if (!me) {
+          setIsPinned(false)
+          return
+        }
 
-        const { data: pinnedData } = await supabase
-          .from("user_pinned_courses")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("course_id", courseId)
+        const pinnedData = await apiGetPinnedCoursesMe()
+        const courseNumericId = Number(courseId)
+        if (Number.isNaN(courseNumericId)) {
+          setIsPinned(false)
+          return
+        }
 
-
-if(pinnedData?.length){
-  setIsPinned(pinnedData.length > 0)
-}
-       
+        setIsPinned((pinnedData || []).some((p) => p.courseId === courseNumericId))
       } catch (error) {
         // Not pinned or error, keep as false
         console.log(error)
@@ -780,7 +792,7 @@ if(pinnedData?.length){
     }
 
     checkPinnedStatus()
-  }, [courseId, supabase])
+  }, [courseId])
 
   // Fetch recently viewed when user/professors/tags change
   useEffect(() => {
@@ -788,37 +800,6 @@ if(pinnedData?.length){
       fetchRecentlyViewed()
     }
   }, [currentUserId, professors, tags, fetchRecentlyViewed])
-
-  useEffect(() => {
-    const checkPreferenceResponse = async () => {
-      if (!currentUserId) {
-        setShowPreferenceQuestion(false)
-        return
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from("QnA")
-          .select("id")
-          .eq("userid", currentUserId)
-          .eq("ques", PREFERENCE_QUESTION)
-          .limit(1)
-
-        if (error) {
-          console.error("Error checking preference question:", error)
-          setShowPreferenceQuestion(false)
-          return
-        }
-
-        setShowPreferenceQuestion(!data || data.length === 0)
-      } catch (err) {
-        console.error("Unexpected error checking preference question:", err)
-        setShowPreferenceQuestion(false)
-      }
-    }
-
-    checkPreferenceResponse()
-  }, [currentUserId, supabase])
 
   // Set content as ready after a delay to allow animations to complete
   useEffect(() => {
@@ -834,29 +815,27 @@ if(pinnedData?.length){
   // Toggle pin status
   const togglePin = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const me = await apiGetMe()
+      if (!me) {
         setRedirectTo(`/course/${courseId}`)
         setShowLoginDialog(true)
         return
       }
 
+      const courseNumericId = Number(courseId)
+      if (!courseNumericId || Number.isNaN(courseNumericId)) return
+
       if (isPinned) {
-        // Remove pin
-        await supabase
-          .from("user_pinned_courses")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("course_id", courseId)
+        // Remove pin by pinned row id
+        const pinnedRows = await apiGetPinnedCoursesMe()
+        const pinnedRow = (pinnedRows || []).find((row) => row.courseId === courseNumericId)
+        if (pinnedRow?.id != null) {
+          await apiUnpinCourse(pinnedRow.id)
+        }
         setIsPinned(false)
       } else {
         // Add pin
-        await supabase
-          .from("user_pinned_courses")
-          .insert({
-            user_id: user.id,
-            course_id: courseId
-          })
+        await apiPinCourse(courseNumericId)
         setIsPinned(true)
       }
     } catch (error) {
@@ -867,13 +846,15 @@ if(pinnedData?.length){
   // Handle add content navigation with auth check
   const handleAddContent = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setRedirectTo(`/add-content/${courseId}`)
-        setShowLoginDialog(true)
-        return
-      }
-      
+      await apiGetMe()
+    } catch (error) {
+      console.error("Error checking auth for add content:", error)
+      setRedirectTo(`/add-content/${courseId}`)
+      setShowLoginDialog(true)
+      return
+    }
+
+    try {
       setNavigatingTo(`Add Content`)
       setIsNavigating(true)
       router.push(`/add-content/${courseId}`)
@@ -903,6 +884,9 @@ if(pinnedData?.length){
 
   // Compute filtered content before potential early return to keep hooks order consistent
   const filteredContent = sortGroupItems(enhancedContent.filter(item => {
+    // Never show deleted content (API sets `deleted: true` when visibility === "DELETED")
+    if ((item as any).deleted === true) return false
+
     const matchesSearch = 
       item.title?.toLowerCase().includes(search.toLowerCase()) ||
       item.professor_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -1057,19 +1041,16 @@ if(pinnedData?.length){
       setShowLoginDialog(true)
       return
     }
+    // Log content view (debounced via API)
+    if (item.id) {
+      logInteraction("view_content", item.id)
+    }
     
     // Check if content is hidden and user is admin - show admin popup
     if (item.visible === false && isAdmin) {
       setAdminPopupContent(item)
       setShowAdminPopup(true)
       return
-    }
-    
-    // Log content interaction (debounced)
-    if (item.id) {
-      console.log("Logging content interaction for item:", item.id)
-      logUserInteraction('view', item.id)
-
     }
     
     if (isMobile || useNativeViewer) {
@@ -1134,16 +1115,7 @@ if(pinnedData?.length){
     if (!isAdmin || !item.id) return
 
     try {
-      const { error } = await supabase
-        .from("course_contentnew")
-        .update({ visible: false })
-        .eq("id", item.id)
-
-      if (error) {
-        console.error("Error hiding content:", error)
-        alert("Failed to hide content")
-        return
-      }
+      await apiPatchCourseContentVisibility(item.id, "HIDDEN")
 
       setEnhancedContent(prev => prev.map(c => c.id === item.id ? { ...c, visible: false } : c))
       setContent(prev => prev.map(c => c.id === item.id ? { ...c, visible: false } : c))
@@ -1212,19 +1184,12 @@ if(pinnedData?.length){
 
     try {
       setAdminRejecting(true)
-      
-      const { error } = await supabase
-        .from("course_contentnew")
-        .update({ deleted: true })
-        .eq("id", adminPopupContent.id)
+      if (!adminPopupContent.id) return
+      await apiPatchCourseContentVisibility(adminPopupContent.id, "DELETED")
 
-      if (error) {
-        console.error("Error approving content:", error)
-        alert("Failed to approve content")
-        return
+      if (adminPopupContent.id) {
+        logInteraction("admin_deny", adminPopupContent.id)
       }
-
-      logUserInteraction('deny', adminPopupContent.id!)
 
       // // Update the content in the state to make it visible
       // setEnhancedContent(prev => 
@@ -1263,30 +1228,15 @@ if(pinnedData?.length){
       // If this is a revision (has prev_ptr), mark the previous version invisible when we approve
       const prevPtr = (adminPopupContent as { prev_ptr?: number | null }).prev_ptr
       if (prevPtr != null) {
-        const { error: prevError } = await supabase
-          .from("course_contentnew")
-          .update({ visible: false, deleted: true })
-          .eq("id", prevPtr)
-
-        if (prevError) {
-          console.error("Error hiding previous version:", prevError)
-          alert("Failed to hide previous version")
-          return
-        }
+        await apiPatchCourseContentVisibility(prevPtr, "DELETED")
       }
 
-      const { error } = await supabase
-        .from("course_contentnew")
-        .update({ visible: true })
-        .eq("id", adminPopupContent.id)
+      if (!adminPopupContent.id) return
+      await apiPatchCourseContentVisibility(adminPopupContent.id, "VISIBLE")
 
-      if (error) {
-        console.error("Error approving content:", error)
-        alert("Failed to approve content")
-        return
+      if (adminPopupContent.id) {
+        logInteraction("admin_approve", adminPopupContent.id)
       }
-
-      logUserInteraction('approve', adminPopupContent.id!)
 
       // Update the content in the state to make it visible
       setEnhancedContent(prev => 
@@ -1323,26 +1273,11 @@ if(pinnedData?.length){
 
     try {
       setFeedbackSubmitting(true)
-      
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        alert("You must be logged in to submit feedback.")
-        return
-      }
-
-      const { error } = await supabase
-        .from("feedback")
-        .insert({
-          user_id: user.id,
-          feedback: feedbackText.trim(),
-          rating: feedbackRating
-        })
-
-      if (error) {
-        console.error("Error submitting feedback:", error)
-        alert("Failed to submit feedback. Please try again.")
-        return
-      }
+      await apiGetMe()
+      await apiCreateFeedback({
+        feedback: feedbackText.trim(),
+        rating: feedbackRating,
+      })
 
       alert("Thank you for your feedback! We appreciate your input.")
       setFeedbackText("")
@@ -1358,15 +1293,11 @@ if(pinnedData?.length){
 
   const handleFeedbackClick = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setRedirectTo(`/course/${courseId}`)
-        setShowLoginDialog(true)
-        return
-      }
+      await apiGetMe()
       setShowFeedbackDialog(true)
     } catch (error) {
       console.error("Error checking auth for feedback:", error)
+      setRedirectTo(`/course/${courseId}`)
       setShowLoginDialog(true)
     }
   }
@@ -1375,8 +1306,7 @@ if(pinnedData?.length){
     if (typeof window === "undefined") return
     if (sharing) return
 
-    // Log share intent on click (debounced + user-aware in helper).
-    logUserInteraction("share")
+    logInteraction("share")
 
     const shareUrl = window.location.href
     const shareTitle = (course || serverCourse)?.title || "Course page"
@@ -1414,65 +1344,12 @@ if(pinnedData?.length){
     }
   }
 
-  const handlePreferenceResponse = async (choice: "yes" | "no" | "skip") => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setRedirectTo(`/course/${courseId}`)
-        setShowLoginDialog(true)
-        return
-      }
-
-      setPreferenceSubmitting(true)
-      setPreferenceError(null)
-
-      const payload = {
-        userid: user.id,
-        ques: PREFERENCE_QUESTION,
-        response: choice === "skip" ? "no_answer" : choice,
-        yes_no: choice === "skip" ? null : choice === "yes"
-      }
-
-      const { error } = await supabase.from("QnA").insert(payload)
-      if (error) {
-        console.error("Error saving preference response:", error)
-        setPreferenceError("Failed to save your answer. Please try again.")
-        return
-      }
-
-      setShowPreferenceQuestion(false)
-    } catch (error) {
-      console.error("Unexpected error saving preference response:", error)
-      setPreferenceError("Failed to save your answer. Please try again.")
-    } finally {
-      setPreferenceSubmitting(false)
+  const getEffectiveOrder = (item: EnhancedContent, fallbackIndex: number): number => {
+    if (typeof item.order === "number" && Number.isFinite(item.order)) {
+      return item.order
     }
-  }
-
-  const normalizeGroupOrder = (items: EnhancedContent[]): EnhancedContent[] => {
-    const base = sortGroupItems(items)
-    return base.map((item, index) => ({
-      ...item,
-      order: index + 1,
-    }))
-  }
-
-  const saveGroupOrder = async (items: EnhancedContent[]) => {
-    const updatable = items.filter((item) => item.id != null)
-    if (updatable.length === 0) return
-
-    try {
-      await Promise.all(
-        updatable.map((item) =>
-          supabase
-            .from("course_contentnew")
-            .update({ order: item.order ?? null })
-            .eq("id", item.id!)
-        )
-      )
-    } catch (error) {
-      console.error("Error saving group order:", error)
-    }
+    // Keep sparse spacing for easier midpoint inserts.
+    return (fallbackIndex + 1) * 1000
   }
 
   const moveItemInGroup = async (item: EnhancedContent, direction: "up" | "down") => {
@@ -1484,54 +1361,78 @@ if(pinnedData?.length){
     )
     if (groupItems.length <= 1) return
 
-    const hasCustomOrder = groupItems.some((c) => c.order != null)
-    let working: EnhancedContent[]
-
-    if (hasCustomOrder) {
-      working = sortGroupItems(groupItems)
-    } else {
-      working = normalizeGroupOrder(groupItems)
-    }
+    const working = sortGroupItems(groupItems)
 
     const currentIndex = working.findIndex((c) => c.id === item.id)
     if (currentIndex === -1) return
 
-    const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
-    if (swapIndex < 0 || swapIndex >= working.length) return
+    const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
+    if (newIndex < 0 || newIndex >= working.length) return
 
-    const temp = working[currentIndex]
-    working[currentIndex] = working[swapIndex]
-    working[swapIndex] = temp
+    const reordered = [...working]
+    const [moved] = reordered.splice(currentIndex, 1)
+    reordered.splice(newIndex, 0, moved)
 
-    const withOrders = working.map((c, index) => ({
-      ...c,
-      order: index + 1,
-    }))
+    const prevNeighbor = newIndex > 0 ? reordered[newIndex - 1] : undefined
+    const nextNeighbor = newIndex < reordered.length - 1 ? reordered[newIndex + 1] : undefined
+    const prevId = prevNeighbor?.id ?? null
+    const nextId = nextNeighbor?.id ?? null
 
-    const idToOrder: Record<number, number> = {}
-    withOrders.forEach((c) => {
-      if (c.id != null && c.order != null) {
-        idToOrder[c.id] = c.order
-      }
-    })
+    const prevOrder = prevNeighbor
+      ? getEffectiveOrder(prevNeighbor, newIndex - 1)
+      : undefined
+    const nextOrder = nextNeighbor
+      ? getEffectiveOrder(nextNeighbor, newIndex + 1)
+      : undefined
+
+    let optimisticOrder = getEffectiveOrder(item, currentIndex)
+    if (prevOrder == null && nextOrder == null) {
+      optimisticOrder = 1000
+    } else if (prevOrder == null && nextOrder != null) {
+      optimisticOrder = nextOrder - 1000
+    } else if (prevOrder != null && nextOrder == null) {
+      optimisticOrder = prevOrder + 1000
+    } else if (prevOrder != null && nextOrder != null) {
+      optimisticOrder = (prevOrder + nextOrder) / 2
+    }
 
     setEnhancedContent((prev) =>
       prev.map((c) =>
-        c.id != null && idToOrder[c.id] != null
-          ? { ...c, order: idToOrder[c.id] }
+        c.id === item.id
+          ? { ...c, order: optimisticOrder }
           : c
       )
     )
 
     setContent((prev) =>
       prev.map((c) =>
-        (c as any).id != null && idToOrder[(c as any).id] != null
-          ? { ...(c as any), order: idToOrder[(c as any).id as number] }
+        (c as any).id === item.id
+          ? { ...(c as any), order: optimisticOrder }
           : c
       )
     )
 
-    await saveGroupOrder(withOrders)
+    try {
+      const updated = await apiReorderCourseContent(item.id, { prevId, nextId })
+      if (typeof updated?.orderIndex === "number" && Number.isFinite(updated.orderIndex)) {
+        setEnhancedContent((prev) =>
+          prev.map((c) =>
+            c.id === item.id
+              ? { ...c, order: updated.orderIndex! }
+              : c
+          )
+        )
+        setContent((prev) =>
+          prev.map((c) =>
+            (c as any).id === item.id
+              ? { ...(c as any), order: updated.orderIndex! }
+              : c
+          )
+        )
+      }
+    } catch (error) {
+      console.error("Error reordering content:", error)
+    }
   }
   //bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] 
 
@@ -2117,9 +2018,6 @@ if(pinnedData?.length){
                         size="sm"
                         onClick={async () => {
                           try {
-                            const { data: { user } } = await supabase.auth.getUser()
-                            
-                            
                             // Get professor ID from the first item in the group
                             const professorId = items[0]?.professor_id
                             const professorName = items[0]?.professor_name
@@ -2142,7 +2040,9 @@ if(pinnedData?.length){
                             if (professorName && professorId!=71) {
                               params.append('professor_name', professorName)
                             }
-                            if (!user) {
+                            try {
+                              await apiGetMe()
+                            } catch {
                               setRedirectTo(`/add-content/${courseId}?${params.toString()}`)
                               setShowLoginDialog(true)
                               return
@@ -2428,61 +2328,6 @@ if(pinnedData?.length){
                 </div>
               )
             })}
-              {currentUserId && showPreferenceQuestion && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-white/80 dark:bg-zinc-900/80 border border-indigo-100 dark:border-indigo-900 rounded-xl p-3 sm:p-4 shadow-sm flex flex-col gap-3"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-indigo-500 font-semibold mb-0.5">
-                        Quick poll
-                      </p>
-                      <p className="text-sm sm:text-base font-medium text-zinc-900 dark:text-zinc-100">
-                        {PREFERENCE_QUESTION}
-                      </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Answer once, we&apos;ll hide it forever.
-                      </p>
-                    </div>
-                    <div className="flex flex-1 sm:flex-none items-center justify-stretch sm:justify-end gap-1.5">
-                      <Button
-                        disabled={preferenceSubmitting}
-                        size="sm"
-                        onClick={() => handlePreferenceResponse("yes")}
-                        className="flex-1 sm:flex-none  w-32 text-xs sm:text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-100 px-3 py-1.5"
-                      >
-                        {preferenceSubmitting ? "Saving..." : "Yes"}
-                      </Button>
-                      <Button
-                        disabled={preferenceSubmitting}
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handlePreferenceResponse("no")}
-                        className="flex-1 sm:flex-none w-32 text-xs sm:text-sm border-zinc-200 text-zinc-700 dark:border-zinc-700 dark:text-zinc-100 px-3 py-1.5"
-                      >
-                        No
-                      </Button>
-                      <Button
-                        disabled={preferenceSubmitting}
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handlePreferenceResponse("skip")}
-                        className="flex-1 sm:flex-none w-32 text-xs sm:text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 px-3 py-1.5"
-                      >
-                        Skip
-                      </Button>
-                    </div>
-                  </div>
-                  {preferenceError && (
-                    <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md px-2 py-1">
-                      {preferenceError}
-                    </div>
-                  )}
-                </motion.div>
-              )}
               {/* Encourage-upload empty group (after existing groups) */}
               <div className="bg-white/80 dark:bg-zinc-900/80 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-lg">
                 <div className="flex items-center justify-between mb-3">

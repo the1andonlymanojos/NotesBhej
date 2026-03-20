@@ -1,26 +1,18 @@
 import CourseViewPage from "../../../components/page-client"
 import { Metadata } from "next";
-import { createClient as cl } from "@supabase/supabase-js";
+import { getCourses, getCourseContentForCourse } from "@/lib/api/client";
 export const revalidate = 3600; 
 
 
 export async function generateStaticParams() {
-  
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var");
-}
-const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  // optional global opts
-});;
-
-
-  // Fetch IDs you want pre-built (top 1000 popular courses, etc.)
-  const { data } = await supabase.from("coursenew").select("id").limit(1000);
-  console.log(data);
-  return (data || []).map((c: any) => ({ "slugg": String(c.id) }));
+  // Use backend courses API instead of Supabase
+  try {
+    const courses = await getCourses();
+    return (courses || []).map((c) => ({ slugg: String(c.id) }));
+  } catch (error) {
+    console.error("generateStaticParams failed to fetch courses:", error);
+    return [];
+  }
 }
 
 const SITE_URL = "https://notesbhej.mshiv.net";
@@ -33,65 +25,38 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   // support both Promise and plain object
   const p = await params;
-  console.log("p",p);
   const courseIdStr = p["slugg"];
-  console.log("courseIdStr", courseIdStr)
-  const courseId = Number(courseIdStr); // your ids are numeric in DB
-  console.log("courseId", courseId)
+  const courseId = Number(courseIdStr);
 
+  const courses = await getCourses();
+  const course = (courses || []).find((c) => c.id === courseId) || null;
 
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var");
-}
-const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  // optional global opts
-});;
-
-  // fetch course
-  const { data: course, error: courseError } = await supabase
-    .from("coursenew")
-    .select("*")
-    .eq("id", courseId)
-    .single();
-
-  // Query all course content for this course to get professor ids
-  const { data: allContent } = await supabase
-    .from("course_contentnew_safe")
-    .select("professor_id")
-    .eq("course_id", courseId);
-
+  // Use course-content API to derive professor names for metadata
   let professorNames: string[] = [];
-  if (allContent && allContent.length > 0) {
-    // Get unique professor ids (filter out nulls)
-    const profIds = Array.from(
-      new Set(
-        allContent
-          .map((c: any) => c.professor_id)
-          .filter((id: any) => id !== null && id !== undefined)
-      )
-    );
-    //console.log(profIds)
-
-    if (profIds.length > 0) {
-      // Query professors table for their names
-      const { data: profs} = await supabase
-        .from("professorsnew")
-        .select("name")
-        .in("id", profIds);
-
-        //console.log(profsError, allContentError)
-      if (profs && profs.length > 0) {
-        professorNames = profs.map((p: any) => p.name).filter(Boolean);
+  if (courseId && !Number.isNaN(courseId)) {
+    try {
+      const ccResponse = await getCourseContentForCourse(courseId);
+      const dtoList = ccResponse.content ?? [];
+      const profMap = ccResponse.professors ?? {};
+      const profIds = Array.from(
+        new Set(
+          dtoList
+            .map((c) => c.professorId)
+            .filter((id): id is number => id != null)
+        )
+      );
+      if (profIds.length > 0) {
+        professorNames = profIds
+          .map((id) => profMap[String(id)]?.name)
+          .filter((name): name is string => !!name);
       }
+    } catch (error) {
+      console.error(`generateMetadata: failed loading course content for ${courseId}:`, error);
+      professorNames = [];
     }
-
-    //console.log(professorNames);
   }
 
-  if (!course || courseError) {
+  if (!course) {
     // not found -> show "not found" metadata and tell crawlers not to index
     return {
       title: "Course not found | NotesBhej",
@@ -103,12 +68,18 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     };
   }
 
-  // fetch one piece of content to use in description (you can fetch more if needed)
-  const { data: coursecontent, error: contentError } = await supabase
-  .rpc("get_public_course_content", { target_course_id: courseId })
-
-  console.log("coursecontent",coursecontent)
-  console.log("contentError",contentError)
+  // use first piece of content title if available
+  let firstContentTitle: string | undefined;
+  try {
+    if (courseId && !Number.isNaN(courseId)) {
+      const ccResponse = await getCourseContentForCourse(courseId);
+      const dtoList = ccResponse.content ?? [];
+      firstContentTitle = dtoList[0]?.title;
+    }
+  } catch (error) {
+    console.error(`generateMetadata: failed loading first content title for ${courseId}:`, error);
+    firstContentTitle = undefined;
+  }
   // Build professor names string for metadata
   const profNamesStr = professorNames.length > 0 ? ` (Professors: ${professorNames.join(", ")})` : "";
 
@@ -119,14 +90,17 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   if ((course as any).code) shortDescParts.push((course as any).code);
 
   const description =
-    `Notes, resources and uploads for ${course.title} •${profNamesStr}. Find semester-wise PDFs, notes and professor uploads.`;
+    `Notes, resources and uploads for ${course.title}${profNamesStr ? ` •${profNamesStr}` : ""}. Find semester-wise PDFs, notes and professor uploads.`;
 
    // console.log(description)
   // OG image pattern: prefer course-specific image if you have one; else fallback
   // If you plan to generate social preview images dynamically create an API endpoint like /api/og?courseId=...
+  const courseTitleSafe = course.title ?? "";
   const ogImage =
     (course as any).og_image ||
-    `${SITE_URL}/api/og?title=${encodeURIComponent(course.title)}&type=course&prof=${encodeURIComponent(professorNames.join(", "))}`;
+    `${SITE_URL}/api/og?title=${encodeURIComponent(courseTitleSafe)}&type=course&prof=${encodeURIComponent(
+      professorNames.join(", ")
+    )}`;
 
   const canonical = `${SITE_URL}/course/${courseId}`;
 
@@ -137,7 +111,7 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       course.title,
       course.abbreviation ?? "",
       (course as any).code ?? "",
-      coursecontent?.title ?? "",
+      firstContentTitle ?? "",
       ...professorNames,
     ]
       .filter(Boolean)
@@ -175,91 +149,96 @@ const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 export default async function CourseViewPage2({
   params,
 }: {
-  params: Promise<{ "slugg": string }>
+  params: Promise<{ slugg: string }>
 }) {
-  const param = await params;
-  console.log("param", param)
-  console.log("param course-id", param["slugg"])
-  const courseId = Number((await params)["slugg"]);
-  console.log("coursid in course page", courseId)
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!; // must be set in Vercel (server-only)
+  const p = await params;
+  const courseId = Number(p.slugg);
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var");
-}
-const supabase = await cl(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  // optional global opts
-});;
-  // Fetch course and content server-side (these are run at build time for IDs returned by generateStaticParams,
-  // and at request-time (SSR) for IDs not pre-built — then cached per `revalidate`).
-  const [{ data: course }, { data: content, error: err, data: coursecontent, error: contentError }] = await Promise.all([
-    supabase.from("coursenew").select("*").eq("id", courseId).single(),
-    supabase.rpc("get_public_course_content", { target_course_id: courseId }),
-  ]);
-  const resolvedContent = (content || coursecontent || []) as any[]
-  console.log("err",err)
-  console.log("contentError",contentError)
-  console.log("coursecontent",coursecontent)
-  if(resolvedContent.length == 0){
-    //generate dummy content
+  const courses = await getCourses();
+  const course = (courses || []).find((c) => c.id === courseId) || null;
+
+  let resolvedContent: any[] = [];
+  let professors: any[] = [];
+  let tags: any[] = [];
+
+  if (courseId && !Number.isNaN(courseId)) {
+    try {
+      const ccResponse = await getCourseContentForCourse(courseId);
+      const dtoList = ccResponse.content ?? [];
+      const profMap = ccResponse.professors ?? {};
+
+      resolvedContent = dtoList.map((item) => {
+        const prof =
+          item.professorId != null
+            ? profMap[String(item.professorId)] ?? null
+            : null;
+
+        return {
+          id: item.id ?? null,
+          course_id: courseId,
+          professor_id: item.professorId ?? null,
+          user_id: null,
+          year: item.year ?? null,
+          batch: item.batch ?? null,
+          semester_number: item.semesterNumber ?? null,
+          resource_url: null,
+          title: item.title ?? "",
+          visible: item.visibility === "VISIBLE",
+          created_at: null,
+          filetype: item.fileType ?? "",
+          r2_url: item.r2Url ?? null,
+          tag_ids: [],
+          professor_name: prof?.name,
+          order: item.orderIndex ?? null,
+        };
+      });
+
+      // Build professors array from map
+      professors = Object.values(profMap).map((p) => ({
+        id: p.id ?? null,
+        name: p.name ?? "",
+      }));
+    } catch (error) {
+      console.error(`Course page SSR: failed loading content for ${courseId}:`, error);
+      resolvedContent = [];
+      professors = [];
+    }
+  }
+
+  if (resolvedContent.length === 0) {
     resolvedContent.push({
       id: 0,
-    course_id: courseId,
-    user_id: 'NA',
-    professor_id: 71,
-    year: 2022,
-    batch: 'IMT',
-    semester_number: 1,
-    resource_url: null,
-    title: 'No content available, please upload some content',
-    visible: true,
-    created_at: '2025-09-11T17:18:49.101115+00:00',
-    filetype: 'application/pdf'
-    })
-  }
-  
+      course_id: courseId,
+      user_id: "NA",
+      professor_id: 71,
+      year: 2022,
+      batch: "IMT",
+      semester_number: 1,
+      resource_url: null,
+      title: "No content available, please upload some content",
+      visible: true,
+      created_at: "2025-09-11T17:18:49.101115+00:00",
+      filetype: "application/pdf",
+    });
 
-  // Gather professors (if you want to show names)
-  const profIds = Array.from(new Set(resolvedContent.map((c: any) => c.professor_id).filter(Boolean)));
-  let professors: any[] = [];
-  if (profIds.length) {
-    const { data: profs } = await supabase.from("professorsnew").select("id,name").in("id", profIds);
-    professors = profs || [];
-  }
-  if(professors.length == 0){
-    //generate dummy professors
-    professors.push({
-      id: 71,
-      name: "Dummy Professor",
-    })
-  }
-  const tagIds = Array.from(
-    new Set(
-      resolvedContent
-        .flatMap((c: any) => (Array.isArray(c?.tag_ids) ? c.tag_ids : []))
-        .filter((id: any) => id != null)
-    )
-  )
-  let tags: any[] = []
-  if (tagIds.length > 0) {
-    const { data: tagsData } = await supabase
-      .from("tags")
-      .select("id,name")
-      .in("id", tagIds)
-    tags = tagsData || []
+    if (professors.length === 0) {
+      professors.push({
+        id: 71,
+        name: "Dummy Professor",
+      });
+    }
   }
 
-  //log all the parametes: 
-  console.log("Course", course)
-  console.log("Content", resolvedContent)
-  console.log("Professors", professors)
-  console.log("Tags", tags)
-  console.log("Course ID", courseId)
-  //console.log("Params", params)
+  // no tags coming from API for now; keep [] so UI still works
+  tags = [];
 
-  return <CourseViewPage params={params} serverCourse={course}
-  serverContent={resolvedContent}
-  serverProfessors={professors}
-  serverTags={tags} />
+  return (
+    <CourseViewPage
+      params={params}
+      serverCourse={course as any}
+      serverContent={resolvedContent as any}
+      serverProfessors={professors as any}
+      serverTags={tags as any}
+    />
+  );
 }                           

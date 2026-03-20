@@ -9,7 +9,7 @@ export default function HomePage() {
   const router = useRouter()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="relative z-10 px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">

@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Database } from "@/types/supabase"
+import { apiCreateAnnouncement, apiGetAnnouncements, apiGetMe } from "@/lib/api/client"
+import type { ApiAnnouncement, ApiCreateAnnouncementRequest, ApiUser } from "@/lib/api/types"
 import {
   Table,
   TableBody,
@@ -25,14 +25,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ArrowLeft, Megaphone, Shield, AlertTriangle, Plus } from "lucide-react"
-import { User as SupabaseUser } from "@supabase/supabase-js"
 import { toast } from "sonner"
 
-type Announcement = Database["public"]["Tables"]["announcements"]["Row"]
+type Announcement = {
+  id: number
+  title: string
+  message: string
+  link: string | null
+  expires_at: string | null
+  created_at: string
+}
 
 export default function AdminAnnouncementsPage() {
   const router = useRouter()
-  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [user, setUser] = useState<ApiUser | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
@@ -43,43 +49,37 @@ export default function AdminAnnouncementsPage() {
   const [createLink, setCreateLink] = useState("")
   const [createExpiresAt, setCreateExpiresAt] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const supabase = createClient()
 
   const isAdmin = (role: string | null) => {
     if (!role) return false
-    return role === "admin" || role === "moderator" || role === "super_admin"
+    const normalized = role.toUpperCase()
+    return normalized === "ADMIN" || normalized === "MODERATOR" || normalized === "SUPER_ADMIN"
   }
 
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("user_meta")
-        .select("role")
-        .eq("user_id", userId)
-        .single()
-      if (error) {
-        console.error("Error fetching user role:", error)
-        setUserRole(null)
-        return
-      }
-      setUserRole(data?.role ?? null)
-    } catch (e) {
-      console.error("Error fetching user role:", e)
-      setUserRole(null)
-    } finally {
-      setRoleLoading(false)
-    }
+  const mapAnnouncement = (a: ApiAnnouncement): Announcement => ({
+    id: a.id ?? 0,
+    title: a.title ?? "",
+    message: a.message ?? "",
+    link: a.link ?? null,
+    expires_at: a.expiresAt ?? null,
+    created_at: a.createdAt ?? new Date().toISOString(),
+  })
+
+  const fetchUserRole = async () => {
+    const me = await apiGetMe()
+    setUser(me)
+    setUserRole(typeof me.role === "string" ? me.role : null)
   }
 
   const fetchAnnouncements = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("announcements")
-        .select("*")
-        .order("created_at", { ascending: false })
-      if (error) throw error
-      setAnnouncements((data ?? []) as Announcement[])
+      const data = await apiGetAnnouncements()
+      const mapped = (data ?? [])
+        .map(mapAnnouncement)
+        .filter((a) => a.id > 0)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      setAnnouncements(mapped)
     } catch (e) {
       console.error("Error fetching announcements:", e)
       toast.error("Failed to load announcements")
@@ -90,28 +90,19 @@ export default function AdminAnnouncementsPage() {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      if (!currentUser) {
+    const loadAuth = async () => {
+      try {
+        await fetchUserRole()
+      } catch {
+        setUser(null)
+        setUserRole(null)
         router.push("/")
-        return
+      } finally {
+        setRoleLoading(false)
       }
-      fetchUserRole(currentUser.id)
-    })
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      if (!currentUser) {
-        router.push("/")
-        return
-      }
-      fetchUserRole(currentUser.id)
-    })
-    return () => subscription.unsubscribe()
-  }, [router, supabase.auth])
+    }
+    loadAuth()
+  }, [router])
 
   useEffect(() => {
     if (user && isAdmin(userRole) && !roleLoading) {
@@ -121,7 +112,7 @@ export default function AdminAnnouncementsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user?.id) return
+    if (typeof user?.id !== "number") return
     if (!createTitle.trim() || !createMessage.trim()) {
       toast.error("Title and message are required")
       return
@@ -131,20 +122,13 @@ export default function AdminAnnouncementsPage() {
       const expiresAt = createExpiresAt.trim()
         ? new Date(createExpiresAt.trim()).toISOString()
         : null
-      // Store newlines as literal \n in DB so they persist
-      const messageForDb = createMessage
-        .trim()
-        .replace(/\r\n/g, "\n")
-        .replace(/\r/g, "\n")
-        .replace(/\n/g, "\\n")
-      const { error } = await supabase.from("announcements").insert({
+      const payload: ApiCreateAnnouncementRequest = {
         title: createTitle.trim(),
-        message: messageForDb,
+        message: createMessage.trim(),
         link: createLink.trim() || null,
-        expires_at: expiresAt,
-        created_by: user.id,
-      })
-      if (error) throw error
+        expiresAt,
+      }
+      await apiCreateAnnouncement(user.id, payload)
       toast.success("Announcement created")
       setCreateOpen(false)
       setCreateTitle("")

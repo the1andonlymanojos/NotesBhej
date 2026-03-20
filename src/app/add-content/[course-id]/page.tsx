@@ -2,7 +2,6 @@
 
 import { useState, useEffect, ChangeEvent, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileInput } from "@/components/ui/file-input"
@@ -13,13 +12,24 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
-import { Database } from "@/types/supabase"
+import {
+  apiGetCourseContentForCourse,
+  apiGetTags,
+  apiGetProfessors,
+  apiCreateProfessor,
+  apiCreateCourseContent,
+  apiGetUploadUrl,
+} from "@/lib/api/client"
+import type {
+  ApiCourseContentDTO,
+  ApiTag,
+  ApiProfessor,
+} from "@/lib/api/types"
 
-type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
-//type CourseContentNew = Database["public"]["Tables"]["course_contentnew"]["Row"]
-type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
-type Tag = Database["public"]["Tables"]["tags"]["Row"]
-//type CourseContentTag = Database["public"]["Tables"]["course_content_tags"]["Row"]
+type CourseContent = ApiCourseContentDTO
+type Professor = ApiProfessor
+type Tag = ApiTag
+
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 10MB
 
 export default function AddContentPage({
@@ -54,7 +64,6 @@ export default function AddContentPage({
   const [showValidationError, setShowValidationError] = useState(false)
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [creatingProfessor, setCreatingProfessor] = useState(false)
-  const supabase = createClient()
 
   const normalizedProfessorInput = selectedProfessorName.trim()
   const filteredProfessors = professors.filter((professor) =>
@@ -69,29 +78,26 @@ export default function AddContentPage({
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch existing content
-      const { data: contentData } = await supabase
-        .from("course_contentnew")
-        .select("*")
-        .eq("course_id", courseId)
-      setExistingContent(contentData || [])
+      if (!courseId) return
+      const courseIdNum = Number(courseId)
+      const [contentResponse, professorsData, tagsData] = await Promise.all([
+        apiGetCourseContentForCourse(courseIdNum),
+        apiGetProfessors(),
+        apiGetTags(),
+      ])
 
-      // Fetch professors for autocomplete
-      const { data: professorsData } = await supabase
-        .from("professorsnew")
-        .select("*")
-        .order("name")
-      setProfessors(professorsData || [])
-
-      // Fetch tags for selection
-      const { data: tagsData } = await supabase
-        .from("tags")
-        .select("*")
-        .order("name")
-      setTags(tagsData || [])
+      setExistingContent(contentResponse?.content ?? [])
+      setProfessors(
+        (professorsData ?? []).sort((a, b) =>
+          (a.name ?? "").localeCompare(b.name ?? "")
+        )
+      )
+      setTags((tagsData ?? []).sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? "")
+      ))
     }
     if (courseId) fetchData()
-  }, [courseId, supabase])
+  }, [courseId])
 
   // Handle query parameters for default values
   useEffect(() => {
@@ -135,7 +141,7 @@ export default function AddContentPage({
 
     // If it already exists (case-insensitive), just select it.
     if (exactMatchProfessor) {
-      setSelectedProfessorId(exactMatchProfessor.id)
+      setSelectedProfessorId(exactMatchProfessor.id ?? null)
       setSelectedProfessorName(exactMatchProfessor.name ?? nameToCreate)
       setOpenCombobox(false)
       return
@@ -143,29 +149,20 @@ export default function AddContentPage({
 
     setCreatingProfessor(true)
     try {
-      const { data: created, error } = await supabase
-        .from("professorsnew")
-        .insert({
-          name: nameToCreate,
-          // Simple dummy values (optional columns)
-          department: "Unknown",
-          designation: "Unknown",
-          email: null,
-          phone: null,
-          address: null,
-          research_interests: null,
-        })
-        .select("*")
-        .single()
-
-      if (error) throw error
+      const created = await apiCreateProfessor({
+        name: nameToCreate,
+        department: "Unknown",
+        designation: "Unknown",
+        email: "",
+        researchInterests: "",
+      })
 
       setProfessors((prev) => {
         const next = [created, ...prev]
         next.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""))
         return next
       })
-      setSelectedProfessorId(created.id)
+      setSelectedProfessorId(created.id ?? null)
       setSelectedProfessorName(created.name ?? nameToCreate)
       setOpenCombobox(false)
     } catch (err) {
@@ -225,20 +222,13 @@ export default function AddContentPage({
           
           // (File size check moved to handleUpload entry, not here)
 
-          const response = await fetch("/api/get-upload-url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType: file.type,
-            }),
-          })
-
-          if (!response.ok) {
+          const { signedURL, publicFileUrl } = await apiGetUploadUrl(
+            file.name,
+            file.type
+          )
+          if (!signedURL || !publicFileUrl) {
             throw new Error("Failed to get upload URL")
           }
-
-          const { signedUrl, publicUrl, isR2Url } = await response.json()
 
           const xhr = new XMLHttpRequest()
           xhr.upload.onprogress = (event) => {
@@ -250,45 +240,44 @@ export default function AddContentPage({
           }
 
           await new Promise((resolve, reject) => {
-            xhr.open("PUT", signedUrl)
+            xhr.open("PUT", signedURL)
             xhr.setRequestHeader("Content-Type", file.type)
             xhr.onload = () => resolve(xhr.response)
             xhr.onerror = () => reject(new Error("Upload failed"))
             xhr.send(file)
           })
-          console.log({publicUrl, title: fileTitles[file.name]})
+          console.log({ publicFileUrl, title: fileTitles[file.name] })
 
-          return { publicUrl, title: fileTitles[file.name], fileName: file.name, fileType: file.type, isR2Url: isR2Url === true }
+          return {
+            publicUrl: publicFileUrl,
+            title: fileTitles[file.name],
+            fileName: file.name,
+            fileType: file.type,
+            isR2Url: true,
+          }
         })
       )
 
-      // Insert into Supabase after successful upload
-      const { data: session } = await supabase.auth.getSession()
-      const userId = session?.session?.user?.id
-
-      const { error } = await supabase.from("course_contentnew").insert(
-        uploadedUrls.map((pair) => ({
-          course_id: courseId,
-          filetype: pair.fileType,
-          user_id: userId,
-          professor_id: selectedProfessorId,
-          year: parseInt(year as string),
-          batch: batch.toUpperCase(),
-          semester_number: parseInt(semesterNumber as string),
-          resource_url: pair.publicUrl,
-          r2_url: pair.isR2Url ? pair.publicUrl : null,
-          tag_ids: fileTagIds[pair.fileName] ? [fileTagIds[pair.fileName]] : null,
-          title: pair.title,
-          visible: false,
-          anon: isAnonymous,
-        }))
+      const courseIdNum = Number(courseId)
+      await Promise.all(
+        uploadedUrls.map((pair) =>
+          apiCreateCourseContent({
+            course: { id: courseIdNum },
+            professor: selectedProfessorId != null ? { id: selectedProfessorId } : null,
+            year: parseInt(year as string),
+            batch: batch.toUpperCase(),
+            semesterNumber: parseInt(semesterNumber as string),
+            resourceUrl: pair.publicUrl,
+            r2Url: pair.isR2Url ? pair.publicUrl : null,
+            fileType: pair.fileType,
+            title: pair.title,
+            visibility: "PENDING_REVIEW",
+            tags: fileTagIds[pair.fileName] != null
+              ? [{ id: fileTagIds[pair.fileName] as number }]
+              : [],
+          })
+        )
       )
-      uploadedUrls.forEach(pair => {
-        console.log("pair", pair)
-      })
-      if (error) {
-        throw new Error("Failed to save content metadata")
-      }
       router.push(`/course/${courseId}`)
     } catch (error) {
       alert(error instanceof Error ? error.message : "Error uploading content")
@@ -567,17 +556,16 @@ export default function AddContentPage({
                         {content.title || 'Untitled Content'}
                       </p>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {content.year} - {content.batch} - Semester {content.semester_number}
-                        {content.professor_id && (
-                          <span> - {professors.find(p => p.id === content.professor_id)?.name || 'Unknown Professor'}</span>
+                        {content.year} - {content.batch} - Semester {content.semesterNumber}
+                        {content.professorId && (
+                          <span> - {professors.find(p => p.id === content.professorId)?.name || 'Unknown Professor'}</span>
                         )}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {(content.tag_ids ?? []).map((tagId: number) => {
-                          const tag = tags.find(t => t.id === tagId);
+                        {(content.tags ?? []).map((tag: Tag | undefined) => {
                           return tag ? (
                             <span
-                              key={tagId}
+                              key={tag.id}
                               className="px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full"
                             >
                               {tag.name}
@@ -586,7 +574,7 @@ export default function AddContentPage({
                         })}
                       </div>
                       <a
-                        href={content.resource_url ?? ''}
+                        href={content.r2Url ?? content.resourceUrl ?? ''}
                         target="_blank"
                         className="mt-2 inline-flex items-center text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
                       >
@@ -708,7 +696,7 @@ export default function AddContentPage({
                                   value={professor.name || ""}
                                   onSelect={(currentValue) => {
                                     setSelectedProfessorName(professor.name || currentValue);
-                                    setSelectedProfessorId(professor.id);
+                                    setSelectedProfessorId(professor.id ?? null);
                                     setOpenCombobox(false);
                                   }}
                                 >
@@ -893,7 +881,7 @@ export default function AddContentPage({
                                   setFileTagIds(prev => {
                                     const newTagIds = { ...prev };
                                     files.forEach(file => {
-                                      newTagIds[file.name] = tag.id;
+                                    newTagIds[file.name] = tag.id ?? null;
                                     });
                                     return newTagIds;
                                   });
@@ -946,7 +934,12 @@ export default function AddContentPage({
                                 </label>
                                 <div className="flex flex-wrap gap-1">
                                   <button
-                                    onClick={() => setFileTagIds(prev => ({ ...prev, [file.name]: null }))}
+                                    onClick={() =>
+                                      setFileTagIds(prev => ({
+                                        ...prev,
+                                        [file.name]: null,
+                                      }))
+                                    }
                                     className={cn(
                                       "px-2 py-1 text-xs rounded-md border",
                                       !fileTagIds[file.name]
@@ -959,7 +952,12 @@ export default function AddContentPage({
                                   {tags.map((tag) => (
                                     <button
                                       key={tag.id}
-                                      onClick={() => setFileTagIds(prev => ({ ...prev, [file.name]: tag.id }))}
+                                      onClick={() =>
+                                        setFileTagIds(prev => ({
+                                          ...prev,
+                                          [file.name]: tag.id ?? null,
+                                        }))
+                                      }
                                       className={cn(
                                         "px-2 py-1 text-xs rounded-md border",
                                         fileTagIds[file.name] === tag.id

@@ -1,9 +1,17 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { createClient } from "@/utils/supabase/client"
+import {
+  apiGetMe,
+  apiLogout,
+  apiGetProfessorCourses,
+  apiGetPinnedCoursesMe,
+  apiPinCourse,
+  apiUnpinCourse,
+} from "@/lib/api/client"
+import type { ApiUser } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
 import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone, Menu } from "lucide-react"
@@ -11,7 +19,6 @@ import BackgroundSelector from "@/components/background-selector"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { AnnouncementsDrawer, useTotalUnreadCount } from "@/components/announcements-drawer"
 import { DialogTitle } from "@radix-ui/react-dialog"
-import { Database } from "@/types/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   DropdownMenu,
@@ -27,11 +34,15 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 
-import { User as SupabaseUser } from "@supabase/supabase-js"
-import { SSGData } from "@/types/ssg"
+import { SSGData, SafeCourseIndex } from "@/types/ssg"
 
-type UserMeta = Database['public']['Tables']['user_meta']['Row']
-type CourseNew = Database['public']['Tables']['coursenew']['Row']
+type CourseNew = {
+  id: number
+  title: string
+  code: string
+  abbreviation: string | null
+  created_at: string
+}
 //type pinnedShit = Database['public']['Tables']['user_pinned_courses']['Row']
 //type logbook = Database['public']['Tables']['user_course_interaction']['Row']
 
@@ -90,16 +101,14 @@ export default function HomePage({ initialData }: HomePageProps) {
   const [search, setSearch] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [mobileActionOpen, setMobileActionOpen] = useState(false)
-  const [courses, setCourses] = useState<CourseNew[]>(initialData.courses)
-//  const [allCourses, setAllCourses] = useState<SafeCourseIndex[]>(initialData.allCourses) // For search dialog
-const allCourses = initialData.allCourses
-  const [user, setUser] = useState<SupabaseUser | null>(null)
+  // Cache: all courses from initial load; list view is derived from this (no refetch on page change or pin/unpin)
+  const [cachedAllCourses] = useState<SafeCourseIndex[]>(initialData.allCourses)
+  const [user, setUser] = useState<ApiUser | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  //const [totalCourses, setTotalCourses] = useState(initialData.totalCount)
-  const totalCourses = initialData.totalCount
-  const [loading, setLoading] = useState(false)
   const [pinnedCourses, setPinnedCourses] = useState<CourseNew[]>([])
   const [pinnedCourseIds, setPinnedCourseIds] = useState<Set<number>>(new Set())
+  // Map courseId -> pinned entry id (for unpin without refetching pinned list)
+  const [pinnedIdByCourseId, setPinnedIdByCourseId] = useState<Record<number, number>>({})
   const [showPinnedSection, setShowPinnedSection] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
@@ -109,8 +118,11 @@ const allCourses = initialData.allCourses
   const [announcementsOpen, setAnnouncementsOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [authResolved, setAuthResolved] = useState(false)
-  const supabase = createClient()
-  const totalUnreadCount = useTotalUnreadCount(user?.id ?? null)
+  const totalUnreadCount = useTotalUnreadCount(typeof user?.id === "number" ? user.id : null)
+  const safeUnreadCount = mounted ? totalUnreadCount : 0
+
+
+  console.log("INITIAL DATA",initialData);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)")
@@ -119,6 +131,7 @@ const allCourses = initialData.allCourses
     mq.addEventListener("change", set)
     return () => mq.removeEventListener("change", set)
   }, [])
+
   const inputRef = useRef<HTMLInputElement>(null);
   // Add new state for professor courses
   const [professorCourses, setProfessorCourses] = useState<GroupedProfessorCourses[]>(() => {
@@ -149,150 +162,64 @@ const allCourses = initialData.allCourses
     }, []) || []
     return grouped
   })
+
   const [professorCoursesLoading, setProfessorCoursesLoading] = useState(false)
   const [expandedProfessors, setExpandedProfessors] = useState<Set<number>>(new Set())
   const [professorCurrentPage, setProfessorCurrentPage] = useState(1)
   //const [totalProfessorEntries, setTotalProfessorEntries] = useState(initialData.professorData?.length || 0)
   const totalProfessorEntries = initialData.professorData?.length || 0
   const [isNavigating, setIsNavigating] = useState(false)
-  const [userMeta, setUserMeta] = useState<UserMeta | null>(null)
-  const [formData, setFormData] = useState({
-    full_name: "",
-    batch: "",
-    role: "",
-    admin_request: false
-  })
-
- console.log(userMeta, formData)
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser()
-      
-      if (error || !user) {
-        router.push("/")
-        return
-      }
-      console.log("User found:", user)
-      setUser(user)
-      await fetchUserMeta(user.id, user)
-    }
-
-    getUser()
-  }, [router, supabase])
-
-  const fetchUserMeta = async (userId: string, user: SupabaseUser) => {
+  
+  const resolveAuthUser = async () => {
     try {
-      const { data, error } = await supabase
-        .from("user_meta")
-        .select("*")
-        .eq("user_id", userId)
-        .single()
-
-      if (error && error.code === 'PGRST116') {
-        // No entry found, create one
-        console.log("No user_meta entry found, creating one...")
-        await createUserMetaEntry(userId, user)
-        return
-      }
-
-      if (error) {
-        console.error("Error fetching user meta:", error)
-        return
-      }
-
-      setUserMeta(data)
-      setFormData({
-        full_name: data.full_name || "",
-        batch: data.batch || "",
-        role: data.role || "",
-        admin_request: data.admin_request || false
-      })
-    } catch (error) {
-      console.error("Error:", error)
+      const me = await apiGetMe()
+      setUser(me)
+      setUserRole(me?.role ?? null)
+    } catch {
+      setUser(null)
+      setUserRole(null)
+    } finally {
+      setRoleLoading(false)
+      setAuthResolved(true)
     }
   }
 
-  const createUserMetaEntry = async (userId: string, user: SupabaseUser) => {
-    if (!user) {
-        console.log("No user found")
-        return
-    }
-    console.log("Creating user meta entry for user:", user)
-
+  const handleLogout = async () => {
     try {
-      // Get user name from metadata or derive from email
-      const fullName = user.user_metadata?.full_name || 
-                      user.user_metadata?.name || 
-                      user.email?.split('@')[0] || 
-                      'User'
-
-      const newUserMeta = {
-        user_id: userId,
-        full_name: fullName,
-        role: 'student',
-        admin_request: false,
-        profile_picture_url: user.user_metadata?.avatar_url || null,
-        batch: null,
-      }
-
-      const { data, error } = await supabase
-        .from("user_meta")
-        .insert(newUserMeta)
-        .select()
-        .single()
-
-      if (error) {
-        console.error("Error creating user meta:", error)
-        return
-      }
-
-      console.log("Created user_meta entry:", data)
-      setUserMeta(data)
-      setFormData({
-        full_name: data.full_name || "",
-        batch: data.batch || "",
-        role: data.role || "",
-        admin_request: data.admin_request || false
-      })
+      await apiLogout()
     } catch (error) {
-      console.error("Error creating user meta entry:", error)
+      console.error("Error logging out:", error)
+    } finally {
+      setUser(null)
+      setUserRole(null)
+      setRoleLoading(false)
+      router.refresh()
     }
   }
 
   // Add view mode state (will be hydrated from localStorage after mount)
   const [viewMode, setViewMode] = useState<'list' | 'professor'>('list')
 
-  const totalPages = Math.ceil(totalCourses / ITEMS_PER_PAGE)
+  // List view: derive from cache (exclude pinned, sort by id desc, paginate) — no API calls
+  const sortedUnpinnedCourses = useMemo(() => {
+    return cachedAllCourses
+      .filter((c) => !pinnedCourseIds.has(c.id))
+      .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
+  }, [cachedAllCourses, pinnedCourseIds])
+
+  const listViewCourses = useMemo(() => {
+    const from = (currentPage - 1) * ITEMS_PER_PAGE
+    return sortedUnpinnedCourses.slice(from, from + ITEMS_PER_PAGE)
+  }, [sortedUnpinnedCourses, currentPage])
+
+  const listViewTotal = sortedUnpinnedCourses.length
+  const totalPages = Math.ceil(listViewTotal / ITEMS_PER_PAGE)
   const totalProfessorPages = Math.ceil(totalProfessorEntries / ITEMS_PER_PAGE)
 
   const isAdmin = (role: string | null) => {
     if (!role) return false
-    return role === 'admin' || role === 'moderator' || role === 'super_admin'
-  }
-
-  // Fetch user role from user_meta table
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("user_meta")
-        .select("role")
-        .eq("user_id", userId)
-        .single()
-
-      if (error) {
-        console.error("Error fetching user role:", error)
-        setUserRole(null)
-        return
-      }
-
-      setUserRole(data?.role || null)
-    } catch (error) {
-      console.error("Error fetching user role:", error)
-      setUserRole(null)
-    } finally {
-      setRoleLoading(false)
-    }
+    const normalized = role.toUpperCase()
+    return normalized === "ADMIN" || normalized === "MODERATOR" || normalized === "SUPER_ADMIN"
   }
 
   // Fetch pending content count for admins
@@ -301,54 +228,14 @@ const allCourses = initialData.allCourses
       setPendingContentCount(0)
       return
     }
-
-    try {
-      const { count, error } = await supabase
-        .from("course_contentnew")
-        .select("*", { count: "exact", head: true })
-        .eq("visible", false)
-        .or("deleted.is.null,deleted.eq.false")
-
-      if (error) {
-        console.error("Error fetching pending content count:", error)
-        setPendingContentCount(0)
-        return
-      }
-
-      setPendingContentCount(count || 0)
-    } catch (error) {
-      console.error("Error fetching pending content count:", error)
-      setPendingContentCount(0)
-    } 
+    // Pending moderation count endpoint is not exposed yet in the new API.
+    // Keep behavior safe by showing no badge until backend supports it.
+    setPendingContentCount(0)
   }
 
   useEffect(() => {
-    // Check for user session — only show user/appearance area after we know auth state to avoid layout jump
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setAuthResolved(true)
-    })
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase.auth])
-
-  // Fetch user role when user changes
-  useEffect(() => {
-    if (user) {
-      setRoleLoading(true)
-      fetchUserRole(user.id)
-    } else {
-      setUserRole(null)
-      setRoleLoading(false)
-    }
-  }, [user, supabase])
+    resolveAuthUser()
+  }, [])
 
   // Fetch pending content count when user role changes
   useEffect(() => {
@@ -357,112 +244,94 @@ const allCourses = initialData.allCourses
     } else if (!user) {
       setPendingContentCount(0)
     }
-  }, [user, userRole, roleLoading, supabase])
+  }, [user, userRole, roleLoading])
 
-  // Fetch pinned courses for authenticated user
+  // Fetch pinned courses once when user is set; uses PinnedCourseDTO (id + courseId for unpin)
   const fetchPinnedCourses = async () => {
     if (!user) {
-      console.log("No user found, clearing pinned courses")
       setPinnedCourses([])
       setPinnedCourseIds(new Set())
+      setPinnedIdByCourseId({})
       return
     }
-
-    console.log("Fetching pinned courses for user:", user.id)
-
     try {
-      // Use a simpler approach: get pinned course IDs first, then fetch the courses
-      const { data: pinnedData, error: pinnedError } = await supabase
-        .from("user_pinned_courses")
-        .select("course_id")
-        .eq("user_id", user.id)
-
-      console.log("Pinned data response:", { pinnedData, pinnedError })
-
-      if (pinnedError) {
-        console.error("Supabase error fetching pinned courses:", pinnedError)
-        return
-      }
-
-      if (pinnedData && pinnedData.length > 0) {
-        const courseIds = pinnedData.map(item => item.course_id)
-        
-        // Fetch the actual course data
-        const { data: coursesData, error: coursesError } = await supabase
-          .from("coursenew")
-          .select("*")
-          .in("id", courseIds)
-
-        if (coursesError) {
-          console.error("Error fetching course details:", coursesError)
-          return
-        }
-
-        console.log("Fetched pinned courses:", coursesData)
-        
-        setPinnedCourses(coursesData || [])
-        setPinnedCourseIds(new Set(courseIds))
+      const list = await apiGetPinnedCoursesMe()
+      if (list?.length > 0) {
+        const asCourseNew: CourseNew[] = list.map((dto) => ({
+          id: dto.courseId ?? 0,
+          title: dto.courseTitle ?? "",
+          code: dto.courseCode ?? "",
+          abbreviation: null,
+          created_at: dto.pinnedAt ?? new Date().toISOString(),
+        }))
+        const ids = new Set(asCourseNew.map((c) => c.id))
+        const byCourseId: Record<number, number> = {}
+        list.forEach((dto) => {
+          if (dto.id != null && dto.courseId != null) byCourseId[dto.courseId] = dto.id
+        })
+        setPinnedCourses(asCourseNew)
+        setPinnedCourseIds(ids)
+        setPinnedIdByCourseId(byCourseId)
       } else {
-        console.log("No pinned data returned")
         setPinnedCourses([])
         setPinnedCourseIds(new Set())
+        setPinnedIdByCourseId({})
       }
     } catch (error) {
       console.error("Error fetching pinned courses:", error)
+      setPinnedCourses([])
+      setPinnedCourseIds(new Set())
+      setPinnedIdByCourseId({})
     }
   }
 
-  // Toggle pin status for a course
+  useEffect(() => {
+    fetchPinnedCourses()
+  }, [user])
+
+  // Pin/unpin: update API then local state only; no refetch of full course list
   const togglePin = async (courseId: number, event: React.MouseEvent) => {
-    event.stopPropagation() // Prevent course navigation
-    
+    event.stopPropagation()
     if (!user) return
-
     const isPinned = pinnedCourseIds.has(courseId)
-
     try {
       if (isPinned) {
-        // Unpin the course
-        const { error } = await supabase
-          .from("user_pinned_courses")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("course_id", courseId)
-
-        if (!error) {
-        // Remove from pinned courses and refresh main list
-        setPinnedCourses(prev => prev.filter(course => course.id !== courseId))
-        setPinnedCourseIds(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(courseId)
-          return newSet
+        const pinnedId = pinnedIdByCourseId[courseId]
+        if (pinnedId == null) return
+        await apiUnpinCourse(pinnedId)
+        setPinnedCourses((prev) => prev.filter((c) => c.id !== courseId))
+        setPinnedCourseIds((prev) => {
+          const next = new Set(prev)
+          next.delete(courseId)
+          return next
         })
-        fetchCourses()
-        }
+        setPinnedIdByCourseId((prev) => {
+          const next = { ...prev }
+          delete next[courseId]
+          return next
+        })
       } else {
-        // Pin the course
-        const { error } = await supabase
-          .from("user_pinned_courses")
-          .insert({ user_id: user.id, course_id: courseId })
-
-        if (!error) {
-        // Find course in main courses, add to pinned, and refresh main list
-        const courseToPin = courses.find(course => course.id === courseId)
-        if (courseToPin) {
-          setPinnedCourses(prev => [...prev, courseToPin])
-          setPinnedCourseIds(prev => new Set([...prev, courseId]))
-        }
-        fetchCourses()
-        }
+        await apiPinCourse(courseId)
+        const course = cachedAllCourses.find((c) => c.id === courseId)
+        const toAdd: CourseNew = course
+          ? { id: course.id!, title: course.title ?? "", code: course.code ?? "", abbreviation: course.abbreviation ?? null, created_at: new Date().toISOString() }
+          : { id: courseId, title: "", code: "", abbreviation: null, created_at: new Date().toISOString() }
+        setPinnedCourses((prev) => [...prev, toAdd])
+        setPinnedCourseIds((prev) => new Set([...prev, courseId]))
+        // Refetch pinned (me) to get new entry id for future unpin
+        const list = await apiGetPinnedCoursesMe()
+        const byCourseId: Record<number, number> = { ...pinnedIdByCourseId }
+        list?.forEach((dto) => {
+          if (dto.id != null && dto.courseId != null) byCourseId[dto.courseId] = dto.id
+        })
+        setPinnedIdByCourseId(byCourseId)
       }
     } catch (error) {
       console.error("Error toggling pin:", error)
     }
   }
 
-  useEffect(() => {
-    fetchPinnedCourses()
-  }, [user, supabase])
+
   useEffect(() => {
     if (courseComboboxOpen) {
       document.body.style.overflow = 'hidden';
@@ -477,48 +346,40 @@ const allCourses = initialData.allCourses
       document.body.style.touchAction = '';
     };
   }, [courseComboboxOpen]);
+  
 
-  // Add function to fetch professor courses
+  // Fetch professor courses (backend API)
   const fetchProfessorCourses = async () => {
     setProfessorCoursesLoading(true)
     try {
-      // Get paginated data
-      const { data, error } = await supabase.rpc('professor_course_list', {
-        limit_count: ITEMS_PER_PAGE,
-        offset_count: (professorCurrentPage - 1) * ITEMS_PER_PAGE
-      })
-
-      if (error) {
-        console.error("Error fetching professor courses:", error)
-        return
-      }
-
-      // Group courses by professor
-      const grouped = data?.reduce((acc: GroupedProfessorCourses[], item: ProfessorCourse) => {
-        const existingProf = acc.find(p => p.professor_id === item.professor_id)
-        
+      const offset = (professorCurrentPage - 1) * ITEMS_PER_PAGE
+      const data = await apiGetProfessorCourses(offset, ITEMS_PER_PAGE)
+      const asProfessorCourse: ProfessorCourse[] = (data ?? []).map((p) => ({
+        professor_id: p.professorId ?? 0,
+        professor_name: p.professorName ?? "",
+        professor_email: p.professorEmail ?? "",
+        course_id: p.courseId ?? 0,
+        course_title: p.courseTitle ?? "",
+        course_code: p.courseCode ?? "",
+      }))
+      const grouped = asProfessorCourse.reduce((acc: GroupedProfessorCourses[], item: ProfessorCourse) => {
+        const existingProf = acc.find((p) => p.professor_id === item.professor_id)
         if (existingProf) {
           existingProf.courses.push({
             course_id: item.course_id,
             course_title: item.course_title,
-            course_code: item.course_code
+            course_code: item.course_code,
           })
         } else {
           acc.push({
             professor_id: item.professor_id,
             professor_name: item.professor_name,
             professor_email: item.professor_email,
-            courses: [{
-              course_id: item.course_id,
-              course_title: item.course_title,
-              course_code: item.course_code
-            }]
+            courses: [{ course_id: item.course_id, course_title: item.course_title, course_code: item.course_code }],
           })
         }
-        
         return acc
-      }, []) || []
-
+      }, [])
       setProfessorCourses(grouped)
     } catch (error) {
       console.error("Error fetching professor courses:", error)
@@ -527,10 +388,9 @@ const allCourses = initialData.allCourses
     }
   }
 
-  // Fetch professor courses on component mount
   useEffect(() => {
     fetchProfessorCourses()
-  }, [supabase, professorCurrentPage])
+  }, [professorCurrentPage])
 
   // Toggle professor section collapse
   const toggleProfessorCollapse = (professorId: number) => {
@@ -545,35 +405,7 @@ const allCourses = initialData.allCourses
     })
   }
 
-  const fetchCourses = async () => {
-    setLoading(true)
-    
-    // Get paginated data
-    const from = (currentPage - 1) * ITEMS_PER_PAGE
-    const to = from + ITEMS_PER_PAGE - 1
-    
-    let query = supabase
-      .from("coursenew")
-      .select("*")
-      .order('id', { ascending: false })
-      .range(from, to)
-
-    if (pinnedCourseIds.size > 0) {
-      const pinnedIdsArray = Array.from(pinnedCourseIds)
-      query = query.not('id', 'in', `(${pinnedIdsArray.join(',')})`)
-    }
-
-    const { data } = await query
-    
-    setCourses(data || [])
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    fetchCourses()
-  }, [supabase, currentPage, pinnedCourseIds])
-
-  // All courses are already loaded from initial data, no need to fetch again
+  // List view uses cached courses (no API refetch on page change or pin/unpin)
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -601,7 +433,7 @@ const allCourses = initialData.allCourses
     return () => document.removeEventListener("keydown", down)
   }, [mobileSearchOpen, courseComboboxOpen])
 
-  const filteredCourses = allCourses.filter((course) => {
+  const filteredCourses = cachedAllCourses.filter((course) => {
     return course.title.toLowerCase().includes(search.toLowerCase()) ||
            course.code.toLowerCase().includes(search.toLowerCase()) ||
            (course.abbreviation && course.abbreviation.toLowerCase().includes(search.toLowerCase()))
@@ -783,10 +615,10 @@ const allCourses = initialData.allCourses
                       size="sm"
                       className="h-10 gap-1.5 rounded-lg px-2.5 pr-2 hover:bg-white/80 dark:hover:bg-zinc-800/80"
                     >
-                      {user.user_metadata?.avatar_url ? (
+                      {user.profilePictureUrl ? (
                         <div className="relative h-7 w-7 rounded-full overflow-hidden shrink-0">
                           <Image
-                            src={user.user_metadata.avatar_url}
+                            src={user.profilePictureUrl}
                             alt=""
                             fill
                             className="object-cover"
@@ -845,10 +677,7 @@ const allCourses = initialData.allCourses
                     </div>
                     <DropdownMenuSeparator className="my-1" />
                     <DropdownMenuItem
-                      onClick={async () => {
-                        await supabase.auth.signOut()
-                        router.refresh()
-                      }}
+                      onClick={handleLogout}
                       className="rounded-lg py-2 text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
                     >
                       <LogOut className="w-4 h-4 mr-2.5" />
@@ -886,9 +715,9 @@ const allCourses = initialData.allCourses
                 aria-label="Open menu"
               >
                 <Menu className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-                {totalUnreadCount > 0 && (
+                {safeUnreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
-                    {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                    {safeUnreadCount > 99 ? "99+" : safeUnreadCount}
                   </span>
                 )}
               </Button>
@@ -911,9 +740,9 @@ const allCourses = initialData.allCourses
                   >
                     <Megaphone className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                     Announcements
-                    {totalUnreadCount > 0 && (
+                    {safeUnreadCount > 0 && (
                       <span className="ml-auto min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-semibold">
-                        {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                        {safeUnreadCount > 99 ? "99+" : safeUnreadCount}
                       </span>
                     )}
                   </button>
@@ -983,9 +812,8 @@ const allCourses = initialData.allCourses
                       <button
                         type="button"
                         onClick={async () => {
-                          await supabase.auth.signOut()
+                          await handleLogout()
                           setMobileMenuOpen(false)
-                          router.refresh()
                         }}
                         className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50/70 dark:hover:bg-red-950/30 active:bg-red-100/50 dark:active:bg-red-900/40"
                       >
@@ -1208,11 +1036,6 @@ const allCourses = initialData.allCourses
                                                         <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors leading-tight mb-1 truncate">
                             {course.title}
                           </h3>
-                          {course.abbreviation && (
-                            <p className="hidden sm:block text-sm text-zinc-600 dark:text-zinc-400 mb-1 truncate">
-                              {course.abbreviation}
-                            </p>
-                          )}
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <motion.button
@@ -1404,42 +1227,10 @@ const allCourses = initialData.allCourses
           </div>
         )}
 
-        {/* Regular Course Grid */}
+        {/* Regular Course Grid — derived from cache, no loading */}
         {viewMode === 'list' && (
           <>
           <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="col-span-full"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                  {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ 
-                        duration: 0.2, 
-                        delay: i * 0.02,
-                        ease: "easeOut"
-                      }}
-                      className="bg-white/80 dark:bg-zinc-900/80 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm"
-                    >
-                      <div className="space-y-2">
-                        <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
-                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 animate-pulse" />
-                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2 animate-pulse" />
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
               <motion.div
                 key="content"
                 initial={{ opacity: 0 }}
@@ -1449,7 +1240,7 @@ const allCourses = initialData.allCourses
                 className="col-span-full"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                  {(search && mobileSearchOpen ? filteredCourses : courses)
+                  {(search && mobileSearchOpen ? filteredCourses : listViewCourses)
                     .map((course, index) => (
                     <motion.div
                       key={course.id}
@@ -1515,14 +1306,13 @@ const allCourses = initialData.allCourses
                   ))}
                 </div>
               </motion.div>
-            )}
           </AnimatePresence>
           </>
         )}
         </div>
         <div className="text-sm text-zinc-600 dark:text-zinc-400">
               {viewMode === 'list' 
-                ? `Showing ${((currentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalCourses)} of ${totalCourses} courses`
+                ? `Showing ${((currentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, listViewTotal)} of ${listViewTotal} courses`
                 : `Showing ${((professorCurrentPage - 1) * ITEMS_PER_PAGE) + 1}-${Math.min(professorCurrentPage * ITEMS_PER_PAGE, totalProfessorEntries)} of ${totalProfessorEntries} professor entries`
               }
             </div>
@@ -1610,8 +1400,8 @@ const allCourses = initialData.allCourses
         )}
 
         {/* Empty State */}
-        {viewMode === 'list' && !loading && (
-          (search && mobileSearchOpen ? filteredCourses : courses).length === 0
+        {viewMode === 'list' && (
+          (search && mobileSearchOpen ? filteredCourses : listViewCourses).length === 0
         ) && (
           <div className="text-center py-12 col-span-full bg-white/30 dark:bg-zinc-900/30 rounded-xl border border-zinc-200 dark:border-zinc-800">
             <BookOpen className="h-12 w-12 text-zinc-400 dark:text-zinc-600 mx-auto mb-4" />
@@ -1812,7 +1602,7 @@ const allCourses = initialData.allCourses
                     </Button>
                   )}
                 </Command.Empty>
-                {allCourses.map((course) => (
+                {cachedAllCourses.map((course) => (
                   <Command.Item
                     key={course.id}
                     value={`${course.title} ${course.code} ${course.abbreviation || ""}`}
