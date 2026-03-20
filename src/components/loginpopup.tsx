@@ -30,7 +30,7 @@ export function LoginPopup({
 
   const handleRedirect = () => {
     const redirectTo = typeof window !== "undefined" ? window.location.pathname : "/";
-    router.push(`/login?redirect=${encodeURIComponent(redirectTo)}`);
+    router.push(`/loginnext?redirect=${encodeURIComponent(redirectTo)}`);
   }
 
   return (

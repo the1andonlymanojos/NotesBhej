@@ -402,7 +402,7 @@ export default function AddContentPage({
       formData.append('semesterNumber', semesterNumber.toString())
       formData.append('isAnonymous', isAnonymous.toString())
 
-      const response = await fetch('/api/upload-images', {
+      const response = await fetch('/apinext/upload-images', {
         method: 'POST',
         body: formData,
       })

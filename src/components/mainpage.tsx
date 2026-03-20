@@ -690,7 +690,7 @@ export default function HomePage({ initialData }: HomePageProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => router.push('/login')}
+                    onClick={() => router.push('/loginnext')}
                     className="h-10 rounded-lg px-3 text-zinc-600 dark:text-zinc-400 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
                   >
                     Sign in
@@ -824,7 +824,7 @@ export default function HomePage({ initialData }: HomePageProps) {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { router.push('/login'); setMobileMenuOpen(false) }}
+                      onClick={() => { router.push('/loginnext'); setMobileMenuOpen(false) }}
                       className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60 active:bg-white/80 dark:active:bg-zinc-700/60"
                     >
                       Sign in

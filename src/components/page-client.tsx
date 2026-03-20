@@ -2491,7 +2491,7 @@ export default function CourseViewPage({
               <Button 
                 onClick={() => {
                   setShowLoginDialog(false)
-                  router.push(`/login?redirect=${encodeURIComponent(redirectTo)}`)
+                  router.push(`/loginnext?redirect=${encodeURIComponent(redirectTo)}`)
                 }}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
               >

@@ -93,10 +93,10 @@ This repo now includes a production-ready multi-stage Docker setup.
 ### Run with Docker Compose
 
 1. Make sure `.env.local` exists in the project root (same vars as above).
-2. Build and start the container:
+2. Build and start the container (passing `.env.local` for both build args and runtime env):
 
 ```bash
-docker compose up --build
+docker compose --env-file .env.local up --build
 ```
 
 3. Open [http://localhost:3000](http://localhost:3000).
@@ -110,7 +110,12 @@ docker compose down
 ### Run with Docker (without Compose)
 
 ```bash
-docker build -t notesbhej .
+docker build \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+  --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL" \
+  --build-arg API_SERVER_BASE_URL="$API_SERVER_BASE_URL" \
+  -t notesbhej .
 docker run --rm -p 3000:3000 --env-file .env.local notesbhej
 ```
 
