@@ -179,10 +179,12 @@ export default function EditContentDialog({
       }
 
       const resourceUrl = uploadResult ? uploadResult.publicUrl : content.resource_url
+      console.log("resourceUrl", resourceUrl)
+    
       const r2Url = uploadResult
         ? (uploadResult.isR2Url ? uploadResult.publicUrl : null)
         : (content.r2_url ?? null)
-
+      console.log("r2Url", r2Url)
       await apiCreateCourseContent({
         course: { id: content.course_id },
         professor: selectedProfessorId != null ? { id: selectedProfessorId } : null,

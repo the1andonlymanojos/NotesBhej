@@ -154,6 +154,16 @@ export interface ApiCourseContentCreate {
   tags?: ApiTag[];
 }
 
+/** PATCH /api/v1/course-content/{id} body */
+export interface ApiCourseContentPatch {
+  title?: string;
+  year?: number;
+  batch?: string;
+  semesterNumber?: number;
+  professorId?: number | null;
+  tagIds?: number[];
+}
+
 /** POST /api/v1/files/upload-url response */
 export interface ApiGetUploadUrlResponse {
   signedURL?: string;

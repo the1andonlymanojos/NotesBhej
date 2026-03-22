@@ -19,6 +19,7 @@ import type {
   ApiCourseContent,
   ApiProfessor,
   ApiCourseContentCreate,
+  ApiCourseContentPatch,
   ApiGetUploadUrlResponse,
   ApiAnnouncement,
   ApiAnnouncementRead,
@@ -193,6 +194,18 @@ export async function apiCreateCourseContent(
 ): Promise<ApiCourseContent> {
   return fetchApiBrowser<ApiCourseContent>("/api/v1/course-content", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** PATCH /api/v1/course-content/{id} — update editable metadata fields */
+export async function apiPatchCourseContent(
+  id: number,
+  body: ApiCourseContentPatch
+): Promise<ApiCourseContent> {
+  return fetchApiBrowser<ApiCourseContent>(`/api/v1/course-content/${id}`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });

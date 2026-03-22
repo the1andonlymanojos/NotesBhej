@@ -741,9 +741,13 @@ export default function CourseViewPage({
                   visible: item.visibility === "VISIBLE",
                   deleted: item.visibility === "DELETED",
                   prev_ptr: null,
-                  tag_ids: [],
+                  tag_ids: (item.tags || [])
+                    .map((tag) => tag.id ?? null)
+                    .filter((id): id is number => id != null),
                   professor_name: prof?.name,
-                  tag_names: [],
+                  tag_names: (item.tags || [])
+                    .map((tag) => tag.name?.trim() || "")
+                    .filter((name): name is string => Boolean(name)),
                   semester_display:
                     item.semesterNumber != null
                       ? getSemesterDisplay(item.semesterNumber)

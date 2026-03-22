@@ -98,7 +98,7 @@ export async function generateMetadata({
   const courseTitleSafe = course.title ?? "";
   const ogImage =
     (course as any).og_image ||
-    `${SITE_URL}/api/og?title=${encodeURIComponent(courseTitleSafe)}&type=course&prof=${encodeURIComponent(
+    `${SITE_URL}/apinext/og?title=${encodeURIComponent(courseTitleSafe)}&type=course&prof=${encodeURIComponent(
       professorNames.join(", ")
     )}`;
 
@@ -187,7 +187,9 @@ export default async function CourseViewPage2({
           created_at: null,
           filetype: item.fileType ?? "",
           r2_url: item.r2Url ?? null,
-          tag_ids: [],
+          tag_ids: (item.tags ?? [])
+            .map((tag) => tag.id ?? null)
+            .filter((id): id is number => id != null),
           professor_name: prof?.name,
           order: item.orderIndex ?? null,
         };
@@ -198,10 +200,24 @@ export default async function CourseViewPage2({
         id: p.id ?? null,
         name: p.name ?? "",
       }));
+
+      // Build tags array from content payload for SSR hydration/UI filters.
+      const tagMap = new Map<number, string>();
+      dtoList.forEach((item) => {
+        (item.tags ?? []).forEach((tag) => {
+          const id = tag.id ?? null;
+          const name = tag.name?.trim() ?? "";
+          if (id != null && name) {
+            tagMap.set(id, name);
+          }
+        });
+      });
+      tags = Array.from(tagMap.entries()).map(([id, name]) => ({ id, name }));
     } catch (error) {
       console.error(`Course page SSR: failed loading content for ${courseId}:`, error);
       resolvedContent = [];
       professors = [];
+      tags = [];
     }
   }
 
@@ -228,9 +244,6 @@ export default async function CourseViewPage2({
       });
     }
   }
-
-  // no tags coming from API for now; keep [] so UI still works
-  tags = [];
 
   return (
     <CourseViewPage
