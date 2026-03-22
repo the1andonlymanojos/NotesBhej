@@ -9,7 +9,7 @@ export function Footer() {
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className="relative mt-20 bg-gradient-to-br from-zinc-50 via-indigo-50/30 to-purple-50/20 dark:from-zinc-950 dark:via-indigo-950/40 dark:to-purple-950/20 border-t border-zinc-200 dark:border-zinc-800">
+    <footer className="relative bg-gradient-to-br from-zinc-50 via-indigo-50/30 to-purple-50/20 dark:from-zinc-950 dark:via-indigo-950/40 dark:to-purple-950/20 border-t border-zinc-200 dark:border-zinc-800">
       {/* Decorative top border */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
       

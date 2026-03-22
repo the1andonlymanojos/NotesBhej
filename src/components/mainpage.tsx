@@ -1420,7 +1420,7 @@ export default function HomePage({ initialData }: HomePageProps) {
         )}
 
         {/* Create Course Button */}
-        <div className="fixed bottom-6 right-6">
+        <div className="fixed z-50 bottom-6 right-6">
           <DropdownMenu open={mobileActionOpen} onOpenChange={setMobileActionOpen}>
             <DropdownMenuTrigger asChild>
               <Button
