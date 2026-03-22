@@ -80,9 +80,51 @@ export async function getProfessorCourses(offset = 0, limit = 100): Promise<ApiP
   );
 }
 
-/** GET /api/v1/course-content/{id} — content + professors for a given course */
-export async function getCourseContentForCourse(courseId: number): Promise<ApiCourseContentResponse> {
-  return fetchApiServer<ApiCourseContentResponse>(`/api/v1/course-content/${courseId}`);
+/**
+ * GET /api/v1/course-content/{id} — content + professors for a given course.
+ * When rendering in Next.js, pass `cookieHeader` from `(await cookies()).toString()` so the backend
+ * returns the same file URLs as the browser (authenticated/signed URLs). Without cookies, SSR can
+ * omit URLs while `/course` works after client refetch with credentials.
+ */
+export async function getCourseContentForCourse(
+  courseId: number,
+  cookieHeader?: string
+): Promise<ApiCourseContentResponse> {
+  const path = `/api/v1/course-content/${courseId}`;
+  const url = `${getApiBaseUrlServer()}${path}`;
+  const hasCookies = typeof cookieHeader === "string" && cookieHeader.length > 0;
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      ...(hasCookies ? { Cookie: cookieHeader } : {}),
+    },
+    ...(hasCookies ? { cache: "no-store" as const } : { next: { revalidate: 3600 } }),
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  return res.json() as Promise<ApiCourseContentResponse>;
+}
+
+/**
+ * GET /api/v1/me — current user (server-side, session cookies forwarded from Next.js).
+ * Returns null when unauthenticated (401/403), or when `cookieHeader` is empty (no request to make).
+ */
+export async function getMeServer(cookieHeader?: string): Promise<ApiUser | null> {
+  const hasCookies = typeof cookieHeader === "string" && cookieHeader.length > 0;
+  if (!hasCookies) return null;
+  const path = "/api/v1/me";
+  const url = `${getApiBaseUrlServer()}${path}`;
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      Cookie: cookieHeader,
+    },
+    cache: "no-store",
+  });
+  if (res.status === 401 || res.status === 403) {
+    return null;
+  }
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  return res.json() as Promise<ApiUser>;
 }
 
 // ——— Client: authenticated routes (rewrite so cookies are sent) ———

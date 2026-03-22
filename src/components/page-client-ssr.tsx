@@ -28,6 +28,7 @@ import {
   apiCreateFeedback,
   apiReorderCourseContent,
 } from "@/lib/api/client"
+import type { ApiUser } from "@/lib/api/types"
 type CourseNew = Database["public"]["Tables"]["coursenew"]["Row"]
 type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
 type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
@@ -118,12 +119,24 @@ function availableTagsFromEnhanced(enhanced: EnhancedContent[]): string[] {
   return Array.from(uniqueTags)
 }
 
+function userIdFromApiUser(me: ApiUser | null | undefined): string | null {
+  if (me == null) return null
+  return me.userId ?? (me.id != null ? String(me.id) : null)
+}
+
+function isAdminRoleFromMe(me: ApiUser | null | undefined): boolean {
+  if (me == null) return false
+  const role = (me.role || "").toString().toUpperCase()
+  return role === "ADMIN" || role === "MODERATOR"
+}
+
 export default function CourseViewPage({
   params,
   serverCourse,
   serverContent,
   serverProfessors,
   serverTags,
+  serverMe,
   skipInitialContentFetch = false,
 }: {
   params: Promise<{ "slugg": string }>,
@@ -131,6 +144,8 @@ export default function CourseViewPage({
   serverContent?: (Course_content_anon | Course_content_user)[],
   serverProfessors?: Professor[],
   serverTags?: Tag[],
+  /** From `/coursessr` SSR: `/api/v1/me` so auth state matches the first paint. Omit on client-only routes. */
+  serverMe?: ApiUser | null,
   /** When true (e.g. /coursessr), keep server-fetched rows and do not refetch course content on mount. */
   skipInitialContentFetch?: boolean,
 }) {
@@ -164,7 +179,9 @@ export default function CourseViewPage({
     return true
   })
   const [isPinned, setIsPinned] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
+    serverMe !== undefined ? userIdFromApiUser(serverMe) : null,
+  )
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [recentlyViewed, setRecentlyViewed] = useState<EnhancedContent[]>([])
   const [showRecentlyViewed, setShowRecentlyViewed] = useState(false)
@@ -179,7 +196,9 @@ export default function CourseViewPage({
   const [showAdminPopup, setShowAdminPopup] = useState(false)
   const [adminPopupContent, setAdminPopupContent] = useState<EnhancedContent | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: EnhancedContent } | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(() =>
+    serverMe !== undefined ? isAdminRoleFromMe(serverMe) : false,
+  )
   const [adminApproving, setAdminApproving] = useState(false)
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
   const [feedbackText, setFeedbackText] = useState("")
@@ -702,12 +721,16 @@ export default function CourseViewPage({
   useEffect(() => {
     const fetchClientData = async () => {
       try {
-        // Check if user is authenticated through backend session cookies
+        // Prefer SSR `/api/v1/me` when provided (avoids a duplicate round-trip on /coursessr)
         let me: Awaited<ReturnType<typeof apiGetMe>> | null = null
-        try {
-          me = await apiGetMe()
-        } catch {
-          me = null
+        if (serverMe !== undefined) {
+          me = serverMe
+        } else {
+          try {
+            me = await apiGetMe()
+          } catch {
+            me = null
+          }
         }
 
         const isAuthenticated = !!me
@@ -792,13 +815,22 @@ export default function CourseViewPage({
     }
 
     fetchClientData()
-  }, [courseId, serverContent, serverTags, logInteraction, skipInitialContentFetch])
+  }, [courseId, serverContent, serverTags, logInteraction, skipInitialContentFetch, serverMe])
 
   // Check if course is pinned
   useEffect(() => {
     const checkPinnedStatus = async () => {
       try {
-        const me = await apiGetMe()
+        let me: Awaited<ReturnType<typeof apiGetMe>> | null = null
+        if (serverMe !== undefined) {
+          me = serverMe
+        } else {
+          try {
+            me = await apiGetMe()
+          } catch {
+            me = null
+          }
+        }
         if (!me) {
           setIsPinned(false)
           return
@@ -820,7 +852,7 @@ export default function CourseViewPage({
     }
 
     checkPinnedStatus()
-  }, [courseId])
+  }, [courseId, serverMe])
 
   // Fetch recently viewed when user/professors/tags change
   useEffect(() => {
