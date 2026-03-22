@@ -1,7 +1,6 @@
-import CourseViewPage from "../../../components/page-client-ssr"
+import CourseViewPage from "../../../components/page-client"
 import { Metadata } from "next";
-import { cookies } from "next/headers";
-import { getCourses, getCourseContentForCourse, getMeServer } from "@/lib/api/client";
+import { getCourses, getCourseContentForCourse } from "@/lib/api/client";
 export const revalidate = 3600; 
 
 
@@ -155,26 +154,16 @@ export default async function CourseViewPage2({
   const p = await params;
   const courseId = Number(p.slugg);
 
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore.toString();
-
   const courses = await getCourses();
   const course = (courses || []).find((c) => c.id === courseId) || null;
-
-  const validCourseId = courseId && !Number.isNaN(courseId);
-  const [serverMe, ccResponse] = await Promise.all([
-    getMeServer(cookieHeader),
-    validCourseId
-      ? getCourseContentForCourse(courseId, cookieHeader)
-      : Promise.resolve(null),
-  ]);
 
   let resolvedContent: any[] = [];
   let professors: any[] = [];
   let tags: any[] = [];
 
-  if (validCourseId && ccResponse) {
+  if (courseId && !Number.isNaN(courseId)) {
     try {
+      const ccResponse = await getCourseContentForCourse(courseId);
       const dtoList = ccResponse.content ?? [];
       const profMap = ccResponse.professors ?? {};
 
@@ -184,13 +173,6 @@ export default async function CourseViewPage2({
             ? profMap[String(item.professorId)] ?? null
             : null;
 
-        const lo = item as typeof item & {
-          r2_url?: string | null;
-          resource_url?: string | null;
-        };
-        const r2Url = item.r2Url ?? lo.r2_url ?? null;
-        const resourceUrl = item.resourceUrl ?? lo.resource_url ?? null;
-
         return {
           id: item.id ?? null,
           course_id: courseId,
@@ -199,12 +181,12 @@ export default async function CourseViewPage2({
           year: item.year ?? null,
           batch: item.batch ?? null,
           semester_number: item.semesterNumber ?? null,
-          resource_url: resourceUrl ?? null,
+          resource_url: null,
           title: item.title ?? "",
           visible: item.visibility === "VISIBLE",
           created_at: null,
           filetype: item.fileType ?? "",
-          r2_url: r2Url ?? null,
+          r2_url: item.r2Url ?? null,
           tag_ids: (item.tags ?? [])
             .map((tag) => tag.id ?? null)
             .filter((id): id is number => id != null),
@@ -270,8 +252,6 @@ export default async function CourseViewPage2({
       serverContent={resolvedContent as any}
       serverProfessors={professors as any}
       serverTags={tags as any}
-      serverMe={serverMe}
-      skipInitialContentFetch
     />
   );
 }                           

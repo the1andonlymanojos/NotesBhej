@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, use, useCallback, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -97,6 +97,8 @@ export default function CourseViewPage({
   serverTags?: Tag[],
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const courseBasePath = pathname?.startsWith("/coursessr") ? "/coursessr" : "/course"
   const courseId = use(params)["slugg"]
   const course = serverCourse || null
   const [content, setContent] = useState<(Course_content_anon | Course_content_user)[]>(serverContent || [])
@@ -362,7 +364,7 @@ export default function CourseViewPage({
   const downloadWithProgress = async (item: EnhancedContent) => {
     const url = getContentUrl(item)
     if (!item.id || !url){
-      setRedirectTo(`/course/${courseId}`)
+      setRedirectTo(`${courseBasePath}/${courseId}`)
       setShowLoginDialog(true)
       return
     }
@@ -434,7 +436,7 @@ export default function CourseViewPage({
       return;
     }
     if(!getContentUrl(item) || !item.id){
-      setRedirectTo(`/course/${courseId}`)
+      setRedirectTo(`${courseBasePath}/${courseId}`)
       setShowLoginDialog(true)
       return
     }
@@ -562,7 +564,7 @@ export default function CourseViewPage({
     try {
       await apiGetMe()
     } catch {
-      setRedirectTo(`/course/${courseId}`)
+      setRedirectTo(`${courseBasePath}/${courseId}`)
       setShowLoginDialog(true)
       return
     }
@@ -821,7 +823,7 @@ export default function CourseViewPage({
     try {
       const me = await apiGetMe()
       if (!me) {
-        setRedirectTo(`/course/${courseId}`)
+        setRedirectTo(`${courseBasePath}/${courseId}`)
         setShowLoginDialog(true)
         return
       }
@@ -1041,7 +1043,7 @@ export default function CourseViewPage({
     }
     const url = getContentUrl(item)
     if (!url) {
-      setRedirectTo(`/course/${courseId}`)
+      setRedirectTo(`${courseBasePath}/${courseId}`)
       setShowLoginDialog(true)
       return
     }
@@ -1301,7 +1303,7 @@ export default function CourseViewPage({
       setShowFeedbackDialog(true)
     } catch (error) {
       console.error("Error checking auth for feedback:", error)
-      setRedirectTo(`/course/${courseId}`)
+      setRedirectTo(`${courseBasePath}/${courseId}`)
       setShowLoginDialog(true)
     }
   }
@@ -1611,7 +1613,7 @@ export default function CourseViewPage({
                   size="sm"
                   onClick={() => {
                     if (!currentUserId) {
-                      setRedirectTo(`/course/${courseId}`)
+                      setRedirectTo(`${courseBasePath}/${courseId}`)
                       setShowLoginDialog(true)
                       return
                     }

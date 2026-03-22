@@ -69,8 +69,8 @@ type GroupedProfessorCourses = {
 
 const ITEMS_PER_PAGE = 16
 
-/** Used for course links from `/ssr` so users land on the SSR course page. */
-const COURSE_PAGE_BASE = "/coursessr"
+/** Default app uses SSR course pages at `/course`. */
+const COURSE_PAGE_BASE = "/course"
 
 // LocalStorage utility functions
 const getLocalStorageItem = (key: string, defaultValue: any) => {

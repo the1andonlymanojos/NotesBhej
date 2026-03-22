@@ -70,6 +70,9 @@ type GroupedProfessorCourses = {
 
 const ITEMS_PER_PAGE = 16
 
+/** `/ssr` home uses CSR course pages at `/coursessr`. */
+const COURSE_PAGE_BASE = "/coursessr"
+
 /** Same shape/sort as `page.tsx` ISR build — used after client refresh. */
 function mapApiCoursesToSafeIndex(courses: ApiCourse[]): SafeCourseIndex[] {
   return [...courses]
@@ -491,12 +494,12 @@ export default function HomePage({ initialData }: HomePageProps) {
   const handleCourseNavigation = (courseId: string | number, e?: React.MouseEvent) => {
     const openInNewTab = e && (e.metaKey || e.ctrlKey)
     if (openInNewTab) {
-      window.open(`/course/${courseId}`, '_blank', 'noopener,noreferrer')
+      window.open(`${COURSE_PAGE_BASE}/${courseId}`, '_blank', 'noopener,noreferrer')
       return
     }
     setIsNavigating(true)
     setTimeout(() => {
-      router.push(`/course/${courseId}`)
+      router.push(`${COURSE_PAGE_BASE}/${courseId}`)
     }, 10)
   }
 

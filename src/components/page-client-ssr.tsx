@@ -144,9 +144,9 @@ export default function CourseViewPage({
   serverContent?: (Course_content_anon | Course_content_user)[],
   serverProfessors?: Professor[],
   serverTags?: Tag[],
-  /** From `/coursessr` SSR: `/api/v1/me` so auth state matches the first paint. Omit on client-only routes. */
+  /** From `/course` SSR: `/api/v1/me` so auth state matches the first paint. Omit on client-only routes. */
   serverMe?: ApiUser | null,
-  /** When true (e.g. /coursessr), keep server-fetched rows and do not refetch course content on mount. */
+  /** When true (e.g. default `/course`), keep server-fetched rows and do not refetch course content on mount. */
   skipInitialContentFetch?: boolean,
 }) {
   const router = useRouter()
@@ -721,7 +721,7 @@ export default function CourseViewPage({
   useEffect(() => {
     const fetchClientData = async () => {
       try {
-        // Prefer SSR `/api/v1/me` when provided (avoids a duplicate round-trip on /coursessr)
+        // Prefer SSR `/api/v1/me` when provided (avoids a duplicate round-trip on `/course`)
         let me: Awaited<ReturnType<typeof apiGetMe>> | null = null
         if (serverMe !== undefined) {
           me = serverMe
