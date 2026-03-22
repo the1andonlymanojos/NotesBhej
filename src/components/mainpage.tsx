@@ -12,7 +12,7 @@ import {
   apiPinCourse,
   apiUnpinCourse,
 } from "@/lib/api/client"
-import type { ApiUser, ApiCourse } from "@/lib/api/types"
+import type { ApiUser, ApiCourse, ApiPinnedCourseDTO } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
 import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone, Menu } from "lucide-react"
@@ -136,8 +136,6 @@ export default function HomePage({ initialData }: HomePageProps) {
   const safeUnreadCount = mounted ? totalUnreadCount : 0
 
 
-  console.log("INITIAL DATA",initialData);
-
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)")
     const set = () => setIsMobile(mq.matches)
@@ -184,18 +182,28 @@ export default function HomePage({ initialData }: HomePageProps) {
   const totalProfessorEntries = initialData.professorData?.length || 0
   const [isNavigating, setIsNavigating] = useState(false)
   
-  const resolveAuthUser = async () => {
-    try {
-      const me = await apiGetMe()
-      setUser(me)
-      setUserRole(me?.role ?? null)
-    } catch {
-      setUser(null)
-      setUserRole(null)
-    } finally {
-      setRoleLoading(false)
-      setAuthResolved(true)
+  const applyPinnedDtoList = (list: ApiPinnedCourseDTO[] | null | undefined) => {
+    if (!list?.length) {
+      setPinnedCourses([])
+      setPinnedCourseIds(new Set())
+      setPinnedIdByCourseId({})
+      return
     }
+    const asCourseNew: CourseNew[] = list.map((dto) => ({
+      id: dto.courseId ?? 0,
+      title: dto.courseTitle ?? "",
+      code: dto.courseCode ?? "",
+      abbreviation: null,
+      created_at: dto.pinnedAt ?? new Date().toISOString(),
+    }))
+    const ids = new Set(asCourseNew.map((c) => c.id))
+    const byCourseId: Record<number, number> = {}
+    list.forEach((dto) => {
+      if (dto.id != null && dto.courseId != null) byCourseId[dto.courseId] = dto.id
+    })
+    setPinnedCourses(asCourseNew)
+    setPinnedCourseIds(ids)
+    setPinnedIdByCourseId(byCourseId)
   }
 
   const handleLogout = async () => {
@@ -207,6 +215,9 @@ export default function HomePage({ initialData }: HomePageProps) {
       setUser(null)
       setUserRole(null)
       setRoleLoading(false)
+      setPinnedCourses([])
+      setPinnedCourseIds(new Set())
+      setPinnedIdByCourseId({})
       router.refresh()
     }
   }
@@ -247,20 +258,33 @@ export default function HomePage({ initialData }: HomePageProps) {
     setPendingContentCount(0)
   }
 
-  useEffect(() => {
-    resolveAuthUser()
-  }, [])
-
-  // Soft revalidate: merge live course list with ISR payload (new rows, removed ids, updated titles) without blocking first paint
+  // Single client bootstrap: auth + course index + pinned in parallel (no waterfall after /me + /courses).
+  // Pinned uses .catch for guests (401); we only apply rows when me is non-null.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const fresh = await apiGetCourses()
+        const [me, fresh, pinnedOrError] = await Promise.all([
+          apiGetMe().catch(() => null),
+          apiGetCourses().catch(() => null),
+          apiGetPinnedCoursesMe().catch(() => [] as ApiPinnedCourseDTO[]),
+        ])
         if (cancelled) return
-        setCachedAllCourses(mapApiCoursesToSafeIndex(fresh ?? []))
+        setUser(me)
+        setUserRole(me?.role ?? null)
+        setRoleLoading(false)
+        setAuthResolved(true)
+        if (fresh != null) {
+          setCachedAllCourses(mapApiCoursesToSafeIndex(fresh ?? []))
+        }
+        applyPinnedDtoList(me ? pinnedOrError : [])
       } catch {
-        // Keep ISR snapshot on network/API failure
+        if (cancelled) return
+        setUser(null)
+        setUserRole(null)
+        setRoleLoading(false)
+        setAuthResolved(true)
+        applyPinnedDtoList([])
       }
     })()
     return () => {
@@ -276,49 +300,6 @@ export default function HomePage({ initialData }: HomePageProps) {
       setPendingContentCount(0)
     }
   }, [user, userRole, roleLoading])
-
-  // Fetch pinned courses once when user is set; uses PinnedCourseDTO (id + courseId for unpin)
-  const fetchPinnedCourses = async () => {
-    if (!user) {
-      setPinnedCourses([])
-      setPinnedCourseIds(new Set())
-      setPinnedIdByCourseId({})
-      return
-    }
-    try {
-      const list = await apiGetPinnedCoursesMe()
-      if (list?.length > 0) {
-        const asCourseNew: CourseNew[] = list.map((dto) => ({
-          id: dto.courseId ?? 0,
-          title: dto.courseTitle ?? "",
-          code: dto.courseCode ?? "",
-          abbreviation: null,
-          created_at: dto.pinnedAt ?? new Date().toISOString(),
-        }))
-        const ids = new Set(asCourseNew.map((c) => c.id))
-        const byCourseId: Record<number, number> = {}
-        list.forEach((dto) => {
-          if (dto.id != null && dto.courseId != null) byCourseId[dto.courseId] = dto.id
-        })
-        setPinnedCourses(asCourseNew)
-        setPinnedCourseIds(ids)
-        setPinnedIdByCourseId(byCourseId)
-      } else {
-        setPinnedCourses([])
-        setPinnedCourseIds(new Set())
-        setPinnedIdByCourseId({})
-      }
-    } catch (error) {
-      console.error("Error fetching pinned courses:", error)
-      setPinnedCourses([])
-      setPinnedCourseIds(new Set())
-      setPinnedIdByCourseId({})
-    }
-  }
-
-  useEffect(() => {
-    fetchPinnedCourses()
-  }, [user])
 
   // Pin/unpin: update API then local state only; no refetch of full course list
   const togglePin = async (courseId: number, event: React.MouseEvent) => {
@@ -420,8 +401,9 @@ export default function HomePage({ initialData }: HomePageProps) {
   }
 
   useEffect(() => {
+    if (viewMode !== "professor") return
     fetchProfessorCourses()
-  }, [professorCurrentPage])
+  }, [professorCurrentPage, viewMode])
 
   // Toggle professor section collapse
   const toggleProfessorCollapse = (professorId: number) => {
