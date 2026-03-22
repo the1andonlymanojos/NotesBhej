@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   apiGetMe,
+  apiGetCourses,
   apiLogout,
   apiGetProfessorCourses,
   apiGetPinnedCoursesMe,
   apiPinCourse,
   apiUnpinCourse,
 } from "@/lib/api/client"
-import type { ApiUser } from "@/lib/api/types"
+import type { ApiUser, ApiCourse } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
 import { Command } from "cmdk"
 import { Search, BookOpen, ArrowRight, Plus, User, LogOut, Settings, ChevronDown, ChevronLeft, ChevronRight, Heart, Shield, X, FileText, Megaphone, Menu } from "lucide-react"
@@ -69,6 +70,19 @@ type GroupedProfessorCourses = {
 
 const ITEMS_PER_PAGE = 16
 
+/** Same shape/sort as `page.tsx` ISR build — used after client refresh. */
+function mapApiCoursesToSafeIndex(courses: ApiCourse[]): SafeCourseIndex[] {
+  return [...courses]
+    .filter((c) => c.id != null)
+    .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""))
+    .map((c) => ({
+      id: c.id!,
+      title: c.title ?? "",
+      code: c.code ?? "",
+      abbreviation: c.abbreviation ?? null,
+    }))
+}
+
 // LocalStorage utility functions
 const getLocalStorageItem = (key: string, defaultValue: any) => {
   if (typeof window === 'undefined') return defaultValue
@@ -101,8 +115,8 @@ export default function HomePage({ initialData }: HomePageProps) {
   const [search, setSearch] = useState("")
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [mobileActionOpen, setMobileActionOpen] = useState(false)
-  // Cache: all courses from initial load; list view is derived from this (no refetch on page change or pin/unpin)
-  const [cachedAllCourses] = useState<SafeCourseIndex[]>(initialData.allCourses)
+  // Course index: ISR snapshot, reconciled with GET /api/v1/courses once on mount (see useEffect below)
+  const [cachedAllCourses, setCachedAllCourses] = useState<SafeCourseIndex[]>(initialData.allCourses)
   const [user, setUser] = useState<ApiUser | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pinnedCourses, setPinnedCourses] = useState<CourseNew[]>([])
@@ -235,6 +249,23 @@ export default function HomePage({ initialData }: HomePageProps) {
 
   useEffect(() => {
     resolveAuthUser()
+  }, [])
+
+  // Soft revalidate: merge live course list with ISR payload (new rows, removed ids, updated titles) without blocking first paint
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const fresh = await apiGetCourses()
+        if (cancelled) return
+        setCachedAllCourses(mapApiCoursesToSafeIndex(fresh ?? []))
+      } catch {
+        // Keep ISR snapshot on network/API failure
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Fetch pending content count when user role changes
