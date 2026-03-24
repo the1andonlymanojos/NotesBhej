@@ -402,12 +402,12 @@ export default function CourseViewPage({
     if(item.resource_url){
     const extension = item.resource_url.split('.').pop()?.toLowerCase()
     if (extension) {
-
       console.log("extension", safe + '.' + extension)
       return safe + '.' + extension
     }}
     const type = (item.filetype || contentType || '').toLowerCase()
     if (!type) return safe + '.pdf'
+    if(type.includes('application/x-ipynb+json')) return safe + '.ipynb'
     if (type.includes('pdf')) return safe + '.pdf'
     if (type.includes('word')) return safe + '.docx'
     if (type.includes('sheet') || type.includes('excel')) return safe + '.xlsx'
@@ -419,6 +419,7 @@ export default function CourseViewPage({
     if (type.includes('image/webp')) return safe + '.webp'
     if (type.includes('application/zip')) return safe + '.zip'
     if (type.includes('application/octet-stream')) return safe +'.'+ getContentUrl(item)?.split('.').pop()
+    
     return safe
   }
 
@@ -1130,7 +1131,10 @@ export default function CourseViewPage({
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
         setTimeout(() => setIsNavigating(false), 1500)
       }
-      else if(item.filetype === ""){
+      else if(item.filetype === "application/x-ipynb+json"){
+        handleDownloadClick(item)
+      }
+       if(item.filetype === ""){
         handleDownloadClick(item)
       }
       else {
