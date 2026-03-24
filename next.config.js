@@ -18,6 +18,19 @@ const nextConfig = {
       },
     ]
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*\\.(jpg|jpeg|png|webp|avif|gif|svg)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
 }
 
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
