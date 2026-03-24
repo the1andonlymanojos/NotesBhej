@@ -399,12 +399,25 @@ export default function CourseViewPage({
 
   const buildFilename = (item: EnhancedContent, contentType?: string | null) => {
     const safe = (item.title || 'file').replace(/[^a-z0-9\-_. ]/gi, '_')
-    if(item.resource_url){
-    const extension = item.resource_url.split('.').pop()?.toLowerCase()
-    if (extension) {
-      console.log("extension", safe + '.' + extension)
-      return safe + '.' + extension
-    }}
+    const extractUrlExtension = (rawUrl?: string | null): string | null => {
+      if (!rawUrl) return null
+      try {
+        const pathname = new URL(rawUrl).pathname
+        const fileSegment = pathname.split('/').pop() || ''
+        const ext = fileSegment.includes('.') ? fileSegment.split('.').pop()?.toLowerCase() ?? null : null
+        return ext && /^[a-z0-9]{1,10}$/i.test(ext) ? ext : null
+      } catch {
+        const clean = rawUrl.split('?')[0].split('#')[0]
+        const fileSegment = clean.split('/').pop() || ''
+        const ext = fileSegment.includes('.') ? fileSegment.split('.').pop()?.toLowerCase() ?? null : null
+        return ext && /^[a-z0-9]{1,10}$/i.test(ext) ? ext : null
+      }
+    }
+    const urlExtension = extractUrlExtension(item.resource_url || getContentUrl(item))
+    if (urlExtension) {
+      console.log('[download-trace:ssr] filename extension resolved from url', { id: item.id, extension: urlExtension, resource_url: item.resource_url })
+      return safe + '.' + urlExtension
+    }
     const type = (item.filetype || contentType || '').toLowerCase()
     if (!type) return safe + '.pdf'
     if(type.includes('application/x-ipynb+json')) return safe + '.ipynb'
@@ -418,7 +431,7 @@ export default function CourseViewPage({
     if (type.includes('image/jpg')) return safe + '.jpg'
     if (type.includes('image/webp')) return safe + '.webp'
     if (type.includes('application/zip')) return safe + '.zip'
-    if (type.includes('application/octet-stream')) return safe +'.'+ getContentUrl(item)?.split('.').pop()
+    if (type.includes('application/octet-stream')) return safe + '.bin'
     
     return safe
   }
