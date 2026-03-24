@@ -172,6 +172,14 @@ export default async function CourseViewPage2({
           item.professorId != null
             ? profMap[String(item.professorId)] ?? null
             : null;
+        const lo = item as typeof item & {
+          resource_url?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        const resourceUrl = item.resourceUrl ?? lo.resource_url ?? null;
+        const createdAt = item.createdAt ?? lo.created_at ?? null;
+        const updatedAt = item.updatedAt ?? lo.updated_at ?? null;
 
         return {
           id: item.id ?? null,
@@ -181,10 +189,11 @@ export default async function CourseViewPage2({
           year: item.year ?? null,
           batch: item.batch ?? null,
           semester_number: item.semesterNumber ?? null,
-          resource_url: null,
+          resource_url: resourceUrl,
           title: item.title ?? "",
           visible: item.visibility === "VISIBLE",
-          created_at: null,
+          created_at: createdAt,
+          updated_at: updatedAt,
           filetype: item.fileType ?? "",
           r2_url: item.r2Url ?? null,
           tag_ids: (item.tags ?? [])

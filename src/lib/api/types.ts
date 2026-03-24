@@ -20,6 +20,8 @@ export interface ApiCourseContentDTO {
   fileType?: string;
   r2Url?: string;
   resourceUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
   orderIndex?: number;
   visibility?: string;
   professorId?: number;

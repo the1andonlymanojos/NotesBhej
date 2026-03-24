@@ -750,6 +750,14 @@ export default function CourseViewPage({
                   item.professorId != null
                     ? profMap[String(item.professorId)] ?? null
                     : null
+                const lo = item as typeof item & {
+                  resource_url?: string | null
+                  created_at?: string | null
+                  updated_at?: string | null
+                }
+                const resourceUrl = item.resourceUrl ?? lo.resource_url ?? null
+                const createdAt = item.createdAt ?? lo.created_at ?? null
+                const updatedAt = item.updatedAt ?? lo.updated_at ?? null
 
                 return {
                   id: item.id ?? null,
@@ -760,11 +768,11 @@ export default function CourseViewPage({
                   batch: item.batch ?? null,
                   semester_number: item.semesterNumber ?? null,
                   title: item.title ?? "",
-                  resource_url: null,
+                  resource_url: resourceUrl,
                   r2_url: item.r2Url ?? null,
                   filetype: item.fileType ?? "",
-                  created_at: null,
-                  updated_at: null,
+                  created_at: createdAt,
+                  updated_at: updatedAt,
                   visible: item.visibility === "VISIBLE",
                   deleted: item.visibility === "DELETED",
                   prev_ptr: null,

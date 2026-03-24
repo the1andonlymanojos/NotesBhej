@@ -187,9 +187,13 @@ export default async function CourseViewPage2({
         const lo = item as typeof item & {
           r2_url?: string | null;
           resource_url?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
         };
         const r2Url = item.r2Url ?? lo.r2_url ?? null;
         const resourceUrl = item.resourceUrl ?? lo.resource_url ?? null;
+        const createdAt = item.createdAt ?? lo.created_at ?? null;
+        const updatedAt = item.updatedAt ?? lo.updated_at ?? null;
 
         return {
           id: item.id ?? null,
@@ -202,7 +206,8 @@ export default async function CourseViewPage2({
           resource_url: resourceUrl ?? null,
           title: item.title ?? "",
           visible: item.visibility === "VISIBLE",
-          created_at: null,
+          created_at: createdAt,
+          updated_at: updatedAt,
           filetype: item.fileType ?? "",
           r2_url: r2Url ?? null,
           tag_ids: (item.tags ?? [])
