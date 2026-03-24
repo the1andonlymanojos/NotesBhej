@@ -347,6 +347,7 @@ export default function CourseViewPage({
     }}
     const type = (item.filetype || contentType || '').toLowerCase()
     if (!type) return safe + '.pdf'
+    if(type.includes('ipynb')) return safe + '.ipynb'
     if (type.includes('pdf')) return safe + '.pdf'
     if (type.includes('word')) return safe + '.docx'
     if (type.includes('sheet') || type.includes('excel')) return safe + '.xlsx'
@@ -431,11 +432,21 @@ export default function CourseViewPage({
   }
 
   const handleDownloadClick = (item: EnhancedContent) => {
+    const tracePayload = {
+      id: item.id,
+      title: item.title,
+      filetype: item.filetype,
+      url: getContentUrl(item),
+      professor_id: item.professor_id,
+    }
+    console.log('[download-trace] handleDownloadClick invoked', tracePayload)
     if(item.professor_id==71){
+      console.log('[download-trace] blocked dummy content', tracePayload)
       alert('No content available, uploading content will increase your aura.')
       return;
     }
     if(!getContentUrl(item) || !item.id){
+      console.log('[download-trace] blocked missing url or id, redirecting login', tracePayload)
       setRedirectTo(`${courseBasePath}/${courseId}`)
       setShowLoginDialog(true)
       return
@@ -446,12 +457,14 @@ export default function CourseViewPage({
     const id = item.id
     const state = downloadState[id]
     if (state?.active) {
+      console.log('[download-trace] active download found, aborting existing download', tracePayload)
       const controller = downloadControllers.current.get(id)
       controller?.abort()
       downloadControllers.current.delete(id)
       setDownloadState(prev => ({ ...prev, [id]: { progress: 0, active: false } }))
       return
     }
+    console.log('[download-trace] starting downloadWithProgress', tracePayload)
     downloadWithProgress(item)
   }
 
@@ -1061,25 +1074,37 @@ export default function CourseViewPage({
     
     if (isMobile || useNativeViewer) {
       console.log("Opening resource url:", item.filetype)
+      console.log('[download-trace] handleContentClick mobile/native path', {
+        id: item.id,
+        title: item.title,
+        filetype: item.filetype,
+        url,
+        isMobile,
+        useNativeViewer,
+      })
 
       setSelectedContent(item)
       setSelectedFileId(item.id)
       if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || item.filetype === "application/wps-office.pptx") {
+        console.log('[download-trace] decision=open-office-viewer by mime', { id: item.id, filetype: item.filetype })
         setNavigatingTo("Office Viewer")
         setIsNavigating(true)
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
         setTimeout(() => setIsNavigating(false), 1500)
       } 
       else if (url && (url.toLowerCase().endsWith('.pptx') || url.toLowerCase().endsWith('.docx') || url.toLowerCase().endsWith('.xlsx'))) {
+        console.log('[download-trace] decision=open-office-viewer by extension', { id: item.id, url })
         setNavigatingTo("Office Viewer")
         setIsNavigating(true)
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
         setTimeout(() => setIsNavigating(false), 1500)
       }
-      else if(item.filetype === ""){
+      else if(item.filetype === "application/x-ipynb+json" || item.filetype === ""){
+        console.log('[download-trace] decision=download', { id: item.id, filetype: item.filetype })
         handleDownloadClick(item)
       }
       else {
+        console.log('[download-trace] decision=open-resource default', { id: item.id, filetype: item.filetype, url })
         setNavigatingTo("Resource")
         setIsNavigating(true)
         window.open(url, '_blank')
@@ -1087,6 +1112,7 @@ export default function CourseViewPage({
       }
       //window.open(item.resource_url, '_blank')
     } else {
+      console.log('[download-trace] decision=open-inline-viewer desktop mode', { id: item.id, filetype: item.filetype })
       setSelectedContent(item)
       setSelectedFileId(item.id)
       setShowViewer(true)
@@ -1106,10 +1132,13 @@ export default function CourseViewPage({
     const url = getContentUrl(item)
     if (url) {
       if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+        console.log('[download-trace] openInNewTab decision=open-office-viewer by mime', { id: item.id, filetype: item.filetype })
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`, '_blank')
-      } else if (item.filetype === "") {
+      } else if (item.filetype === "application/x-ipynb+json" || item.filetype === "") {
+        console.log('[download-trace] openInNewTab decision=download', { id: item.id, filetype: item.filetype })
         handleDownloadClick(item)
       } else {
+        console.log('[download-trace] openInNewTab decision=open-resource default', { id: item.id, filetype: item.filetype, url })
         window.open(url, '_blank')
       }
     }

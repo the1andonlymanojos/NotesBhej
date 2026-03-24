@@ -45,6 +45,7 @@ function buildFilename(
   const safe = (item.title || "file").replace(/[^a-z0-9\-_. ]/gi, "_")
   const type = (item.filetype || contentType || "").toLowerCase()
   if (!type) return safe + ".pdf"
+  if (type.includes("application/x-ipynb+json")) return safe + ".ipynb"
   if (type.includes("pdf")) return safe + ".pdf"
   if (type.includes("word")) return safe + ".docx"
   if (type.includes("sheet") || type.includes("excel")) return safe + ".xlsx"
@@ -180,7 +181,7 @@ export default function ManageContributionsPage() {
       ft.includes("powerpoint")
     ) {
       window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`, "_blank")
-    } else if (!ft) {
+    } else if (ft.includes("application/x-ipynb+json") || !ft) {
       handleDownload(item)
     } else {
       window.open(url, "_blank")
