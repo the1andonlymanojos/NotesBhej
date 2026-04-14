@@ -206,6 +206,11 @@ export async function apiGetCourseContentForCourse(courseId: number): Promise<Ap
   return fetchApiBrowser<ApiCourseContentResponse>(`/api/v1/course-content/${courseId}`);
 }
 
+/** GET /api/v1/course-content/pending — moderation queue (pending review) */
+export async function apiGetCourseContentPendingReview(): Promise<ApiCourseContentResponse> {
+  return fetchApiBrowser<ApiCourseContentResponse>("/api/v1/course-content/pending");
+}
+
 /** PATCH /api/v1/course-content/approve/{id} — moderation visibility update */
 export async function apiPatchCourseContentVisibility(
   id: number,

@@ -2,11 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Database } from "@/types/supabase"
+import {
+  apiCreateInteraction,
+  apiGetCourseContentPendingReview,
+  apiGetCourses,
+  apiGetMe,
+  apiGetProfessors,
+  apiGetTags,
+  apiPatchCourseContent,
+  apiPatchCourseContentVisibility,
+} from "@/lib/api/client"
+import type { ApiCourse, ApiCourseContentDTO, ApiProfessor, ApiTag, ApiUser } from "@/lib/api/types"
 import {
   Table,
   TableBody,
@@ -54,180 +63,97 @@ import {
   Clock,
   AlertTriangle,
   Edit,
-  Tag,
   Megaphone
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { User as SupabaseUser } from "@supabase/supabase-js"
 import { toast } from "sonner"
 
-type CourseContent = Database["public"]["Tables"]["course_contentnew"]["Row"]
-type Course = Database["public"]["Tables"]["coursenew"]["Row"]
-type Professor = Database["public"]["Tables"]["professorsnew"]["Row"]
-//type UserMeta = Database["public"]["Tables"]["user_meta"]["Row"]
-type Tag = Database["public"]["Tables"]["tags"]["Row"]
-
-// Type for content with joined course and professor data
-type ContentWithJoins = CourseContent & {
-  coursenew: {
-    title: string
-    code: string
-  } | null
-  professorsnew: {
-    name: string
-  } | null
-}
-
-// Enhanced content type with course and professor info
-type EnhancedContent = CourseContent & {
-  course_name?: string
-  course_code?: string
-  professor_name?: string
+type PendingContentItem = ApiCourseContentDTO & {
+  courseId?: number
+  courseTitle?: string
+  courseCode?: string
+  professorName?: string
 }
 
 export default function ContentModerationPage() {
   const router = useRouter()
-  const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [pendingContent, setPendingContent] = useState<EnhancedContent[]>([])
+  const [user, setUser] = useState<ApiUser | null>(null)
+  const [pendingContent, setPendingContent] = useState<PendingContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [actionLoading, setActionLoading] = useState<number | null>(null)
-  const [userRole, setUserRole] = useState<string | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
-  const [editingContent, setEditingContent] = useState<EnhancedContent | null>(null)
+  const [editingContent, setEditingContent] = useState<PendingContentItem | null>(null)
   const [editLoading, setEditLoading] = useState(false)
-  const [allCourses, setAllCourses] = useState<Course[]>([])
-  const [allProfessors, setAllProfessors] = useState<Professor[]>([])
-  const [allTags, setAllTags] = useState<Tag[]>([])
-  const [userID, setUserID] = useState<string | null>(null)
+  const [allCourses, setAllCourses] = useState<ApiCourse[]>([])
+  const [allProfessors, setAllProfessors] = useState<ApiProfessor[]>([])
+  const [allTags, setAllTags] = useState<ApiTag[]>([])
   const [editingTag, setEditingTag] = useState<number | null>(null)
-  const supabase = createClient()
 
-  // Check if user is admin based on user_meta table
-  const isAdmin = (role: string | null) => {
-    if (!role) return false
-    return role === 'admin' || role === 'moderator' || role === 'super_admin'
-  }
+  const isAdmin = (role?: string | null) => role === "ADMIN" || role === "MODERATOR"
 
-  // Fetch user role from user_meta table
-  const fetchUserRole = async (userId: string) => {
+  const loadReferenceData = async () => {
     try {
-      const { data, error } = await supabase
-        .from("user_meta")
-        .select("role")
-        .eq("user_id", userId)
-        .single()
-
-      if (error) {
-        console.error("Error fetching user role:", error)
-        setUserRole(null)
-        return
-      }
-
-      setUserRole(data?.role || null)
-    } catch (error) {
-      console.error("Error fetching user role:", error)
-      setUserRole(null)
-    } finally {
-      setRoleLoading(false)
-    }
-  }
-
-  // Fetch all courses, professors, and tags for the edit form
-  const fetchCoursesAndProfessors = async () => {
-    try {
-      const [coursesResult, professorsResult, tagsResult] = await Promise.all([
-        supabase.from("coursenew").select("*").order("title"),
-        supabase.from("professorsnew").select("*").order("name"),
-        supabase.from("tags").select("*").order("name")
+      const [courses, professors, tags] = await Promise.all([
+        apiGetCourses(),
+        apiGetProfessors(),
+        apiGetTags(),
       ])
-
-      if (coursesResult.data) setAllCourses(coursesResult.data)
-      if (professorsResult.data) setAllProfessors(professorsResult.data)
-      if (tagsResult.data) setAllTags(tagsResult.data)
+      setAllCourses(courses ?? [])
+      setAllProfessors(professors ?? [])
+      setAllTags(tags ?? [])
     } catch (error) {
-      console.error("Error fetching courses, professors, and tags:", error)
+      console.error("Error fetching reference data:", error)
     }
   }
 
-  useEffect(() => {
-    // Check for user session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      
-      if (!currentUser) {
-        router.push('/')
-        return
-      }
-      
-      // Fetch user role from user_meta table
-      setUserID(currentUser.id)
-      fetchUserRole(currentUser.id)
-    })
+  const resolveCourseMeta = (item: any, coursesById: Map<number, ApiCourse>) => {
+    const courseId: number | undefined =
+      typeof item?.courseId === "number"
+        ? item.courseId
+        : typeof item?.course_id === "number"
+          ? item.course_id
+          : typeof item?.course?.id === "number"
+            ? item.course.id
+            : undefined
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      
-      if (!currentUser) {
-        router.push('/')
-        return
-      }
-      
-      // Fetch user role from user_meta table
-      fetchUserRole(currentUser.id)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [router, supabase.auth])
-
-  useEffect(() => {
-    if (user && isAdmin(userRole) && !roleLoading) {
-      fetchPendingContent()
-      fetchCoursesAndProfessors()
+    const course = courseId != null ? coursesById.get(courseId) : undefined
+    return {
+      courseId,
+      courseTitle: item?.courseTitle ?? item?.course_title ?? item?.course?.title ?? course?.title ?? undefined,
+      courseCode: item?.courseCode ?? item?.course_code ?? item?.course?.code ?? course?.code ?? undefined,
     }
-  }, [user, userRole, roleLoading, supabase])
+  }
 
   const fetchPendingContent = async () => {
     try {
       setLoading(true)
-      
-      // Fetch pending content with course and professor details
-      const { data, error } = await supabase
-        .from("course_contentnew")
-        .select(`
-          *,
-          coursenew (
-            title,
-            code
-          ),
-          professorsnew (
-            name
-          )
-        `)
-        .eq("visible", false)
-        .or("deleted.is.null,deleted.eq.false")
-        .order("created_at", { ascending: false })
+      const [pending, courses] = await Promise.all([
+        apiGetCourseContentPendingReview(),
+        apiGetCourses(),
+      ])
 
-      if (error) {
-        console.error("Error fetching pending content:", error)
-        toast.error("Failed to load pending content")
-        return
-      }
+      const coursesById = new Map<number, ApiCourse>()
+      ;(courses ?? []).forEach((c) => {
+        if (c.id != null) coursesById.set(c.id, c)
+      })
 
-      // Transform the data to include course and professor names
-      const enhancedData: EnhancedContent[] = (data || []).map((item: ContentWithJoins) => ({
-        ...item,
-        course_name: item.coursenew?.title,
-        course_code: item.coursenew?.code,
-        professor_name: item.professorsnew?.name,
-      }))
+      const profById = pending?.professors ?? {}
+      const enhanced: PendingContentItem[] = (pending?.content ?? []).map((raw: any) => {
+        const base: ApiCourseContentDTO = raw
+        const professorId = (raw?.professorId ?? raw?.professor_id) as number | undefined
+        const professorName =
+          professorId != null ? profById[String(professorId)]?.name : undefined
+        const courseMeta = resolveCourseMeta(raw, coursesById)
+        return {
+          ...base,
+          professorId,
+          professorName,
+          ...courseMeta,
+        }
+      })
 
-      setPendingContent(enhancedData)
+      setPendingContent(enhanced)
     } catch (error) {
       console.error("Error fetching pending content:", error)
       toast.error("Failed to load pending content")
@@ -236,47 +162,49 @@ export default function ContentModerationPage() {
     }
   }
 
-  const handleApprove = async (content: EnhancedContent) => {
-    const contentId = content.id
-    const courseId = content.course_id ?? 0
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        setRoleLoading(true)
+        const me = await apiGetMe()
+        if (cancelled) return
+        setUser(me ?? null)
+      } catch (error) {
+        if (cancelled) return
+        setUser(null)
+      } finally {
+        if (!cancelled) setRoleLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
+  useEffect(() => {
+    if (user && isAdmin(user.role) && !roleLoading) {
+      loadReferenceData()
+      fetchPendingContent()
+    }
+  }, [user, roleLoading])
+
+  const handleApprove = async (content: PendingContentItem) => {
+    const contentId = content.id ?? 0
+    const courseId = content.courseId
     try {
       setActionLoading(contentId)
-
-      // If this is a revision (has prev_ptr), mark the previous version invisible when we approve
-      if (content.prev_ptr != null) {
-        const { error: prevError } = await supabase
-          .from("course_contentnew")
-          .update({ visible: false, deleted: true })
-          .eq("id", content.prev_ptr)
-
-        if (prevError) {
-          console.error("Error hiding previous version:", prevError)
-          toast.error("Failed to hide previous version")
-          return
-        }
+      await apiPatchCourseContentVisibility(contentId, "VISIBLE")
+      if (courseId != null) {
+        await apiCreateInteraction({
+          courseId,
+          contentId,
+          type: "approve",
+        })
       }
-
-      const { error } = await supabase
-        .from("course_contentnew")
-        .update({ visible: true })
-        .eq("id", contentId)
-
-      if (error) {
-        console.error("Error approving content:", error)
-        toast.error("Failed to approve content")
-        return
-      }
-      await supabase
-            .from("user_course_interaction")
-            .insert({
-              user_id: userID,
-              course_id: courseId || null,
-              content_id: contentId || null,
-              interaction_type: "approve"
-            })
       toast.success("Content approved successfully")
       // Remove from pending list
-      setPendingContent(prev => prev.filter(item => item.id !== contentId))
+      setPendingContent((prev) => prev.filter((item) => item.id !== contentId))
     } catch (error) {
       console.error("Error approving content:", error)
       toast.error("Failed to approve content")
@@ -285,35 +213,20 @@ export default function ContentModerationPage() {
     }
   }
 
-  const handleDeny = async (contentId: number, courseId: number) => {
+  const handleDeny = async (contentId: number, courseId?: number) => {
     try {
       setActionLoading(contentId)
-      
-      // For denial, you might want to either delete the content or mark it differently
-      // For now, I'll delete it, but you could add a "denied" status instead
-      const { error } = await supabase
-        .from("course_contentnew")
-        .update({ deleted: true })
-        .eq("id", contentId)
-
-      if (error) {
-        console.error("Error denying content:", error)
-        toast.error("Failed to deny content")
-        return
+      await apiPatchCourseContentVisibility(contentId, "DELETED")
+      if (courseId != null) {
+        await apiCreateInteraction({
+          courseId,
+          contentId,
+          type: "deny",
+        })
       }
-
-      await supabase
-      .from("user_course_interaction")
-      .insert({
-        user_id: userID,
-        course_id: courseId || null,
-        content_id: contentId || null,
-        interaction_type: "deny"
-      })
       toast.success("Content denied and removed")
       // Remove from pending list
-   
-      setPendingContent(prev => prev.filter(item => item.id !== contentId))
+      setPendingContent((prev) => prev.filter((item) => item.id !== contentId))
     } catch (error) {
       console.error("Error denying content:", error)
       toast.error("Failed to deny content")
@@ -327,37 +240,44 @@ export default function ContentModerationPage() {
 
     try {
       setEditLoading(true)
-      
-              const { error } = await supabase
-        .from("course_contentnew")
-        .update({
-          title: editingContent.title,
-          year: editingContent.year,
-          semester_number: editingContent.semester_number,
-          batch: editingContent.batch,
-          course_id: editingContent.course_id,
-          professor_id: editingContent.professor_id,
-          tag_ids: editingTag ? [editingTag] : null,
-        })
-        .eq("id", editingContent.id)
-
-      if (error) {
-        console.error("Error updating content:", error)
-        toast.error("Failed to update content")
-        return
-      }
+      const contentId = editingContent.id ?? 0
+      await apiPatchCourseContent(contentId, {
+        title: editingContent.title,
+        year: editingContent.year,
+        semesterNumber: editingContent.semesterNumber,
+        batch: editingContent.batch,
+        professorId: editingContent.professorId ?? null,
+        tagIds: editingTag != null ? [editingTag] : [],
+      })
 
       toast.success("Content updated successfully")
       
       // Update the content in the list
-      setPendingContent(prev => 
-        prev.map(item => 
-          item.id === editingContent.id 
+      setPendingContent((prev) =>
+        prev.map((item) =>
+          item.id === contentId
             ? {
+                ...item,
                 ...editingContent,
-                course_name: allCourses.find(c => c.id === editingContent.course_id)?.title,
-                course_code: allCourses.find(c => c.id === editingContent.course_id)?.code,
-                professor_name: allProfessors.find(p => p.id === editingContent.professor_id)?.name,
+                courseTitle:
+                  editingContent.courseTitle ??
+                  (editingContent.courseId != null
+                    ? allCourses.find((c) => c.id === editingContent.courseId)?.title
+                    : undefined),
+                courseCode:
+                  editingContent.courseCode ??
+                  (editingContent.courseId != null
+                    ? allCourses.find((c) => c.id === editingContent.courseId)?.code
+                    : undefined),
+                professorName:
+                  editingContent.professorName ??
+                  (editingContent.professorId != null
+                    ? allProfessors.find((p) => p.id === editingContent.professorId)?.name
+                    : undefined),
+                tags:
+                  editingTag != null
+                    ? allTags.filter((t) => t.id === editingTag)
+                    : [],
               }
             : item
         )
@@ -373,11 +293,11 @@ export default function ContentModerationPage() {
   }
 
   const filteredContent = pendingContent.filter(content => 
-    content.title.toLowerCase().includes(search.toLowerCase()) ||
-    content.course_name?.toLowerCase().includes(search.toLowerCase()) ||
-    content.course_code?.toLowerCase().includes(search.toLowerCase()) ||
-    content.professor_name?.toLowerCase().includes(search.toLowerCase()) ||
-    content.updated_at?.toLowerCase().includes(search.toLowerCase())
+    (content.title ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    (content.courseTitle ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    (content.courseCode ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    (content.professorName ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    (content.updatedAt ?? content.createdAt ?? "").toLowerCase().includes(search.toLowerCase())
   )
 
   const formatDate = (dateString: string) => {
@@ -392,7 +312,7 @@ export default function ContentModerationPage() {
 
   if (roleLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] flex items-center justify-center">
+      <div className="min-h-screen bg-white/50 dark:bg-zinc-900/60 flex items-center justify-center p-3 sm:p-4">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
           <p className="text-zinc-600 dark:text-zinc-400">Checking permissions...</p>
@@ -401,16 +321,16 @@ export default function ContentModerationPage() {
     )
   }
 
-  if (!user || !isAdmin(userRole)) {
+  if (!user || !isAdmin(user.role)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 flex items-center justify-center">
+      <div className="min-h-screen bg-white/50 dark:bg-zinc-900/60 flex items-center justify-center p-3 sm:p-4">
         <div className="text-center">
           <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-red-700 dark:text-red-300 mb-2">Access Denied</h1>
           <p className="text-red-600 dark:text-red-400">You need admin privileges to access this page.</p>
-          {userRole && (
+          {user?.role && (
             <p className="text-red-500 dark:text-red-300 text-sm mt-2">
-              Your current role: {userRole}
+              Your current role: {user.role}
             </p>
           )}
         </div>
@@ -419,7 +339,7 @@ export default function ContentModerationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] dark:from-[#18181b] dark:via-[#312e81] dark:to-[#0f172a] transition-colors duration-500 p-3 sm:p-4">
+    <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 transition-colors duration-500 p-3 sm:p-4">
       <div className="max-w-7xl mx-auto pt-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -509,29 +429,26 @@ export default function ContentModerationPage() {
                     <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {content.title}
+                          {content.title ?? ""}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                           <Badge variant="outline" className="text-xs">
-                            {content.year} - Semester {content.semester_number}
+                            {content.year} - Semester {content.semesterNumber}
                           </Badge>
                           <Badge variant="outline" className="text-xs">
                             {content.batch}
                           </Badge>
                         </div>
-                        {content.tag_ids && content.tag_ids.length > 0 && (
+                        {content.tags && content.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {content.tag_ids.slice(0, 3).map((tagId) => {
-                              const tag = allTags.find(t => t.id === tagId)
-                              return tag ? (
-                                <Badge key={tagId} variant="secondary" className="text-xs px-2 py-0.5">
-                                  {tag.name}
-                                </Badge>
-                              ) : null
-                            })}
-                            {content.tag_ids.length > 3 && (
+                            {content.tags.slice(0, 3).map((tag) => (
+                              <Badge key={tag.id} variant="secondary" className="text-xs px-2 py-0.5">
+                                {tag.name}
+                              </Badge>
+                            ))}
+                            {content.tags.length > 3 && (
                               <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                                +{content.tag_ids.length - 3} more
+                                +{content.tags.length - 3} more
                               </Badge>
                             )}
                           </div>
@@ -541,10 +458,10 @@ export default function ContentModerationPage() {
                     <TableCell>
                       <div>
                         <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {content.course_name || 'N/A'}
+                          {content.courseTitle || 'N/A'}
                         </div>
                         <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-                          {content.course_code || 'N/A'}
+                          {content.courseCode || 'N/A'}
                         </div>
                       </div>
                     </TableCell>
@@ -552,14 +469,14 @@ export default function ContentModerationPage() {
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-zinc-500" />
                         <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                          {content.professor_name || 'N/A'}
+                          {content.professorName || 'N/A'}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                         <Calendar className="h-4 w-4" />
-                        <span>{formatDate(content.updated_at || content.created_at)}</span>
+                        <span>{formatDate((content.updatedAt || content.createdAt) ?? new Date().toISOString())}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -567,8 +484,9 @@ export default function ContentModerationPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(content.resource_url, '_blank')}
+                          onClick={() => content.resourceUrl && window.open(content.resourceUrl, '_blank')}
                           className="h-8 px-2"
+                          disabled={!content.resourceUrl}
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
@@ -578,7 +496,7 @@ export default function ContentModerationPage() {
                           variant="outline"
                           onClick={() => {
                             setEditingContent(content)
-                            setEditingTag(content.tag_ids && content.tag_ids.length > 0 ? content.tag_ids[0] : null)
+                            setEditingTag(content.tags && content.tags.length > 0 ? (content.tags[0].id ?? null) : null)
                           }}
                           className="h-8 px-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950"
                         >
@@ -636,7 +554,7 @@ export default function ContentModerationPage() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleDeny(content.id, content.course_id == null ? 0 : content.course_id)}
+                                onClick={() => handleDeny(content.id ?? 0, content.courseId)}
                                 className="bg-red-600 hover:bg-red-700"
                               >
                                 Deny
@@ -675,7 +593,7 @@ export default function ContentModerationPage() {
                     Title
                   </label>
                   <Input
-                    value={editingContent.title}
+                    value={editingContent.title ?? ""}
                     onChange={(e) => setEditingContent(prev => prev ? { ...prev, title: e.target.value } : null)}
                     placeholder="Content title"
                   />
@@ -690,7 +608,7 @@ export default function ContentModerationPage() {
                     </label>
                     <Input
                       type="number"
-                      value={editingContent.year}
+                      value={editingContent.year ?? ""}
                       onChange={(e) => setEditingContent(prev => prev ? { ...prev, year: parseInt(e.target.value) } : null)}
                       placeholder="2024"
                     />
@@ -701,8 +619,8 @@ export default function ContentModerationPage() {
                     </label>
                     <Input
                       type="number"
-                      value={editingContent.semester_number}
-                      onChange={(e) => setEditingContent(prev => prev ? { ...prev, semester_number: parseInt(e.target.value) } : null)}
+                      value={editingContent.semesterNumber ?? ""}
+                      onChange={(e) => setEditingContent(prev => prev ? { ...prev, semesterNumber: parseInt(e.target.value) } : null)}
                       placeholder="1"
                       min="1"
                       max="8"
@@ -715,7 +633,7 @@ export default function ContentModerationPage() {
                     Batch
                   </label>
                   <Input
-                    value={editingContent.batch}
+                    value={editingContent.batch ?? ""}
                     onChange={(e) => setEditingContent(prev => prev ? { ...prev, batch: e.target.value } : null)}
                     placeholder="2024-2028"
                   />
@@ -726,15 +644,17 @@ export default function ContentModerationPage() {
                     Course
                   </label>
                   <Select
-                    value={editingContent.course_id?.toString() || ''}
-                    onValueChange={(value) => setEditingContent(prev => prev ? { ...prev, course_id: value ? parseInt(value) : null } : null)}
+                    value={editingContent.courseId?.toString() || ''}
+                    onValueChange={(value) => setEditingContent(prev => prev ? { ...prev, courseId: value ? parseInt(value) : undefined } : null)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a course" />
                     </SelectTrigger>
                     <SelectContent>
-                      {allCourses.map((course) => (
-                        <SelectItem key={course.id} value={course.id.toString()}>
+                      {allCourses
+                        .filter((c) => c.id != null)
+                        .map((course) => (
+                        <SelectItem key={course.id} value={course.id!.toString()}>
                           {course.code} - {course.title}
                         </SelectItem>
                       ))}
@@ -747,15 +667,17 @@ export default function ContentModerationPage() {
                     Professor
                   </label>
                   <Select
-                    value={editingContent.professor_id?.toString() || ''}
-                    onValueChange={(value) => setEditingContent(prev => prev ? { ...prev, professor_id: value ? parseInt(value) : null } : null)}
+                    value={editingContent.professorId?.toString() || ''}
+                    onValueChange={(value) => setEditingContent(prev => prev ? { ...prev, professorId: value ? parseInt(value) : undefined } : null)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a professor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {allProfessors.map((professor) => (
-                        <SelectItem key={professor.id} value={professor.id.toString()}>
+                      {allProfessors
+                        .filter((p) => p.id != null)
+                        .map((professor) => (
+                        <SelectItem key={professor.id} value={professor.id!.toString()}>
                           {professor.name}
                         </SelectItem>
                       ))}
@@ -779,11 +701,11 @@ export default function ContentModerationPage() {
                     >
                       None
                     </button>
-                    {allTags.map((tag) => (
+                    {allTags.filter((t) => t.id != null).map((tag) => (
                       <button
                         key={tag.id}
                         type="button"
-                        onClick={() => setEditingTag(tag.id)}
+                        onClick={() => setEditingTag(tag.id!)}
                         className={`px-3 py-1 text-sm rounded-md border transition-colors ${
                           editingTag === tag.id
                             ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700"
