@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { BookOpen } from "lucide-react"
 import { getApiBaseUrl } from "@/lib/api/client"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -18,13 +18,17 @@ import {
 function UnauthorizedDomainWatcher({
   onUnauthorizedDomain,
 }: {
-  onUnauthorizedDomain: () => void
+  onUnauthorizedDomain: (cleanHref: string) => void
 }) {
   const searchParams = useSearchParams()
 
   useEffect(() => {
     if (searchParams?.get("error") === "unauthorized_domain") {
-      onUnauthorizedDomain()
+      const redirect = searchParams.get("redirect")
+      const cleanHref = redirect
+        ? `/nextlogin?redirect=${encodeURIComponent(redirect)}`
+        : "/nextlogin"
+      onUnauthorizedDomain(cleanHref)
     }
   }, [onUnauthorizedDomain, searchParams])
 
@@ -34,6 +38,15 @@ function UnauthorizedDomainWatcher({
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [unauthorizedDomainOpen, setUnauthorizedDomainOpen] = useState(false)
+  const [cleanLoginHref, setCleanLoginHref] = useState("/nextlogin")
+  const router = useRouter()
+
+  const handleUnauthorizedDomainDialogChange = (open: boolean) => {
+    setUnauthorizedDomainOpen(open)
+    if (!open) {
+      router.replace(cleanLoginHref)
+    }
+  }
 
   const handleGoogleLogin = () => {
     const redirectTo =
@@ -51,10 +64,15 @@ export default function LoginPage() {
       </div>
 
       <Suspense fallback={null}>
-        <UnauthorizedDomainWatcher onUnauthorizedDomain={() => setUnauthorizedDomainOpen(true)} />
+        <UnauthorizedDomainWatcher
+          onUnauthorizedDomain={(href) => {
+            setCleanLoginHref(href)
+            setUnauthorizedDomainOpen(true)
+          }}
+        />
       </Suspense>
 
-      <Dialog open={unauthorizedDomainOpen} onOpenChange={setUnauthorizedDomainOpen}>
+      <Dialog open={unauthorizedDomainOpen} onOpenChange={handleUnauthorizedDomainDialogChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Use your college email</DialogTitle>
@@ -67,7 +85,7 @@ export default function LoginPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => setUnauthorizedDomainOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => handleUnauthorizedDomainDialogChange(false)}>
               Got it
             </Button>
           </DialogFooter>
