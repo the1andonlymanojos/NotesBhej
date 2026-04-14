@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { BookOpen } from "lucide-react"
@@ -15,16 +15,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-export default function LoginPage() {
-  const [loading, setLoading] = useState(false)
-  const [unauthorizedDomainOpen, setUnauthorizedDomainOpen] = useState(false)
+function UnauthorizedDomainWatcher({
+  onUnauthorizedDomain,
+}: {
+  onUnauthorizedDomain: () => void
+}) {
   const searchParams = useSearchParams()
 
   useEffect(() => {
     if (searchParams?.get("error") === "unauthorized_domain") {
-      setUnauthorizedDomainOpen(true)
+      onUnauthorizedDomain()
     }
-  }, [searchParams])
+  }, [onUnauthorizedDomain, searchParams])
+
+  return null
+}
+
+export default function LoginPage() {
+  const [loading, setLoading] = useState(false)
+  const [unauthorizedDomainOpen, setUnauthorizedDomainOpen] = useState(false)
 
   const handleGoogleLogin = () => {
     const redirectTo =
@@ -40,6 +49,10 @@ export default function LoginPage() {
       <div className="fixed top-4 right-4 z-10">
         <ThemeToggle />
       </div>
+
+      <Suspense fallback={null}>
+        <UnauthorizedDomainWatcher onUnauthorizedDomain={() => setUnauthorizedDomainOpen(true)} />
+      </Suspense>
 
       <Dialog open={unauthorizedDomainOpen} onOpenChange={setUnauthorizedDomainOpen}>
         <DialogContent className="sm:max-w-md">
