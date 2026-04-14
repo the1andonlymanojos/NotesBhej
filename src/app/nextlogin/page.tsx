@@ -1,13 +1,31 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { BookOpen } from "lucide-react"
 import { getApiBaseUrl } from "@/lib/api/client"
+import { useSearchParams } from "next/navigation"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
+  const [unauthorizedDomainOpen, setUnauthorizedDomainOpen] = useState(false)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams?.get("error") === "unauthorized_domain") {
+      setUnauthorizedDomainOpen(true)
+    }
+  }, [searchParams])
+
   const handleGoogleLogin = () => {
     const redirectTo =
       typeof window !== "undefined"
@@ -22,6 +40,26 @@ export default function LoginPage() {
       <div className="fixed top-4 right-4 z-10">
         <ThemeToggle />
       </div>
+
+      <Dialog open={unauthorizedDomainOpen} onOpenChange={setUnauthorizedDomainOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Use your college email</DialogTitle>
+            <DialogDescription>
+              Listen up; please sign in using your college ID email ending with{" "}
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">@iiitm.ac.in</span>.
+              <br />
+              <br />
+              We do this to make sure only IIITM students can access the content.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => setUnauthorizedDomainOpen(false)}>
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="w-full max-w-md bg-white/80 dark:bg-zinc-900/80 shadow-2xl rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 backdrop-blur-lg">
         <div className="flex items-center gap-3 mb-8">
