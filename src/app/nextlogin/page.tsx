@@ -101,7 +101,13 @@ export default function LoginPage() {
         </div>
 
         <p className="text-zinc-600 dark:text-zinc-300 mb-8 text-center">
-          Sign in to access your course content and resources
+          Sign in to access your course content and resources.
+          <br />
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+            Please use your college email ID ending with{" "}
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">@iiitm.ac.in</span>.
+            {" "}If you already have an account, you can continue with the email you used previously.
+          </span>
         </p>
 
         <div className="space-y-4">
