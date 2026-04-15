@@ -932,6 +932,14 @@ export default function HomePage({ initialData }: HomePageProps) {
               <span className="hidden sm:inline ml-3 text-[15px] sm:text-m text-zinc-700 dark:text-zinc-200">
                 Ctrl/Cmd+click opens in new tab
               </span>
+              <a
+                href="https://stats.uptimerobot.com/cptBp0En6X"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline ml-3 text-xs sm:text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline underline-offset-2"
+              >
+                Check out our uptime status page
+              </a>
             </div>
 
             {/* Desktop: background/theme selector to the right of View row */}
