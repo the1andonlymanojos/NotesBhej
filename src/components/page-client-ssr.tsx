@@ -207,8 +207,6 @@ export default function CourseViewPage({
   const [adminRejecting, setAdminRejecting] = useState(false)
   const [downloadAllState, setDownloadAllState] = useState<Record<string, { progress: number, active: boolean, completed: number, total: number }>>({})
   const downloadAllControllers = useRef<Map<string, AbortController>>(new Map())
-  const [isNavigating, setIsNavigating] = useState(false)
-  const [navigatingTo, setNavigatingTo] = useState<string | null>(null)
   const [reorderMode, setReorderMode] = useState(false)
   const [sharing, setSharing] = useState(false)
 
@@ -948,14 +946,7 @@ export default function CourseViewPage({
       return
     }
 
-    try {
-      setNavigatingTo(`Add Content`)
-      setIsNavigating(true)
-      router.push(`/add-content/${courseId}`)
-    } catch (error) {
-      console.error("Error checking auth for add content:", error)
-      setShowLoginDialog(true)
-    }
+    router.push(`/add-content/${courseId}`)
   }
 
   // Sort enhanced content when sortBy changes
@@ -1162,17 +1153,11 @@ export default function CourseViewPage({
       setSelectedFileId(item.id)
       if (item.filetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || item.filetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || item.filetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || item.filetype === "application/wps-office.pptx") {
         console.log('[download-trace:ssr] decision=open-office-viewer by mime', { id: item.id, filetype: item.filetype })
-        setNavigatingTo("Office Viewer")
-        setIsNavigating(true)
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
-        setTimeout(() => setIsNavigating(false), 1500)
       } 
       else if (url && (url.toLowerCase().endsWith('.pptx') || url.toLowerCase().endsWith('.docx') || url.toLowerCase().endsWith('.xlsx'))) {
         console.log('[download-trace:ssr] decision=open-office-viewer by extension', { id: item.id, url })
-        setNavigatingTo("Office Viewer")
-        setIsNavigating(true)
         window.open(`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}` , '_blank')
-        setTimeout(() => setIsNavigating(false), 1500)
       }
       else if(item.filetype === "application/x-ipynb+json"){
         console.log('[download-trace:ssr] decision=download by ipynb mime', { id: item.id, filetype: item.filetype })
@@ -1184,10 +1169,7 @@ export default function CourseViewPage({
       }
       else {
         console.log('[download-trace:ssr] decision=open-resource default', { id: item.id, filetype: item.filetype, url })
-        setNavigatingTo("Resource")
-        setIsNavigating(true)
         window.open(url, '_blank')
-        setTimeout(() => setIsNavigating(false), 1500)
       }
       //window.open(item.resource_url, '_blank')
     } else {
@@ -1552,24 +1534,6 @@ export default function CourseViewPage({
 
   return (
     <div className="min-h-screen dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/60 transition-colors duration-500 p-4 sm:p-6">
-      {isNavigating && (
-        <div className="fixed inset-0 z-50 backdrop-blur-sm bg-black/30 flex items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="px-4 py-3 rounded-xl bg-white/90 dark:bg-zinc-900/90 border border-white/40 dark:border-white/10 shadow-2xl text-center"
-          >
-            <div className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Navigating to</div>
-            <div className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{navigatingTo || 'Destination'}</div>
-            <div className="mt-2 flex items-center justify-center gap-1 text-indigo-600 dark:text-indigo-300">
-              <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></div>
-              <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:120ms]"></div>
-              <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:240ms]"></div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div 
@@ -1582,7 +1546,7 @@ export default function CourseViewPage({
           <div className="flex flex-col sm:hidden">
             <div className="flex items-center gap-1">
               <Button
-                onClick={() => { setNavigatingTo("Home"); setIsNavigating(true); router.push("/") }}
+                onClick={() => router.push("/")}
                 variant="ghost"
                 className="hover:bg-white/50 dark:hover:bg-zinc-800/50 p-2"
               >
@@ -1614,7 +1578,7 @@ export default function CourseViewPage({
           {/* Desktop: Horizontal layout */}
           <div className="hidden sm:flex items-center gap-4">
             <Button
-              onClick={() => { setNavigatingTo("Home"); setIsNavigating(true); router.push("/") }}
+              onClick={() => router.push("/")}
               variant="ghost"
               className="hover:bg-white/50 dark:hover:bg-zinc-800/50 p-3"
             >
@@ -2161,8 +2125,6 @@ export default function CourseViewPage({
                               setShowLoginDialog(true)
                               return
                             }
-                            setNavigatingTo("Add Content")
-                            setIsNavigating(true)
                             router.push(`/add-content/${courseId}?${params.toString()}`)
 
                           } catch (error) {
@@ -2760,12 +2722,7 @@ export default function CourseViewPage({
               <Button 
                 onClick={() => {
                   const url = adminPopupContent ? getContentUrl(adminPopupContent) : null
-                  if (url) {
-                    setNavigatingTo("Resource")
-                    setIsNavigating(true)
-                    window.open(url, '_blank')
-                    setTimeout(() => setIsNavigating(false), 1500)
-                  }
+                  if (url) window.open(url, '_blank')
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
               >
