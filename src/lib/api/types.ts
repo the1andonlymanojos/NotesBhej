@@ -195,3 +195,10 @@ export interface ApiCreateAnnouncementRequest {
   link?: string | null;
   expiresAt?: string | null;
 }
+
+/** GET /api/v1/course-content/leaderboard item */
+export interface ApiLeaderboardEntry {
+  userId?: number;
+  username?: string;
+  contributionCount?: number;
+}

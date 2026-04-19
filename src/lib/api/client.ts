@@ -24,6 +24,7 @@ import type {
   ApiAnnouncement,
   ApiAnnouncementRead,
   ApiCreateAnnouncementRequest,
+  ApiLeaderboardEntry,
 } from "./types";
 
 /** Direct backend URL for server-side only (build/ISR). No rewrites — use API_SERVER_BASE_URL or localhost:8080. */
@@ -72,6 +73,18 @@ async function fetchApiBrowser<T>(path: string, init?: RequestInit): Promise<T> 
 
 export async function getCourses(): Promise<ApiCourse[]> {
   return fetchApiServer<ApiCourse[]>("/api/v1/courses");
+}
+
+/** GET /api/v1/course-content/leaderboard — top contributors (ISR, short revalidate) */
+export async function getLeaderboard(): Promise<ApiLeaderboardEntry[]> {
+  const path = "/api/v1/course-content/leaderboard";
+  const url = `${getApiBaseUrlServer()}${path}`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    next: { revalidate: 30 },
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  return res.json() as Promise<ApiLeaderboardEntry[]>;
 }
 
 export async function getProfessorCourses(offset = 0, limit = 100): Promise<ApiProfessorCourseDTO[]> {
