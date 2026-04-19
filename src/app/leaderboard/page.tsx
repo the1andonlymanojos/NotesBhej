@@ -214,9 +214,6 @@ export default async function LeaderboardPage() {
                           <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
                             {row.username ?? "Anonymous"}
                           </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            User #{row.userId ?? "—"}
-                          </p>
                         </div>
                         <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400 shrink-0">
                           {(row.contributionCount ?? 0).toLocaleString()}
