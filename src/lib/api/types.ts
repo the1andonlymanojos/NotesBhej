@@ -94,18 +94,21 @@ export interface ApiCreateInteractionRequest {
 
 export type ApiCourseContentVisibility = "PENDING_REVIEW" | "VISIBLE" | "HIDDEN" | "DELETED";
 
-/** GET /api/v1/me response */
+/** GET /api/v1/me response (UserResponseDTO) */
 export interface ApiUser {
   id?: number;
-  userId?: string;
-  googleId?: string;
   email?: string;
   fullName?: string;
   batch?: string;
   profilePictureUrl?: string;
-  adminRequest?: boolean;
-  role?: "STUDENT" | "PROFESSOR" | "MODERATOR" | "ADMIN" | string;
   bgPref?: string;
+  role?: "STUDENT" | "PROFESSOR" | "MODERATOR" | "ADMIN" | string;
+  /** Backend exposes admin-request flag under this name. */
+  userReq?: boolean;
+  /** Kept for backward compatibility with older callers. */
+  adminRequest?: boolean;
+  userId?: string;
+  googleId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -113,6 +116,10 @@ export interface ApiUser {
 /** PATCH /api/v1/me body */
 export interface ApiUpdateMeRequest {
   bgPref?: string;
+  fullName?: string;
+  batch?: string;
+  pfpURL?: string;
+  adminRequest?: boolean;
 }
 
 /** POST /api/v1/feedback body */
