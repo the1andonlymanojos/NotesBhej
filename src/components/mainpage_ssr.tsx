@@ -10,6 +10,7 @@ import {
   apiGetPinnedCoursesMe,
   apiPinCourse,
   apiUnpinCourse,
+  apiGetCourseContentPendingReview,
 } from "@/lib/api/client"
 import type { ApiUser } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
@@ -239,15 +240,19 @@ export default function HomePage({ initialData }: HomePageProps) {
     return normalized === "ADMIN" || normalized === "MODERATOR" || normalized === "SUPER_ADMIN"
   }
 
-  // Fetch pending content count for admins
+  // Fetch pending content count for admins via GET /api/v1/course-content/pending
   const fetchPendingContentCount = async () => {
     if (!isAdmin(userRole)) {
       setPendingContentCount(0)
       return
     }
-    // Pending moderation count endpoint is not exposed yet in the new API.
-    // Keep behavior safe by showing no badge until backend supports it.
-    setPendingContentCount(0)
+    try {
+      const res = await apiGetCourseContentPendingReview()
+      setPendingContentCount(res?.content?.length ?? 0)
+    } catch (error) {
+      console.error("Error fetching pending content count:", error)
+      setPendingContentCount(0)
+    }
   }
 
   useEffect(() => {
@@ -629,6 +634,23 @@ export default function HomePage({ initialData }: HomePageProps) {
                 <kbd className="hidden h-5 rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400 md:inline-flex items-center">⌘K</kbd>
               </Button>
               <AnnouncementsDrawer triggerVariant="ghost" />
+              {!roleLoading && user && isAdmin(userRole) && (
+                <Button
+                  onClick={() => router.push('/admin/content-moderation')}
+                  variant="ghost"
+                  size="sm"
+                  title={pendingContentCount > 0 ? `${pendingContentCount} pending review` : "Content moderation"}
+                  className="relative h-10 gap-2 rounded-lg px-3 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-200"
+                >
+                  <Shield className="h-5 w-5 shrink-0" />
+                  <span className="hidden md:inline text-sm font-medium">Review</span>
+                  {pendingContentCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-sm">
+                      {pendingContentCount > 99 ? "99+" : pendingContentCount}
+                    </span>
+                  )}
+                </Button>
+              )}
               {!authResolved ? (
                 <div className="h-10 w-24 rounded-lg bg-zinc-100/50 dark:bg-zinc-800/30 animate-pulse" aria-hidden />
               ) : user ? (
@@ -639,18 +661,43 @@ export default function HomePage({ initialData }: HomePageProps) {
                       size="sm"
                       className="h-10 gap-1.5 rounded-lg px-2.5 pr-2 hover:bg-white/80 dark:hover:bg-zinc-800/80"
                     >
-                      {user.profilePictureUrl ? (
-                        <div className="relative h-7 w-7 rounded-full overflow-hidden shrink-0">
-                          <Image
-                            src={user.profilePictureUrl}
-                            alt=""
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <User className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-400" />
-                      )}
+                      <div className="relative shrink-0">
+                        {user.profilePictureUrl ? (
+                          <div
+                            className={`relative h-7 w-7 rounded-full overflow-hidden ${
+                              isAdmin(userRole)
+                                ? "ring-2 ring-indigo-400/80 dark:ring-indigo-300/70 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900"
+                                : ""
+                            }`}
+                          >
+                            <Image
+                              src={user.profilePictureUrl}
+                              alt=""
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className={`flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 ${
+                              isAdmin(userRole)
+                                ? "ring-2 ring-indigo-400/80 dark:ring-indigo-300/70 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900"
+                                : ""
+                            }`}
+                          >
+                            <User className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                          </div>
+                        )}
+                        {isAdmin(userRole) && (
+                          <span
+                            aria-label="Admin"
+                            title="Admin"
+                            className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-sm ring-1 ring-white dark:ring-zinc-900"
+                          >
+                            <Shield className="h-2 w-2" strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
                       <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
                     </Button>
                   </DropdownMenuTrigger>
