@@ -2,7 +2,7 @@ import CourseViewPage from "../../../components/page-client-ssr"
 import { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getCourses, getCourseContentForCourse, getMeServer } from "@/lib/api/client";
-export const revalidate = 3600; 
+
 
 
 export async function generateStaticParams() {

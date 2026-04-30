@@ -48,7 +48,6 @@ async function fetchApiServer<T>(path: string): Promise<T> {
   const url = `${getApiBaseUrlServer()}${path}`;
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
-    next: { revalidate: 3600 },
   });
   if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
   console.log("res status", res.status)
@@ -111,7 +110,7 @@ export async function getCourseContentForCourse(
       Accept: "application/json",
       ...(hasCookies ? { Cookie: cookieHeader } : {}),
     },
-    ...(hasCookies ? { cache: "no-store" as const } : { next: { revalidate: 3600 } }),
+    ...(hasCookies ? { cache: "no-store" as const } : { next: { revalidate: 3 } }),
   });
   if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
   return res.json() as Promise<ApiCourseContentResponse>;
