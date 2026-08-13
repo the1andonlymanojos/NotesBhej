@@ -178,6 +178,17 @@ export interface KhaaoDexRelationshipRequest {
   visited: boolean;
 }
 
+export interface KhaaoDexRestaurantCreateRequest {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  cuisine?: string;
+  priceCategory?: KhaaoDexPriceCategory;
+  googlePlaceId: string;
+  categories: KhaaoDexCategory[];
+}
+
 export interface KhaaoDexReviewRequest {
   overallRating?: number | null;
   valueForMoneyRating?: number | null;

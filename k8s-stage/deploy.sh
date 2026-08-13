@@ -30,6 +30,7 @@ docker build --network=host \
   --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
   --build-arg NEXT_PUBLIC_API_BASE_URL="$STAGE_API" \
   --build-arg NEXT_PUBLIC_SITE_URL="$STAGE_API" \
+  --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}" \
   --build-arg API_SERVER_BASE_URL="$STAGE_API" \
   -t "$IMAGE" .
 docker push "$IMAGE"

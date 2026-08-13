@@ -33,6 +33,7 @@ import type {
   KhaaoDexReviewRequest,
   KhaaoDexMyDex,
   KhaaoDexCategory,
+  KhaaoDexRestaurantCreateRequest,
 } from "./types";
 
 export class ApiHttpError extends Error {
@@ -328,6 +329,14 @@ export async function apiGetKhaaoDexRestaurants(params?: {
 
 export async function apiGetKhaaoDexRestaurantDetails(id: number): Promise<KhaaoDexRestaurantDetails> {
   return fetchApiBrowser<KhaaoDexRestaurantDetails>(`/api/v1/khaao-dex/restaurants/${id}`);
+}
+
+export async function apiSubmitKhaaoDexRestaurant(body: KhaaoDexRestaurantCreateRequest): Promise<KhaaoDexRestaurant> {
+  return fetchApiBrowser<KhaaoDexRestaurant>("/api/v1/khaao-dex/restaurants", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function apiUpdateKhaaoDexRelationship(
