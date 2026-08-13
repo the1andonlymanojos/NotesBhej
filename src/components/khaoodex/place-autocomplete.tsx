@@ -16,7 +16,7 @@ type PlaceAutocompleteProps = {
 
 type GooglePlaceResult = {
   id?: string
-  displayName?: { text?: string }
+  displayName?: string | { text?: string }
   formattedAddress?: string
   location?: { lat: () => number; lng: () => number }
 }
@@ -98,9 +98,16 @@ export default function PlaceAutocomplete({ onSelect }: PlaceAutocompleteProps) 
         const place = prediction.toPlace()
         await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "location"] })
         if (!place.id || !place.location) return
+        const displayName = typeof place.displayName === "string"
+          ? place.displayName
+          : place.displayName?.text || ""
+        if (!displayName.trim()) {
+          setError("Google did not return a place name. Please select the result again.")
+          return
+        }
         onSelect({
           googlePlaceId: place.id,
-          name: place.displayName?.text || "",
+          name: displayName.trim(),
           address: place.formattedAddress || "",
           latitude: place.location.lat(),
           longitude: place.location.lng(),
