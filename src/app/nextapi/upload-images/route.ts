@@ -15,22 +15,11 @@ const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT
 // ===== R2 CONFIG =====
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID
-const R2_ACCESS_KEY = process.env.R2_ACESS_KEY_ID
+const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY_ID
 const R2_SECRET_KEY = process.env.R2_SECRET_KEY
 const R2_ENDPOINT = R2_ACCOUNT_ID
   ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
   : undefined
-
-// ===== CONFIGURE S3 CLIENT =====
-const s3Client = new S3Client({
-  region: UseDev ? "us-east-1" : "auto",
-  endpoint: UseDev ? MINIO_ENDPOINT : R2_ENDPOINT,
-  forcePathStyle: UseDev,
-  credentials: {
-    accessKeyId: UseDev ? MINIO_ACCESS_KEY! : R2_ACCESS_KEY!,
-    secretAccessKey: UseDev ? MINIO_SECRET_KEY! : R2_SECRET_KEY!,
-  },
-})
 
 const PublicURL = UseDev
   ? `https://s3.mshiv.net/notes`
@@ -38,6 +27,19 @@ const PublicURL = UseDev
 
 export async function POST(request: Request) {
   try {
+    const bucket = UseDev ? MINIO_BUCKET_NAME : R2_BUCKET_NAME
+    const accessKey = UseDev ? MINIO_ACCESS_KEY : R2_ACCESS_KEY
+    const secretKey = UseDev ? MINIO_SECRET_KEY : R2_SECRET_KEY
+    const endpoint = UseDev ? MINIO_ENDPOINT : R2_ENDPOINT
+    if (!bucket || !accessKey || !secretKey || !endpoint) {
+      return NextResponse.json({ error: "Object storage is not configured" }, { status: 503 })
+    }
+    const s3Client = new S3Client({
+      region: UseDev ? "us-east-1" : "auto",
+      endpoint,
+      forcePathStyle: UseDev,
+      credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+    })
     // Ensure user is logged in
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
 
     // Upload PDF to R2/MinIO
     const command = new PutObjectCommand({
-      Bucket: UseDev ? MINIO_BUCKET_NAME : R2_BUCKET_NAME,
+      Bucket: bucket,
       Key: uniqueFileName,
       ContentType: contentType,
       Body: Buffer.from(pdfBytes),
@@ -182,4 +184,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

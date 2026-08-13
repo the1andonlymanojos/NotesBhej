@@ -15,33 +15,11 @@ const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT
 // ===== R2 CONFIG =====
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID
-const R2_ACCESS_KEY = process.env.R2_ACESS_KEY_ID
+const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY_ID
 const R2_SECRET_KEY = process.env.R2_SECRET_KEY
 const R2_ENDPOINT = R2_ACCOUNT_ID
   ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
   : undefined
-
-// ===== VALIDATION =====
-if (UseDev) {
-  if (!MINIO_BUCKET_NAME || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY || !MINIO_ENDPOINT) {
-    throw new Error("Missing required MinIO environment variables")
-  }
-} else {
-  if (!R2_BUCKET_NAME || !R2_ACCOUNT_ID || !R2_ACCESS_KEY || !R2_SECRET_KEY) {
-    throw new Error("Missing required R2 environment variables")
-  }
-}
-
-// ===== CONFIGURE S3 CLIENT =====
-const s3Client = new S3Client({
-  region: UseDev ? "us-east-1" : "auto", // MinIO needs dummy region
-  endpoint: UseDev ? MINIO_ENDPOINT : R2_ENDPOINT,
-  forcePathStyle: UseDev, // required for MinIO; not needed for R2
-  credentials: {
-    accessKeyId: UseDev ? MINIO_ACCESS_KEY! : R2_ACCESS_KEY!,
-    secretAccessKey: UseDev ? MINIO_SECRET_KEY! : R2_SECRET_KEY!,
-  },
-})
 
 const PublicURL = UseDev
   ? `https://s3.mshiv.net/pfp` // profile pictures folder
@@ -58,6 +36,19 @@ const ALLOWED_IMAGE_TYPES = [
 
 export async function POST(request: Request) {
   try {
+    const bucket = UseDev ? MINIO_BUCKET_NAME : R2_BUCKET_NAME
+    const accessKey = UseDev ? MINIO_ACCESS_KEY : R2_ACCESS_KEY
+    const secretKey = UseDev ? MINIO_SECRET_KEY : R2_SECRET_KEY
+    const endpoint = UseDev ? MINIO_ENDPOINT : R2_ENDPOINT
+    if (!bucket || !accessKey || !secretKey || !endpoint) {
+      return NextResponse.json({ error: "Object storage is not configured" }, { status: 503 })
+    }
+    const s3Client = new S3Client({
+      region: UseDev ? "us-east-1" : "auto",
+      endpoint,
+      forcePathStyle: UseDev,
+      credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+    })
     // Ensure user is logged in
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -88,7 +79,7 @@ export async function POST(request: Request) {
     const pfpFileName = `${user.id}-${uuidv4()}.${fileExtension}`
     
     const command = new PutObjectCommand({
-      Bucket: UseDev ? MINIO_BUCKET_NAME : R2_BUCKET_NAME,
+      Bucket: bucket,
       Key: `pfp/${pfpFileName}`, // Store in pfp folder
       ContentType: fileType,
     })
@@ -114,4 +105,4 @@ export async function POST(request: Request) {
     console.error("Error generating profile picture upload URL:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-} 
+}

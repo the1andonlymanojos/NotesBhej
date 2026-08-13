@@ -16,7 +16,7 @@ export async function generateStaticParams() {
   }
 }
 
-const SITE_URL = "https://notesbhej.mshiv.net";
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
 
 
 export async function generateMetadata({

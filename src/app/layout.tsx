@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "sonner"
 import { Footer } from "@/components/footer"
-import { SpeedInsights } from "@vercel/speed-insights/next"
-import { Analytics } from "@vercel/analytics/next"
 import { BACKGROUND_COOKIE_NAME, DEFAULT_BACKGROUND } from "@/lib/backgrounds";
 import { QueryProvider } from "@/components/query-provider";
+
+// Several routes depend on client router/auth providers. Render routes on
+// request instead of attempting a build-time prerender for the whole app.
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -53,9 +55,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <Script
+        <script
           id="background-preference"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: backgroundScript }}
         />
       <link rel="manifest" href="/manifest.json" />
@@ -78,8 +79,6 @@ export default function RootLayout({
             <Toaster richColors />
           </QueryProvider>
         </ThemeProvider>
-        <SpeedInsights />
-        <Analytics />
       </body>
     </html>
   )

@@ -50,6 +50,16 @@ Create a `.env.local` file in the root directory with the following variables:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
+# Backend API (server-side Next.js requests)
+# Use this when Next.js runs directly on the Kubernetes node/host via PM2.
+API_SERVER_BASE_URL=http://127.0.0.1:30080
+
+# Browser requests go to the public site, where the reverse proxy routes /api/*
+# to the backend.
+NEXT_PUBLIC_API_BASE_URL=https://notesbhej.mshiv.net
+NEXT_PUBLIC_SITE_URL=https://notesbhej.mshiv.net
+NEXT_PUBLIC_APP_ENV=production
+
 # Cloudflare R2 Configuration
 R2_BUCKET_NAME=your_bucket_name
 R2_ACCOUNT_ID=your_account_id
@@ -57,6 +67,22 @@ R2_ACCESS_KEY_ID=your_access_key_id
 R2_SECRET_KEY=your_secret_key
 R2_ENDPOINT=your_endpoint
 ```
+
+### Backend connectivity
+
+The Spring Boot backend is exposed on Kubernetes as NodePort `30080`. For the
+current host/PM2 Next.js deployment, `API_SERVER_BASE_URL` must be
+`http://127.0.0.1:30080`; its health check is available at
+`http://127.0.0.1:30080/actuator/health`.
+
+The sitemap postbuild step uses this same backend URL to obtain course paths.
+If it is temporarily unavailable, the build still succeeds and emits a sitemap
+without dynamic course URLs.
+
+Do not use `127.0.0.1:30080` when the Next.js application itself runs in a
+container or Kubernetes pod: loopback then refers to that container/pod. Use
+the backend Kubernetes Service DNS name instead, for example
+`http://backend.<namespace>.svc.cluster.local:8080`.
 
 ### Installation
 
@@ -114,6 +140,7 @@ docker build \
   --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
   --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
   --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL" \
+  --build-arg NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
   --build-arg API_SERVER_BASE_URL="$API_SERVER_BASE_URL" \
   -t notesbhej .
 docker run --rm -p 3000:3000 --env-file .env.local notesbhej

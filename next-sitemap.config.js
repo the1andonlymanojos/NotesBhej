@@ -1,28 +1,28 @@
 /** @type {import('next-sitemap').IConfig} */
 
-const SITE_URL = "https://notesbhej.manoj-shiv.tech";
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+const API_SERVER_BASE_URL = (process.env.API_SERVER_BASE_URL || "http://127.0.0.1:30080").replace(/\/$/, "");
 
 async function fetchCourses() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.warn("⚠️ Missing SUPABASE_URL or SUPABASE_KEY env vars");
+  try {
+    const res = await fetch(`${API_SERVER_BASE_URL}/api/v1/courses`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!res.ok) {
+      console.warn(`⚠️ Sitemap: backend returned ${res.status} ${res.statusText}; skipping dynamic course URLs.`);
+      return [];
+    }
+
+    return res.json();
+  } catch (error) {
+    console.warn(
+      `⚠️ Sitemap: could not reach ${API_SERVER_BASE_URL}; skipping dynamic course URLs.`,
+      error instanceof Error ? error.message : error
+    );
     return [];
   }
-
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/coursenew`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-    },
-  });
-
-  if (!res.ok) {
-    console.error("❌ Failed to fetch courses:", res.status, res.statusText);
-    return [];
-  }
-
-  return res.json();
 }
 
 module.exports = {

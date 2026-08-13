@@ -7,6 +7,7 @@ import Link from "next/link"
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
+  const appEnvironment = process.env.NEXT_PUBLIC_APP_ENV || "production"
 
   return (
     <footer className="relative bg-gradient-to-br from-zinc-50 via-indigo-50/30 to-purple-50/20 dark:from-zinc-950 dark:via-indigo-950/40 dark:to-purple-950/20 border-t border-zinc-200 dark:border-zinc-800">
@@ -104,6 +105,10 @@ export function Footer() {
             <div className="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
               <span>© {currentYear} NotesBhej</span>
               <span className="hidden md:inline">•</span>
+              <span className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs uppercase tracking-wide dark:border-zinc-700">
+                {appEnvironment}
+              </span>
+              <span className="hidden md:inline">•</span>
                              <span className="flex items-center gap-1">
                  Made with <Heart className="h-3 w-3 text-red-500 fill-red-500 animate-pulse" /> at IIITM Gwalior
                </span>
@@ -124,4 +129,4 @@ export function Footer() {
       </div>
     </footer>
   )
-} 
+}

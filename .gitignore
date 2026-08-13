@@ -32,6 +32,12 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.stage.example
+
+# Kubernetes secrets generated from local environment files
+k8s/secret.yaml
+k8s-stage/secret.yaml
+k8s-stage/*secret*.yaml
 
 # vercel
 .vercel

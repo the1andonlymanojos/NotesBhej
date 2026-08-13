@@ -27,7 +27,7 @@ import type {
   ApiLeaderboardEntry,
 } from "./types";
 
-/** Direct backend URL for server-side only (build/ISR). No rewrites — use API_SERVER_BASE_URL or localhost:8080. */
+/** Direct backend URL for server-side only (build/ISR). */
 export function getApiBaseUrlServer(): string {
   if (typeof process.env.API_SERVER_BASE_URL === "string" && process.env.API_SERVER_BASE_URL) {
     return process.env.API_SERVER_BASE_URL.replace(/\/$/, "");
@@ -35,12 +35,12 @@ export function getApiBaseUrlServer(): string {
   return "http://localhost:8080";
 }
 
-/** Same-origin rewrite URL for browser (cookies sent). Use NEXT_PUBLIC_API_BASE_URL or /springboot. */
+/** Browser API URL. Set NEXT_PUBLIC_API_BASE_URL per environment. */
 export function getApiBaseUrl(): string {
   if (typeof process.env.NEXT_PUBLIC_API_BASE_URL === "string" && process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "");
   }
-  return "http://localhost:3000/springboot";
+  return "/springboot";
 }
 
 /** Server-side fetch (page.tsx, ISR). Hits backend directly so it works at build time without rewrites. */

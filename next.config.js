@@ -11,10 +11,11 @@ const nextConfig = {
   },
   productionBrowserSourceMaps: true,
   async rewrites() {
+    const internalApiBaseUrl = (process.env.API_SERVER_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
     return [
       {
         source: '/springboot/:path*',
-        destination: 'http://localhost:8080/:path*',
+        destination: `${internalApiBaseUrl}/:path*`,
       },
     ]
   },
@@ -37,4 +38,4 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 })
 
-module.exports = withBundleAnalyzer(nextConfig) 
+module.exports = withBundleAnalyzer(nextConfig)
