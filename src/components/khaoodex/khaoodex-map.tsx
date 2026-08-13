@@ -2,13 +2,16 @@
 
 import { useEffect, useRef } from "react"
 import type { Map as LeafletMap } from "leaflet"
-import { landmarkAssets, placeholderRestaurants } from "./data"
+import type { KhaaoDexRestaurant } from "@/lib/api/types"
+import { landmarkAssets } from "./data"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
 import "leaflet/dist/leaflet.css"
 import "./khaoodex.css"
 
 type KhaaoDexMapProps = {
   theme: KhaaoDexTheme
+  restaurants: KhaaoDexRestaurant[]
+  onRestaurantSelect: (restaurantId: number) => void
 }
 
 const geoJsonStyle = (theme: KhaaoDexTheme) => {
@@ -30,7 +33,11 @@ const geoJsonStyle = (theme: KhaaoDexTheme) => {
   }
 }
 
-export default function KhaaoDexMap({ theme }: KhaaoDexMapProps) {
+function categoryLabel(category: string) {
+  return category.toLowerCase().split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
+}
+
+export default function KhaaoDexMap({ theme, restaurants, onRestaurantSelect }: KhaaoDexMapProps) {
   const mapElement = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
 
@@ -66,20 +73,19 @@ export default function KhaaoDexMap({ theme }: KhaaoDexMapProps) {
       if (disposed || !map) return
       landmarks.forEach((data) => L.geoJSON(data, { style: styles.landmarks }).addTo(layerBounds))
 
-      placeholderRestaurants.forEach((restaurant) => {
-        const markerColor = restaurant.status === "visited" ? colors.markerVisited : colors.markerUnvisited
-        const marker = L.marker(restaurant.coordinates, {
+      restaurants.forEach((restaurant) => {
+        const markerColor = restaurant.relationship?.visited ? colors.markerVisited : colors.markerUnvisited
+        const marker = L.marker([restaurant.latitude, restaurant.longitude], {
           icon: L.divIcon({
             className: "khaoodex-marker-wrap",
-            html: `<span class="khaoodex-marker khaoodex-marker-${restaurant.status}" style="--marker-color:${markerColor};--marker-halo:${colors.markerHalo}"><span></span></span>`,
+            html: `<span class="khaoodex-marker khaoodex-marker-${restaurant.relationship?.visited ? "visited" : "unvisited"}" style="--marker-color:${markerColor};--marker-halo:${colors.markerHalo}"><span></span></span>`,
             iconSize: [30, 30],
             iconAnchor: [15, 15],
           }),
         }).addTo(map!)
 
-        marker.bindPopup(
-          `<div class="khaoodex-popup"><div class="khaoodex-popup-status">${restaurant.status === "visited" ? "Visited" : "On your radar"}</div><strong>${restaurant.name}</strong><span>${restaurant.cuisine}</span><span>★ ${restaurant.rating} · trusted placeholder</span></div>`
-        )
+        marker.on("click", () => onRestaurantSelect(restaurant.id))
+        marker.bindPopup(`<div class="khaoodex-popup"><div class="khaoodex-popup-status">${restaurant.relationship?.visited ? "Visited" : "On your radar"}</div><strong>${restaurant.name}</strong><span>${restaurant.categories?.map(categoryLabel).join(" · ") || restaurant.cuisine || "Category not listed"}</span><span>★ ${restaurant.averageRating?.toFixed(1) || "—"} · ${restaurant.reviewCount} reviews</span></div>`)
       })
 
       if (layerBounds.getBounds().isValid()) {
@@ -95,7 +101,7 @@ export default function KhaaoDexMap({ theme }: KhaaoDexMapProps) {
       mapRef.current?.remove()
       mapRef.current = null
     }
-  }, [theme])
+  }, [onRestaurantSelect, restaurants, theme])
 
   return <div ref={mapElement} className="h-full w-full" aria-label="Interactive map of Gwalior" />
 }
