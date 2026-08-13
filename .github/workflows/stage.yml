@@ -55,6 +55,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
         run: |
           docker build --network=host \
             --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
@@ -62,6 +63,7 @@ jobs:
             --build-arg NEXT_PUBLIC_API_BASE_URL="$STAGE_API_URL" \
             --build-arg NEXT_PUBLIC_SITE_URL="$STAGE_API_URL" \
             --build-arg NEXT_PUBLIC_APP_ENV="stage" \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY" \
             --build-arg API_SERVER_BASE_URL="http://127.0.0.1:30008" \
             -t "$REGISTRY_IMAGE:${GITHUB_SHA}" \
             -t "$REGISTRY_IMAGE:stage" .

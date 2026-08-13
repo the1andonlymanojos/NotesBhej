@@ -68,3 +68,14 @@
   color: #41535a !important;
   line-height: 32px !important;
 }
+
+.khaoodex-google-autocomplete {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgb(148 163 184 / 38%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 70%);
+  color: #27313a;
+  font: inherit;
+  padding: 0 12px;
+}
