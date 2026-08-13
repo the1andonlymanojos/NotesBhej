@@ -1,0 +1,6 @@
+{"type":"FeatureCollection", "features": [
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[78.1664673,26.2091158],[78.1664775,26.2091314],[78.1669012,26.2099737],[78.1667028,26.2100627],[78.1660134,26.2093167],[78.1658659,26.2090881],[78.1663192,26.2088908],[78.1664673,26.2091158]]]},"properties":{"addr:city":"Gwalior","addr:street":"Maharani LaxhmiBai Marg","building":"yes","name":"Deendayal City Mall","shop":"mall"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[78.1844152,26.2160473],[78.1844178,26.2159949],[78.1847203,26.2157048],[78.1855523,26.2164029],[78.1852149,26.2167184],[78.1844152,26.2160473]]]},"properties":{"building":"yes","name":"DB Mall","shop":"mall"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[78.1852149,26.2167184],[78.1850867,26.2167423],[78.184335,26.2161577],[78.1844152,26.2160473],[78.1852149,26.2167184]]]},"properties":{"amenity":"parking","parking":"surface"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[78.1666799,26.2101825],[78.1669213,26.2100333],[78.1672047,26.2106041],[78.1672096,26.2106193],[78.1672096,26.2106446],[78.1671674,26.210653],[78.1671564,26.2106354],[78.1666799,26.2101825]]]},"properties":{"building":"yes"}}
+]}

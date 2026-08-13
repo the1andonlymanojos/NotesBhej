@@ -1,0 +1,72 @@
+.khaoodex-marker-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.khaoodex-marker {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--marker-halo);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--marker-color) 24%, transparent);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 22%);
+}
+
+.khaoodex-marker span {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--marker-color);
+}
+
+.khaoodex-marker-visited {
+  transform: scale(1.08);
+}
+
+.khaoodex-marker-unvisited span {
+  background: transparent;
+  border: 2px solid var(--marker-color);
+}
+
+.khaoodex-popup {
+  display: grid;
+  gap: 5px;
+  min-width: 185px;
+  color: #172026;
+  font-family: Arial, sans-serif;
+}
+
+.khaoodex-popup strong {
+  font-size: 15px;
+}
+
+.khaoodex-popup span {
+  color: #647178;
+  font-size: 12px;
+}
+
+.khaoodex-popup-status {
+  color: #df6944;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.leaflet-control-zoom {
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 42%) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 12%) !important;
+}
+
+.leaflet-control-zoom a {
+  width: 32px !important;
+  height: 32px !important;
+  color: #41535a !important;
+  line-height: 32px !important;
+}
+
