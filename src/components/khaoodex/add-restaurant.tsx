@@ -30,7 +30,7 @@ export default function AddRestaurant({ onClose, onCreated, onLogin }: { onClose
   const toggleCategory = (category: KhaaoDexCategory) => setSelectedCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])
 
   const submit = async () => {
-    if (!place) { setError("Choose a restaurant from Google search first."); return }
+    if (!place || !place.name.trim()) { setError("Choose a named restaurant from Google search first."); return }
     if (!selectedCategories.length) { setError("Choose at least one restaurant category."); return }
     setSubmitting(true); setError(null)
     try {
