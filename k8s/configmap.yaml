@@ -5,6 +5,7 @@ metadata:
   namespace: notesbhej
 data:
   NODE_ENV: production
+  NEXT_PUBLIC_APP_ENV: production
   NEXT_PUBLIC_API_BASE_URL: https://notesbhej.mshiv.net
   NEXT_PUBLIC_SITE_URL: https://notesbhej.mshiv.net
   # Same-namespace backend Service DNS. This avoids routing pod-to-pod traffic
