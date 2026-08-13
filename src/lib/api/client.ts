@@ -25,7 +25,25 @@ import type {
   ApiAnnouncementRead,
   ApiCreateAnnouncementRequest,
   ApiLeaderboardEntry,
+  KhaaoDexRestaurant,
+  KhaaoDexRestaurantDetails,
+  KhaaoDexRelationship,
+  KhaaoDexRelationshipRequest,
+  KhaaoDexReview,
+  KhaaoDexReviewRequest,
+  KhaaoDexMyDex,
+  KhaaoDexCategory,
 } from "./types";
+
+export class ApiHttpError extends Error {
+  status: number;
+
+  constructor(status: number, path: string) {
+    super(`API ${status}: ${path}`);
+    this.name = "ApiHttpError";
+    this.status = status;
+  }
+}
 
 /** Direct backend URL for server-side only (build/ISR). */
 export function getApiBaseUrlServer(): string {
@@ -49,7 +67,7 @@ async function fetchApiServer<T>(path: string): Promise<T> {
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  if (!res.ok) throw new ApiHttpError(res.status, path);
   console.log("res status", res.status)
   return res.json() as Promise<T>;
 }
@@ -62,7 +80,7 @@ async function fetchApiBrowser<T>(path: string, init?: RequestInit): Promise<T> 
     headers: { Accept: "application/json", ...init?.headers },
     credentials: "include",
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  if (!res.ok) throw new ApiHttpError(res.status, path);
   const text = await res.text();
   if (!text) return undefined as T;
   return JSON.parse(text) as T;
@@ -286,6 +304,57 @@ export async function apiGetUploadUrl(
 /** GET /api/v1/me — authenticated user from access_token cookie */
 export async function apiGetMe(): Promise<ApiUser> {
   return fetchApiBrowser<ApiUser>("/api/v1/me");
+}
+
+export async function apiGetKhaaoDexRestaurants(params?: {
+  cuisine?: string;
+  priceCategory?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
+  visited?: boolean;
+  categories?: KhaaoDexCategory[];
+}): Promise<KhaaoDexRestaurant[]> {
+  const query = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") query.set(key, String(value));
+    });
+  }
+  if (params?.categories?.length) query.set("categories", params.categories.join(","));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return fetchApiBrowser<KhaaoDexRestaurant[]>(`/api/v1/khaao-dex/restaurants${suffix}`);
+}
+
+export async function apiGetKhaaoDexRestaurantDetails(id: number): Promise<KhaaoDexRestaurantDetails> {
+  return fetchApiBrowser<KhaaoDexRestaurantDetails>(`/api/v1/khaao-dex/restaurants/${id}`);
+}
+
+export async function apiUpdateKhaaoDexRelationship(
+  id: number,
+  body: KhaaoDexRelationshipRequest
+): Promise<KhaaoDexRelationship> {
+  return fetchApiBrowser<KhaaoDexRelationship>(`/api/v1/khaao-dex/restaurants/${id}/relationship`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiUpsertKhaaoDexReview(id: number, body: KhaaoDexReviewRequest): Promise<KhaaoDexReview> {
+  return fetchApiBrowser<KhaaoDexReview>(`/api/v1/khaao-dex/restaurants/${id}/review`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiDeleteKhaaoDexReview(id: number): Promise<void> {
+  await fetchApiBrowser<undefined>(`/api/v1/khaao-dex/restaurants/${id}/review`, { method: "DELETE" });
+}
+
+export async function apiGetKhaaoDexMyDex(): Promise<KhaaoDexMyDex> {
+  return fetchApiBrowser<KhaaoDexMyDex>("/api/v1/khaao-dex/me");
 }
 
 /** PATCH /api/v1/me — update current user fields (e.g. bgPref) */

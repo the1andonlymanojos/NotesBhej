@@ -113,6 +113,80 @@ export interface ApiUser {
   updatedAt?: string;
 }
 
+export type KhaaoDexRestaurantStatus = "PENDING" | "ACTIVE" | "REJECTED";
+export type KhaaoDexPriceCategory = "BUDGET" | "MODERATE" | "PREMIUM" | "LUXURY";
+export type KhaaoDexCategory =
+  | "CAFE"
+  | "QUICK_BITES"
+  | "FINE_DINING"
+  | "NORTH_INDIAN"
+  | "SOUTH_INDIAN"
+  | "CHAAT"
+  | "SWEETS_BAKERY"
+  | "DESSERT_PLACE"
+  | "STREET_FOOD";
+
+export interface KhaaoDexReview {
+  id: number;
+  userId: number;
+  userName: string;
+  overallRating?: number | null;
+  valueForMoneyRating?: number | null;
+  foodQualityRating?: number | null;
+  ambienceRating?: number | null;
+  text?: string | null;
+  imageUrls?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface KhaaoDexRelationship {
+  id: number;
+  visited: boolean;
+  review?: KhaaoDexReview | null;
+}
+
+export interface KhaaoDexRestaurant {
+  id: number;
+  name: string;
+  address?: string | null;
+  latitude: number;
+  longitude: number;
+  cuisine?: string | null;
+  categories: KhaaoDexCategory[];
+  priceCategory?: KhaaoDexPriceCategory | null;
+  googlePlaceId?: string | null;
+  status: KhaaoDexRestaurantStatus;
+  relationship: KhaaoDexRelationship | null;
+  averageRating?: number | null;
+  reviewCount: number;
+}
+
+export interface KhaaoDexRestaurantDetails {
+  restaurant: KhaaoDexRestaurant;
+  reviews: KhaaoDexReview[];
+}
+
+export interface KhaaoDexMyDex {
+  visitedCount: number;
+  totalActiveRestaurants: number;
+  explorationPercentage: number;
+  visitedRestaurants: KhaaoDexRestaurant[];
+}
+
+export interface KhaaoDexRelationshipRequest {
+  visited: boolean;
+}
+
+export interface KhaaoDexReviewRequest {
+  overallRating?: number | null;
+  valueForMoneyRating?: number | null;
+  foodQualityRating?: number | null;
+  ambienceRating?: number | null;
+  text?: string | null;
+  imageUrls?: string[];
+}
+
 /** PATCH /api/v1/me body */
 export interface ApiUpdateMeRequest {
   bgPref?: string;
