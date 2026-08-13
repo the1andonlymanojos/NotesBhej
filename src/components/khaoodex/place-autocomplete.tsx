@@ -25,6 +25,11 @@ type GooglePlacePrediction = {
   toPlace: () => { fetchFields: (options: { fields: string[] }) => Promise<void> } & GooglePlaceResult
 }
 
+type GooglePlaceSelectEvent = Event & {
+  placePrediction?: GooglePlacePrediction
+  detail?: { placePrediction?: GooglePlacePrediction }
+}
+
 type GooglePlacesAutocompleteElement = HTMLElement & {
   placeholder: string
   className: string
@@ -34,7 +39,10 @@ type GooglePlacesAutocompleteElement = HTMLElement & {
 type GoogleNamespace = {
   maps?: {
     places?: {
-      PlaceAutocompleteElement: new (options: { includedRegionCodes: string[] }) => GooglePlacesAutocompleteElement
+      PlaceAutocompleteElement: new (options: {
+        includedRegionCodes: string[]
+        locationBias: { center: { lat: number; lng: number }; radius: number }
+      }) => GooglePlacesAutocompleteElement
     }
   }
 }
@@ -76,11 +84,16 @@ export default function PlaceAutocomplete({ onSelect }: PlaceAutocompleteProps) 
       if (disposed || !container || !window.google?.maps?.places) return
       const autocomplete = new window.google.maps.places.PlaceAutocompleteElement({
         includedRegionCodes: ["in"],
+        locationBias: {
+          center: { lat: 26.2025, lng: 78.1746 },
+          radius: 30000,
+        },
       })
       autocomplete.placeholder = "Search Google for a restaurant…"
       autocomplete.className = "khaoodex-google-autocomplete"
       autocomplete.addEventListener("gmp-select", async (event: Event) => {
-        const prediction = (event as CustomEvent<{ placePrediction?: GooglePlacePrediction }>).detail?.placePrediction
+        const selectedEvent = event as GooglePlaceSelectEvent
+        const prediction = selectedEvent.placePrediction ?? selectedEvent.detail?.placePrediction
         if (!prediction) return
         const place = prediction.toPlace()
         await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "location"] })
