@@ -106,4 +106,4 @@ jobs:
           curl --fail --silent --show-error --retry 10 --retry-delay 3 \
             "$PROD_API_URL/api/v1/health"
           curl --fail --silent --show-error --retry 10 --retry-delay 3 \
-            http://127.0.0.1:30000/
+            "$PROD_API_URL/"
