@@ -47,4 +47,3 @@ export const mapThemes = {
     text: "#d5ffdc",
   },
 } as const
-

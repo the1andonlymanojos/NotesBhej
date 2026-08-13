@@ -61,4 +61,3 @@ export const landmarkAssets = [
   "/khaoodex/landmarks-malls.geojson",
   "/khaoodex/landmarks-towers.geojson",
 ]
-

@@ -2,7 +2,6 @@
   background: transparent;
   border: 0;
 }
-
 .khaoodex-marker {
   display: grid;
   place-items: center;
@@ -69,4 +68,3 @@
   color: #41535a !important;
   line-height: 32px !important;
 }
-
