@@ -257,23 +257,17 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
 
   if (cheap) return
 
-  // 3. Labels. A place shows its name when there's room: always once zoomed in,
-  // and at any zoom when the pin stands clear of its neighbours. Each name is
-  // tried in four positions and dropped only if every spot would overlap another
-  // label or pin.
+  // 3. Labels. The overview stays a pure constellation — names only show on
+  // hover, on the selected place, or once you've zoomed in past LABEL_ZOOM. Each
+  // name is tried in four positions and dropped if every spot would overlap
+  // another label or pin.
+  const LABEL_ZOOM = 14
+  const anyLabels = zoom >= LABEL_ZOOM || selectedId != null || hoveredId != null
+  if (!anyLabels) return
+
   type Rect = { x: number; y: number; w: number; h: number }
   const overlaps = (a: Rect, b: Rect) =>
     a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
-
-  const nearest = placed.map((p, i) => {
-    let best = Infinity
-    for (let j = 0; j < placed.length; j++) {
-      if (j === i) continue
-      const d = Math.hypot(p.x - placed[j].x, p.y - placed[j].y)
-      if (d < best) best = d
-    }
-    return best
-  })
 
   const boxes: Rect[] = [{ x: -10, y: -10, w: width + 20, h: topInset }]
   ctx.textBaseline = "middle"
@@ -285,8 +279,7 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
     const { star, x, y, r } = placed[i]
     if (x < -40 || x > width + 40 || y < -40 || y > height + 40) continue
     const active = isActive(star.id)
-    const roomy = nearest[i] > 44 + r
-    if (!active && !(zoom >= 13.5 || (zoom >= 11.5 && roomy))) continue
+    if (!active && zoom < LABEL_ZOOM) continue
 
     ctx.font = `${active ? 700 : 600} 12px ui-sans-serif, system-ui, sans-serif`
     const text = star.name.length > 24 ? `${star.name.slice(0, 23)}…` : star.name
