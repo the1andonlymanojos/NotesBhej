@@ -248,12 +248,6 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
     ctx.lineWidth = Math.max(1.25, rr * 0.32)
     ctx.strokeStyle = hexAlpha(colors.markerHalo, 0.95)
     ctx.stroke()
-    if (rr > 5) {
-      ctx.beginPath()
-      ctx.arc(x, y, rr * 0.34, 0, Math.PI * 2)
-      ctx.fillStyle = hexAlpha(colors.markerHalo, star.visited ? 0.5 : 0.9)
-      ctx.fill()
-    }
   }
   ctx.globalAlpha = 1
 

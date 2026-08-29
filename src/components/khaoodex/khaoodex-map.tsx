@@ -170,23 +170,36 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
         if (canvasRef.current) canvasRef.current.style.opacity = "1"
       })
       map.on("click", (event: LeafletMouseEvent) => {
-        onSelectRef.current(hitTest(layoutRef.current, event.containerPoint))
-      })
-      map.on("mousemove", (event: LeafletMouseEvent) => {
-        const id = hitTest(layoutRef.current, event.containerPoint)
-        if (id !== hoveredRef.current) {
-          hoveredRef.current = id
-          map.getContainer().style.cursor = id != null ? "pointer" : ""
-          scheduleDraw()
-        }
-      })
-      map.on("mouseout", () => {
+        // A tap on a touch device also fires a synthetic mousemove with no
+        // matching mouseout — clear any stuck hover so a pin doesn't stay big.
         if (hoveredRef.current != null) {
           hoveredRef.current = null
-          map.getContainer().style.cursor = ""
           scheduleDraw()
         }
+        onSelectRef.current(hitTest(layoutRef.current, event.containerPoint))
       })
+
+      // Hover styling is for real pointers only; touch devices skip it entirely.
+      const finePointer =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(hover: hover) and (pointer: fine)").matches
+      if (finePointer) {
+        map.on("mousemove", (event: LeafletMouseEvent) => {
+          const id = hitTest(layoutRef.current, event.containerPoint)
+          if (id !== hoveredRef.current) {
+            hoveredRef.current = id
+            map.getContainer().style.cursor = id != null ? "pointer" : ""
+            scheduleDraw()
+          }
+        })
+        map.on("mouseout", () => {
+          if (hoveredRef.current != null) {
+            hoveredRef.current = null
+            map.getContainer().style.cursor = ""
+            scheduleDraw()
+          }
+        })
+      }
 
       try {
         const [roadsData, ...landmarkData] = await Promise.all([

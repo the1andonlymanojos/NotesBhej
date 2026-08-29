@@ -22,7 +22,6 @@ import {
   Utensils,
   X,
 } from "lucide-react"
-import Image from "next/image"
 import { Textarea } from "@/components/ui/textarea"
 import {
   DropdownMenu,
@@ -681,16 +680,26 @@ export default function KhaaoDexPage() {
               <DropdownMenuTrigger asChild>
                 <button
                   title={me.fullName || me.email || "Account"}
-                  className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/10 bg-black/[0.03] text-muted-teal-500 outline-none dark:border-white/15 dark:bg-white/5 dark:text-muted-teal-300"
+                  className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/10 bg-black/[0.03] text-muted-teal-500 outline-none dark:border-white/15 dark:bg-white/5 dark:text-muted-teal-300"
                 >
-                  {me.profilePictureUrl ? (
-                    <Image src={me.profilePictureUrl} alt="" width={36} height={36} className="size-full object-cover" />
-                  ) : (
-                    <UserIcon className="size-4" />
+                  <UserIcon className="size-4" />
+                  {me.profilePictureUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={me.profilePictureUrl}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 size-full object-cover"
+                      onError={(event) => event.currentTarget.remove()}
+                    />
                   )}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="z-[1300] w-52 border-black/10 bg-pale-oak-50 text-muted-teal-900 shadow-xl dark:border-white/15 dark:bg-muted-teal-900 dark:text-white"
+              >
                 {(me.fullName || me.email) && (
                   <div className="truncate px-2 py-1.5 text-xs text-muted-teal-500 dark:text-muted-teal-400">
                     {me.fullName || me.email}
@@ -702,7 +711,7 @@ export default function KhaaoDexPage() {
                     <ArrowUpRight className="ml-auto size-3.5 opacity-50" />
                   </a>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-black/10 dark:bg-white/15" />
                 <DropdownMenuItem onSelect={() => void signOut()}>
                   <LogOut className="size-4" /> Sign out
                 </DropdownMenuItem>
