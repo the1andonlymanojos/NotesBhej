@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { ArrowLeft, Check, Loader2, MapPin, RefreshCw, X } from "lucide-react"
 import {
   ApiHttpError,
@@ -12,6 +11,7 @@ import {
   apiGetMe,
   apiModerateKhaaoDexEdit,
   apiModerateKhaaoDexRestaurant,
+  getAuthOrigin,
 } from "@/lib/api/client"
 import type { ApiUser, KhaaoDexRestaurant, KhaaoDexRestaurantEdit } from "@/lib/api/types"
 import { SURFACE, categoryLabel, googleDirectionsUrl, priceLabel } from "@/components/khaoodex/ui"
@@ -21,7 +21,6 @@ const isModerator = (user: ApiUser | null) => user?.role === "ADMIN" || user?.ro
 type Tab = "places" | "edits"
 
 export default function KhaaoDexModerationPage() {
-  const router = useRouter()
   const [me, setMe] = useState<ApiUser | null>(null)
   const [authState, setAuthState] = useState<"loading" | "denied" | "ok">("loading")
   const [tab, setTab] = useState<Tab>("places")
@@ -97,13 +96,11 @@ export default function KhaaoDexModerationPage() {
             </Link>
             {!me && (
               <button
-                onClick={() =>
-                  router.push(
-                    `/nextlogin?redirect=${encodeURIComponent(
-                      typeof window !== "undefined" ? window.location.href : "/khao-dex/moderation",
-                    )}`,
-                  )
-                }
+                onClick={() => {
+                  const back =
+                    typeof window !== "undefined" ? window.location.href : "/khao-dex/moderation"
+                  window.location.href = `${getAuthOrigin()}/nextlogin?redirect=${encodeURIComponent(back)}`
+                }}
                 className="rounded-xl bg-[#b34d66] px-4 py-2 text-sm font-semibold text-white"
               >
                 Sign in

@@ -56,17 +56,22 @@ export function getApiBaseUrlServer(): string {
   return "http://localhost:8080";
 }
 
-/** Browser API URL. Set NEXT_PUBLIC_API_BASE_URL per environment. */
+/**
+ * Browser API URL. All hosts (including khao-dex.mshiv.net) talk to the shared
+ * NotesBhej backend cross-origin; the backend allows those origins and issues a
+ * `.mshiv.net` cookie, so the session is shared. Set NEXT_PUBLIC_API_BASE_URL
+ * per environment.
+ */
 export function getApiBaseUrl(): string {
-  // KhaaoDex's own domain routes /api, /auth, /oauth2 to the backend itself, so
-  // stay same-origin there — no cross-site cookies, no CORS.
-  if (typeof window !== "undefined" && window.location.hostname.startsWith("khao-dex.")) {
-    return "";
-  }
   if (typeof process.env.NEXT_PUBLIC_API_BASE_URL === "string" && process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "");
   }
   return "/springboot";
+}
+
+/** Origin that owns login / OAuth for every mshiv.net project (for now, NotesBhej). */
+export function getAuthOrigin(): string {
+  return getApiBaseUrl() || "https://notesbhej.mshiv.net";
 }
 
 /** Server-side fetch (page.tsx, ISR). Hits backend directly so it works at build time without rewrites. */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import {
   ArrowUpRight,
@@ -34,6 +34,7 @@ import {
   apiGetMe,
   apiUpdateKhaaoDexRelationship,
   apiUpsertKhaaoDexReview,
+  getAuthOrigin,
 } from "@/lib/api/client"
 import type { ApiUser, KhaaoDexCategory, KhaaoDexRestaurant, KhaaoDexReview } from "@/lib/api/types"
 import KhaaoDexMap from "./khaoodex-map"
@@ -353,7 +354,6 @@ function RestaurantDetails({
 /* ------------------------------------------------------------------- page --- */
 
 export default function KhaaoDexPage() {
-  const router = useRouter()
   // The map theme follows the site theme (next-themes) so the map and the panels
   // never disagree. "Dusk" is an opt-in extra that only restyles the map.
   const { resolvedTheme, setTheme: setSiteTheme } = useTheme()
@@ -496,12 +496,10 @@ export default function KhaaoDexPage() {
     }
   }
 
-  const login = () =>
-    router.push(
-      `/nextlogin?redirect=${encodeURIComponent(
-        typeof window !== "undefined" ? window.location.href : "/khao-dex",
-      )}`,
-    )
+  const login = () => {
+    const back = typeof window !== "undefined" ? window.location.href : "/khao-dex"
+    window.location.href = `${getAuthOrigin()}/nextlogin?redirect=${encodeURIComponent(back)}`
+  }
 
   const toggleCategory = (category: KhaaoDexCategory) => {
     const next = selectedCategories.includes(category)
