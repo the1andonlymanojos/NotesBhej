@@ -52,7 +52,7 @@ export default function ProfilePage() {
         applyUser(me)
       } catch (err) {
         console.error("Failed to load profile:", err)
-        router.push(`/login?redirect=${window.location.pathname}`)
+        router.push(`/nextlogin?redirect=${encodeURIComponent(window.location.pathname)}`)
         return
       } finally {
         setLoading(false)
@@ -96,7 +96,7 @@ export default function ProfilePage() {
   const handleSignOut = async () => {
     try {
       await apiLogout()
-      router.push("/login")
+      router.push("/nextlogin")
     } catch (err) {
       console.error("Sign-out failed:", err)
       toast.error("Could not sign out")

@@ -92,7 +92,7 @@ export default function ManageContributionsPage() {
       error: userError,
     } = await supabase.auth.getUser()
     if (userError || !user) {
-      router.push(`/login?redirect=${encodeURIComponent("/manage-contributions")}`)
+      router.push(`/nextlogin?redirect=${encodeURIComponent("/manage-contributions")}`)
       return
     }
 
