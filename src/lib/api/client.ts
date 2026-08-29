@@ -58,6 +58,11 @@ export function getApiBaseUrlServer(): string {
 
 /** Browser API URL. Set NEXT_PUBLIC_API_BASE_URL per environment. */
 export function getApiBaseUrl(): string {
+  // KhaaoDex's own domain routes /api, /auth, /oauth2 to the backend itself, so
+  // stay same-origin there — no cross-site cookies, no CORS.
+  if (typeof window !== "undefined" && window.location.hostname.startsWith("khao-dex.")) {
+    return "";
+  }
   if (typeof process.env.NEXT_PUBLIC_API_BASE_URL === "string" && process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "");
   }

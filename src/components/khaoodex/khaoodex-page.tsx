@@ -496,7 +496,12 @@ export default function KhaaoDexPage() {
     }
   }
 
-  const login = () => router.push(`/nextlogin?redirect=${encodeURIComponent("/khao-dex")}`)
+  const login = () =>
+    router.push(
+      `/nextlogin?redirect=${encodeURIComponent(
+        typeof window !== "undefined" ? window.location.href : "/khao-dex",
+      )}`,
+    )
 
   const toggleCategory = (category: KhaaoDexCategory) => {
     const next = selectedCategories.includes(category)

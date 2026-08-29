@@ -97,7 +97,13 @@ export default function KhaaoDexModerationPage() {
             </Link>
             {!me && (
               <button
-                onClick={() => router.push(`/nextlogin?redirect=${encodeURIComponent("/khao-dex/moderation")}`)}
+                onClick={() =>
+                  router.push(
+                    `/nextlogin?redirect=${encodeURIComponent(
+                      typeof window !== "undefined" ? window.location.href : "/khao-dex/moderation",
+                    )}`,
+                  )
+                }
                 className="rounded-xl bg-[#b34d66] px-4 py-2 text-sm font-semibold text-white"
               >
                 Sign in
