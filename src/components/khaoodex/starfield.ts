@@ -180,12 +180,14 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
     const pa = placed[a]
     const pb = placed[b]
     if (!pa || !pb || (!onScreen(pa) && !onScreen(pb))) continue
-    const alpha = Math.max(0, Math.min(0.34, 0.34 * (1 - km / 4)))
+    const alpha = Math.max(0, Math.min(0.38, 0.38 * (1 - km / 3.6)))
     if (alpha < 0.015) continue
     const active = isActive(pa.star.id) || isActive(pb.star.id)
-    ctx.strokeStyle = active ? colors.markerVisited : colors.roadMajor
+    // Threads of starlight — the "on the radar" star colour, so the constellation
+    // reads as its own layer rather than blending into the road network.
+    ctx.strokeStyle = active ? colors.markerVisited : colors.markerUnvisited
     ctx.globalAlpha = active ? Math.min(0.7, alpha + 0.4) : alpha
-    ctx.lineWidth = active ? 1.4 : 1.1
+    ctx.lineWidth = active ? 1.4 : 1
     ctx.beginPath()
     ctx.moveTo(pa.x, pa.y)
     ctx.lineTo(pb.x, pb.y)
