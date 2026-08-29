@@ -47,6 +47,7 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const rafRef = useRef<number | null>(null)
   const hoveredRef = useRef<number | null>(null)
+  const interactingRef = useRef(false)
   const didFitRef = useRef(false)
   const [ready, setReady] = useState(false)
 
@@ -93,6 +94,7 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
       height: size.y,
       dpr,
       topInset: TOP_INSET,
+      skipLabels: interactingRef.current,
     })
   }, [])
 
@@ -130,6 +132,13 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
       landmarksRef.current = landmarks
 
       map.on("move zoom viewreset zoomanim resize", scheduleDraw)
+      map.on("movestart zoomstart", () => {
+        interactingRef.current = true
+      })
+      map.on("moveend zoomend", () => {
+        interactingRef.current = false
+        scheduleDraw()
+      })
       map.on("click", (event: LeafletMouseEvent) => {
         const { stars: s } = drawState.current
         const id = hitTest(s, (lat, lng) => map.latLngToContainerPoint([lat, lng]), event.containerPoint, map.getZoom())

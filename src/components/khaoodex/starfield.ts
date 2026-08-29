@@ -97,6 +97,8 @@ export type DrawOptions = {
   dpr: number
   /** Top inset (px) kept clear of labels so the filter bar never collides. */
   topInset: number
+  /** Skip the name pass while the map is being dragged / zoomed. */
+  skipLabels?: boolean
 }
 
 export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
@@ -127,15 +129,25 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
   }
   ctx.globalAlpha = 1
 
-  // 2. Stars. Draw unselected first, then the highlighted one on top.
-  const order = [...stars.keys()].sort((i, j) => {
-    const si = stars[i].id === selectedId ? 2 : stars[i].id === hoveredId ? 1 : 0
-    const sj = stars[j].id === selectedId ? 2 : stars[j].id === hoveredId ? 1 : 0
-    return si - sj || stars[i].magnitude - stars[j].magnitude
+  // Per-star pixel radius + distance to the nearest other pin (drives whether a
+  // label has room to breathe).
+  const baseR = stars.map((s) => starRadius(s.magnitude, zoom))
+  const nearestPx = pts.map((p, i) => {
+    let best = Infinity
+    for (let j = 0; j < pts.length; j++) {
+      if (j === i) continue
+      const d = Math.hypot(p.x - pts[j].x, p.y - pts[j].y)
+      if (d < best) best = d
+    }
+    return best
   })
 
-  const labels: Array<{ x: number; y: number; w: number; h: number }> = []
-  ctx.textBaseline = "middle"
+  const priority = (i: number) => (stars[i].id === selectedId ? 2 : stars[i].id === hoveredId ? 1 : 0)
+
+  // 2. Stars. Draw unselected first, then the highlighted one on top.
+  const order = [...stars.keys()].sort(
+    (i, j) => priority(i) - priority(j) || stars[i].magnitude - stars[j].magnitude,
+  )
 
   for (const i of order) {
     const star = stars[i]
@@ -143,7 +155,7 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
     if (!onScreen(p)) continue
     const selected = star.id === selectedId
     const hovered = star.id === hoveredId
-    const r = starRadius(star.magnitude, zoom) * (selected ? 1.55 : hovered ? 1.18 : 1)
+    const r = baseR[i] * (selected ? 1.55 : hovered ? 1.18 : 1)
     const core = star.visited ? colors.markerVisited : colors.markerUnvisited
 
     // glow — every star reads as a point of light; brighter ones bloom more.
@@ -195,29 +207,79 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
       ctx.fillStyle = hexAlpha(colors.markerHalo, star.visited ? 0.5 : 0.9)
       ctx.fill()
     }
-
-    // label — always for selected/hover, otherwise only bright stars once zoomed in
-    const showLabel = selected || hovered || (star.magnitude > 0.8 && zoom >= 13.5) || zoom >= 15.5
-    if (!showLabel) continue
-    ctx.font = `${selected ? 700 : 600} 12px ui-sans-serif, system-ui, sans-serif`
-    const text = star.name.length > 26 ? `${star.name.slice(0, 25)}…` : star.name
-    const tw = ctx.measureText(text).width
-    const lx = p.x + r + 6
-    const ly = p.y
-    const box = { x: lx - 2, y: ly - 9, w: tw + 4, h: 18 }
-    if (ly < topInset + 8) continue
-    const collides = labels.some(
-      (l) => box.x < l.x + l.w && box.x + box.w > l.x && box.y < l.y + l.h && box.y + box.h > l.y,
-    )
-    if (collides && !selected && !hovered) continue
-    labels.push(box)
-    ctx.lineWidth = 3
-    ctx.strokeStyle = hexAlpha(colors.map, 0.9)
-    ctx.strokeText(text, lx, ly)
-    ctx.fillStyle = colors.text
-    ctx.fillText(text, lx, ly)
   }
   ctx.globalAlpha = 1
+
+  if (o.skipLabels) return
+
+  // 3. Labels. A place shows its name when there's room for it: always once
+  // zoomed in, and at any zoom when the pin stands on its own. Names are tried in
+  // four positions and dropped only if every spot would overlap another label or
+  // pin.
+  type Rect = { x: number; y: number; w: number; h: number }
+  const overlaps = (a: Rect, b: Rect) =>
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+  const placed: Rect[] = [{ x: -10, y: -10, w: width + 20, h: topInset }]
+  ctx.textBaseline = "middle"
+
+  const labelOrder = [...stars.keys()].sort(
+    (i, j) => priority(j) - priority(i) || stars[j].magnitude - stars[i].magnitude,
+  )
+
+  for (const i of labelOrder) {
+    const star = stars[i]
+    const p = pts[i]
+    if (p.x < -40 || p.x > width + 40 || p.y < -40 || p.y > height + 40) continue
+    const active = star.id === selectedId || star.id === hoveredId
+    const roomy = nearestPx[i] > 44 + baseR[i]
+    if (!active && !(zoom >= 13.5 || (zoom >= 11.5 && roomy))) continue
+
+    ctx.font = `${active ? 700 : 600} 12px ui-sans-serif, system-ui, sans-serif`
+    const text = star.name.length > 24 ? `${star.name.slice(0, 23)}…` : star.name
+    const tw = ctx.measureText(text).width
+    const r = baseR[i] * (active ? 1.4 : 1)
+    const anchors = [
+      { x: p.x + r + 7, y: p.y },
+      { x: p.x - r - 7 - tw, y: p.y },
+      { x: p.x - tw / 2, y: p.y - r - 13 },
+      { x: p.x - tw / 2, y: p.y + r + 13 },
+    ]
+
+    let spot: { x: number; y: number } | null = null
+    for (const a of anchors) {
+      const box: Rect = { x: a.x - 3, y: a.y - 9, w: tw + 6, h: 18 }
+      if (box.x < 3 || box.x + box.w > width - 3) continue
+      const hitsLabel = placed.some((l) => overlaps(box, l))
+      const hitsPin =
+        !hitsLabel &&
+        pts.some(
+          (q, k) =>
+            k !== i &&
+            q.x > box.x - 3 &&
+            q.x < box.x + box.w + 3 &&
+            q.y > box.y - 3 &&
+            q.y < box.y + box.h + 3,
+        )
+      if (!hitsLabel && !hitsPin) {
+        spot = a
+        placed.push(box)
+        break
+      }
+    }
+    if (!spot) {
+      if (!active) continue
+      spot = anchors[0]
+      placed.push({ x: spot.x - 3, y: spot.y - 9, w: tw + 6, h: 18 })
+    }
+
+    ctx.lineWidth = 3.5
+    ctx.strokeStyle = hexAlpha(colors.map, 0.92)
+    ctx.strokeText(text, spot.x, spot.y)
+    ctx.fillStyle = colors.text
+    ctx.globalAlpha = active ? 1 : 0.92
+    ctx.fillText(text, spot.x, spot.y)
+    ctx.globalAlpha = 1
+  }
 }
 
 export function hitTest(
