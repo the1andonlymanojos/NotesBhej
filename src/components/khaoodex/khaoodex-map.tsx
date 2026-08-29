@@ -5,7 +5,15 @@ import type { GeoJSON as GeoJSONLayer, LayerGroup, LeafletMouseEvent, Map as Lea
 import type { KhaaoDexRestaurant } from "@/lib/api/types"
 import { landmarkAssets } from "./data"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
-import { constellationEdges, drawStarfield, hitTest, toStars, type Star } from "./starfield"
+import {
+  constellationEdges,
+  drawStarfield,
+  hitTest,
+  layoutStars,
+  toStars,
+  type Placed,
+  type Star,
+} from "./starfield"
 import "leaflet/dist/leaflet.css"
 import "./khaoodex.css"
 
@@ -48,6 +56,9 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
   const rafRef = useRef<number | null>(null)
   const hoveredRef = useRef<number | null>(null)
   const interactingRef = useRef(false)
+  /** Last drawn star positions (post-declutter) — hit-testing reads these instead
+   *  of re-projecting + re-laying-out on every pointer move. */
+  const layoutRef = useRef<Placed[]>([])
   const didFitRef = useRef(false)
   const [ready, setReady] = useState(false)
 
@@ -81,20 +92,22 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
     }
 
     const { stars: s, edges: e, theme: t, selectedId: sel } = drawState.current
+    const cheap = interactingRef.current
+    const zoom = map.getZoom()
+    const placed = layoutStars(s, (lat, lng) => map.latLngToContainerPoint([lat, lng]), zoom, !cheap)
+    layoutRef.current = placed
     drawStarfield(ctx, {
-      stars: s,
+      placed,
       edges: e,
-      project: (lat, lng) => map.latLngToContainerPoint([lat, lng]),
-      theme: t,
       colors: mapThemes[t],
       selectedId: sel,
       hoveredId: hoveredRef.current,
-      zoom: map.getZoom(),
+      zoom,
       width: size.x,
       height: size.y,
       dpr,
       topInset: TOP_INSET,
-      skipLabels: interactingRef.current,
+      cheap,
     })
   }, [])
 
@@ -131,22 +144,36 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
       const landmarks = L.layerGroup().addTo(map)
       landmarksRef.current = landmarks
 
-      map.on("move zoom viewreset zoomanim resize", scheduleDraw)
-      map.on("movestart zoomstart", () => {
-        interactingRef.current = true
+      let zooming = false
+      map.on("move zoom resize", scheduleDraw)
+      // Panning: draw a cheap version each frame so the stars track the drag.
+      map.on("movestart", () => {
+        if (!zooming) interactingRef.current = true
       })
-      map.on("moveend zoomend", () => {
+      map.on("moveend", () => {
+        if (!zooming) {
+          interactingRef.current = false
+          scheduleDraw()
+        }
+      })
+      // Zooming: Leaflet animates the base map on its own; hide the overlay for
+      // that ~200ms and fade it back in, redrawn, rather than fighting the anim.
+      map.on("zoomstart", () => {
+        zooming = true
+        interactingRef.current = true
+        if (canvasRef.current) canvasRef.current.style.opacity = "0"
+      })
+      map.on("zoomend", () => {
+        zooming = false
         interactingRef.current = false
         scheduleDraw()
+        if (canvasRef.current) canvasRef.current.style.opacity = "1"
       })
       map.on("click", (event: LeafletMouseEvent) => {
-        const { stars: s } = drawState.current
-        const id = hitTest(s, (lat, lng) => map.latLngToContainerPoint([lat, lng]), event.containerPoint, map.getZoom())
-        onSelectRef.current(id)
+        onSelectRef.current(hitTest(layoutRef.current, event.containerPoint))
       })
       map.on("mousemove", (event: LeafletMouseEvent) => {
-        const { stars: s } = drawState.current
-        const id = hitTest(s, (lat, lng) => map.latLngToContainerPoint([lat, lng]), event.containerPoint, map.getZoom())
+        const id = hitTest(layoutRef.current, event.containerPoint)
         if (id !== hoveredRef.current) {
           hoveredRef.current = id
           map.getContainer().style.cursor = id != null ? "pointer" : ""

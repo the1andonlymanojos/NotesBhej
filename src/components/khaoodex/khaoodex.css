@@ -5,6 +5,7 @@
   inset: 0;
   z-index: 650; /* above tiles + overlay, below leaflet controls (800) */
   pointer-events: none;
+  transition: opacity 130ms ease-out;
 }
 
 /* ------------------------------------------------------ leaflet zoom control --- */

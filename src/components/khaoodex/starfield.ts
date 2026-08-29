@@ -1,6 +1,7 @@
 // The KhaaoDex map draws restaurants as a star chart: every place keeps its own
-// point (no clustering), density is handled with brightness + thin constellation
-// lines instead. All of it renders on one canvas so redraws stay cheap.
+// point (no clustering). Density is handled with brightness, thin constellation
+// lines, and a gentle spread of pins that would otherwise sit on top of each
+// other. All of it renders on one canvas.
 
 import type { KhaaoDexRestaurant } from "@/lib/api/types"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
@@ -14,6 +15,12 @@ export type Star = {
   /** 0.3 (obscure) … 1.2 (a place everyone's been to) — drives size + glow. */
   magnitude: number
 }
+
+/** A star projected to the canvas, after the declutter nudge. */
+export type Placed = { star: Star; x: number; y: number; r: number }
+
+type Project = (lat: number, lng: number) => { x: number; y: number }
+type ThemeInk = (typeof mapThemes)[KhaaoDexTheme]
 
 const hasCoords = (r: KhaaoDexRestaurant) =>
   Number.isFinite(r.latitude) &&
@@ -45,8 +52,8 @@ function distanceKm(a: Star, b: Star) {
 
 /**
  * Euclidean minimum spanning tree (Prim's). Connects the whole set with the
- * fewest, shortest links — the constellation backbone. n is small (< a few
- * hundred) so O(n²) is fine.
+ * fewest, shortest links — the constellation backbone. Computed once per
+ * restaurant set, not per frame.
  */
 export function constellationEdges(stars: Star[]): Array<[number, number, number]> {
   if (stars.length < 2) return []
@@ -76,18 +83,75 @@ export function constellationEdges(stars: Star[]): Array<[number, number, number
   return edges
 }
 
-type ThemeInk = (typeof mapThemes)[KhaaoDexTheme]
-
 function starRadius(magnitude: number, zoom: number) {
   const zoomBoost = Math.max(0.92, Math.min(1.6, 0.92 + (zoom - 12) * 0.08))
   return (3.4 + magnitude * 4.6) * zoomBoost
 }
 
+/**
+ * Project every star, then relax the ones that would fully cover each other a few
+ * pixels apart — enough that both are visible and tappable, never so far that a
+ * pin lies about where a place is (each stays within DRIFT_CAP px of its point).
+ */
+export function layoutStars(stars: Star[], project: Project, zoom: number, declutter: boolean): Placed[] {
+  const n = stars.length
+  const x = new Float64Array(n)
+  const y = new Float64Array(n)
+  const ox = new Float64Array(n)
+  const oy = new Float64Array(n)
+  const r = new Float64Array(n)
+  for (let i = 0; i < n; i++) {
+    const p = project(stars[i].lat, stars[i].lng)
+    x[i] = ox[i] = p.x
+    y[i] = oy[i] = p.y
+    r[i] = starRadius(stars[i].magnitude, zoom)
+  }
+
+  if (declutter && n > 1 && n <= 500) {
+    const DRIFT_CAP = 15
+    for (let pass = 0; pass < 5; pass++) {
+      let moved = false
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          let dx = x[j] - x[i]
+          let dy = y[j] - y[i]
+          let d = Math.hypot(dx, dy)
+          const min = r[i] + r[j] + 3
+          if (d >= min) continue
+          if (d < 0.01) {
+            dx = i - j || 1
+            dy = 0.7
+            d = Math.hypot(dx, dy)
+          }
+          const push = ((min - d) / 2) * 0.55
+          const ux = dx / d
+          const uy = dy / d
+          x[i] -= ux * push
+          y[i] -= uy * push
+          x[j] += ux * push
+          y[j] += uy * push
+          moved = true
+        }
+      }
+      if (!moved) break
+    }
+    for (let i = 0; i < n; i++) {
+      const dx = x[i] - ox[i]
+      const dy = y[i] - oy[i]
+      const len = Math.hypot(dx, dy)
+      if (len > DRIFT_CAP) {
+        x[i] = ox[i] + (dx / len) * DRIFT_CAP
+        y[i] = oy[i] + (dy / len) * DRIFT_CAP
+      }
+    }
+  }
+
+  return stars.map((star, i) => ({ star, x: x[i], y: y[i], r: r[i] }))
+}
+
 export type DrawOptions = {
-  stars: Star[]
+  placed: Placed[]
   edges: Array<[number, number, number]>
-  project: (lat: number, lng: number) => { x: number; y: number }
-  theme: KhaaoDexTheme
   colors: ThemeInk
   selectedId: number | null
   hoveredId: number | null
@@ -97,31 +161,31 @@ export type DrawOptions = {
   dpr: number
   /** Top inset (px) kept clear of labels so the filter bar never collides. */
   topInset: number
-  /** Skip the name pass while the map is being dragged / zoomed. */
-  skipLabels?: boolean
+  /** While the map is being dragged / zoomed: skip glow, spikes, and labels. */
+  cheap?: boolean
 }
 
 export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
-  const { stars, edges, project, colors, selectedId, hoveredId, zoom, width, height, dpr, topInset } = o
+  const { placed, edges, colors, selectedId, hoveredId, zoom, width, height, dpr, topInset, cheap } = o
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, width, height)
 
-  const pts = stars.map((s) => project(s.lat, s.lng))
   const onScreen = (p: { x: number; y: number }) =>
     p.x > -80 && p.x < width + 80 && p.y > -80 && p.y < height + 80
+  const isActive = (id: number) => id === selectedId || id === hoveredId
 
   // 1. Constellation lines — short links bright, long ones fade toward nothing.
   ctx.lineCap = "round"
   for (const [a, b, km] of edges) {
-    const pa = pts[a]
-    const pb = pts[b]
-    if (!onScreen(pa) && !onScreen(pb)) continue
+    const pa = placed[a]
+    const pb = placed[b]
+    if (!pa || !pb || (!onScreen(pa) && !onScreen(pb))) continue
     const alpha = Math.max(0, Math.min(0.34, 0.34 * (1 - km / 4)))
     if (alpha < 0.015) continue
-    const touchesActive = stars[a].id === selectedId || stars[b].id === selectedId || stars[a].id === hoveredId || stars[b].id === hoveredId
-    ctx.strokeStyle = touchesActive ? colors.markerVisited : colors.roadMajor
-    ctx.globalAlpha = touchesActive ? Math.min(0.7, alpha + 0.4) : alpha
-    ctx.lineWidth = touchesActive ? 1.4 : 1.1
+    const active = isActive(pa.star.id) || isActive(pb.star.id)
+    ctx.strokeStyle = active ? colors.markerVisited : colors.roadMajor
+    ctx.globalAlpha = active ? Math.min(0.7, alpha + 0.4) : alpha
+    ctx.lineWidth = active ? 1.4 : 1.1
     ctx.beginPath()
     ctx.moveTo(pa.x, pa.y)
     ctx.lineTo(pb.x, pb.y)
@@ -129,130 +193,120 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
   }
   ctx.globalAlpha = 1
 
-  // Per-star pixel radius + distance to the nearest other pin (drives whether a
-  // label has room to breathe).
-  const baseR = stars.map((s) => starRadius(s.magnitude, zoom))
-  const nearestPx = pts.map((p, i) => {
-    let best = Infinity
-    for (let j = 0; j < pts.length; j++) {
-      if (j === i) continue
-      const d = Math.hypot(p.x - pts[j].x, p.y - pts[j].y)
-      if (d < best) best = d
-    }
-    return best
-  })
-
-  const priority = (i: number) => (stars[i].id === selectedId ? 2 : stars[i].id === hoveredId ? 1 : 0)
-
-  // 2. Stars. Draw unselected first, then the highlighted one on top.
-  const order = [...stars.keys()].sort(
-    (i, j) => priority(i) - priority(j) || stars[i].magnitude - stars[j].magnitude,
+  const priority = (p: Placed) => (p.star.id === selectedId ? 2 : p.star.id === hoveredId ? 1 : 0)
+  const order = [...placed.keys()].sort(
+    (i, j) => priority(placed[i]) - priority(placed[j]) || placed[i].star.magnitude - placed[j].star.magnitude,
   )
 
+  // 2. Stars.
   for (const i of order) {
-    const star = stars[i]
-    const p = pts[i]
-    if (!onScreen(p)) continue
+    const { star, x, y } = placed[i]
+    if (!onScreen(placed[i])) continue
     const selected = star.id === selectedId
     const hovered = star.id === hoveredId
-    const r = baseR[i] * (selected ? 1.55 : hovered ? 1.18 : 1)
+    const rr = placed[i].r * (selected ? 1.55 : hovered ? 1.18 : 1)
     const core = star.visited ? colors.markerVisited : colors.markerUnvisited
 
-    // glow — every star reads as a point of light; brighter ones bloom more.
-    const glowR = r * (selected ? 5 : 3.2 + star.magnitude)
-    const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR)
-    glow.addColorStop(0, hexAlpha(core, selected ? 0.6 : 0.42 + star.magnitude * 0.22))
-    glow.addColorStop(0.5, hexAlpha(core, selected ? 0.22 : 0.12 + star.magnitude * 0.08))
-    glow.addColorStop(1, hexAlpha(core, 0))
-    ctx.fillStyle = glow
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2)
-    ctx.fill()
-
-    // diffraction spikes on the brightest / active stars
-    if (selected || hovered || star.magnitude > 0.85) {
-      const spike = r * (selected ? 4.2 : 2.6)
-      ctx.strokeStyle = hexAlpha(core, selected ? 0.55 : 0.3)
-      ctx.lineWidth = selected ? 1.4 : 1
+    if (!cheap) {
+      const glowR = rr * (selected ? 5 : 3.2 + star.magnitude)
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR)
+      glow.addColorStop(0, hexAlpha(core, selected ? 0.6 : 0.42 + star.magnitude * 0.22))
+      glow.addColorStop(0.5, hexAlpha(core, selected ? 0.22 : 0.12 + star.magnitude * 0.08))
+      glow.addColorStop(1, hexAlpha(core, 0))
+      ctx.fillStyle = glow
       ctx.beginPath()
-      ctx.moveTo(p.x - spike, p.y)
-      ctx.lineTo(p.x + spike, p.y)
-      ctx.moveTo(p.x, p.y - spike)
-      ctx.lineTo(p.x, p.y + spike)
-      ctx.stroke()
+      ctx.arc(x, y, glowR, 0, Math.PI * 2)
+      ctx.fill()
+
+      if (selected || hovered || star.magnitude > 0.85) {
+        const spike = rr * (selected ? 4.2 : 2.6)
+        ctx.strokeStyle = hexAlpha(core, selected ? 0.55 : 0.3)
+        ctx.lineWidth = selected ? 1.4 : 1
+        ctx.beginPath()
+        ctx.moveTo(x - spike, y)
+        ctx.lineTo(x + spike, y)
+        ctx.moveTo(x, y - spike)
+        ctx.lineTo(x, y + spike)
+        ctx.stroke()
+      }
     }
 
-    // halo ring for the selected star
     if (selected) {
       ctx.strokeStyle = hexAlpha(core, 0.9)
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.arc(p.x, p.y, r + 5, 0, Math.PI * 2)
+      ctx.arc(x, y, rr + 5, 0, Math.PI * 2)
       ctx.stroke()
     }
 
-    // body — a filled point of light with a thin halo ring so it reads on any
-    // map colour. Visited stars carry the accent; "on the radar" stars are cooler.
     ctx.beginPath()
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+    ctx.arc(x, y, rr, 0, Math.PI * 2)
     ctx.fillStyle = core
     ctx.fill()
-    ctx.lineWidth = Math.max(1.25, r * 0.32)
+    ctx.lineWidth = Math.max(1.25, rr * 0.32)
     ctx.strokeStyle = hexAlpha(colors.markerHalo, 0.95)
     ctx.stroke()
-    // a bright center pip once the star is big enough for it to register
-    if (r > 5) {
+    if (rr > 5) {
       ctx.beginPath()
-      ctx.arc(p.x, p.y, r * 0.34, 0, Math.PI * 2)
+      ctx.arc(x, y, rr * 0.34, 0, Math.PI * 2)
       ctx.fillStyle = hexAlpha(colors.markerHalo, star.visited ? 0.5 : 0.9)
       ctx.fill()
     }
   }
   ctx.globalAlpha = 1
 
-  if (o.skipLabels) return
+  if (cheap) return
 
-  // 3. Labels. A place shows its name when there's room for it: always once
-  // zoomed in, and at any zoom when the pin stands on its own. Names are tried in
-  // four positions and dropped only if every spot would overlap another label or
-  // pin.
+  // 3. Labels. A place shows its name when there's room: always once zoomed in,
+  // and at any zoom when the pin stands clear of its neighbours. Each name is
+  // tried in four positions and dropped only if every spot would overlap another
+  // label or pin.
   type Rect = { x: number; y: number; w: number; h: number }
   const overlaps = (a: Rect, b: Rect) =>
     a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
-  const placed: Rect[] = [{ x: -10, y: -10, w: width + 20, h: topInset }]
-  ctx.textBaseline = "middle"
 
-  const labelOrder = [...stars.keys()].sort(
-    (i, j) => priority(j) - priority(i) || stars[j].magnitude - stars[i].magnitude,
+  const nearest = placed.map((p, i) => {
+    let best = Infinity
+    for (let j = 0; j < placed.length; j++) {
+      if (j === i) continue
+      const d = Math.hypot(p.x - placed[j].x, p.y - placed[j].y)
+      if (d < best) best = d
+    }
+    return best
+  })
+
+  const boxes: Rect[] = [{ x: -10, y: -10, w: width + 20, h: topInset }]
+  ctx.textBaseline = "middle"
+  const labelOrder = [...placed.keys()].sort(
+    (i, j) => priority(placed[j]) - priority(placed[i]) || placed[j].star.magnitude - placed[i].star.magnitude,
   )
 
   for (const i of labelOrder) {
-    const star = stars[i]
-    const p = pts[i]
-    if (p.x < -40 || p.x > width + 40 || p.y < -40 || p.y > height + 40) continue
-    const active = star.id === selectedId || star.id === hoveredId
-    const roomy = nearestPx[i] > 44 + baseR[i]
+    const { star, x, y, r } = placed[i]
+    if (x < -40 || x > width + 40 || y < -40 || y > height + 40) continue
+    const active = isActive(star.id)
+    const roomy = nearest[i] > 44 + r
     if (!active && !(zoom >= 13.5 || (zoom >= 11.5 && roomy))) continue
 
     ctx.font = `${active ? 700 : 600} 12px ui-sans-serif, system-ui, sans-serif`
     const text = star.name.length > 24 ? `${star.name.slice(0, 23)}…` : star.name
     const tw = ctx.measureText(text).width
-    const r = baseR[i] * (active ? 1.4 : 1)
+    const rad = r * (active ? 1.4 : 1)
     const anchors = [
-      { x: p.x + r + 7, y: p.y },
-      { x: p.x - r - 7 - tw, y: p.y },
-      { x: p.x - tw / 2, y: p.y - r - 13 },
-      { x: p.x - tw / 2, y: p.y + r + 13 },
+      { x: x + rad + 7, y },
+      { x: x - rad - 7 - tw, y },
+      { x: x - tw / 2, y: y - rad - 13 },
+      { x: x - tw / 2, y: y + rad + 13 },
     ]
 
     let spot: { x: number; y: number } | null = null
     for (const a of anchors) {
       const box: Rect = { x: a.x - 3, y: a.y - 9, w: tw + 6, h: 18 }
       if (box.x < 3 || box.x + box.w > width - 3) continue
-      const hitsLabel = placed.some((l) => overlaps(box, l))
+      const hitsLabel = boxes.some((l) => overlaps(box, l))
       const hitsPin =
         !hitsLabel &&
-        pts.some(
+        placed.some(
           (q, k) =>
             k !== i &&
             q.x > box.x - 3 &&
@@ -262,14 +316,14 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
         )
       if (!hitsLabel && !hitsPin) {
         spot = a
-        placed.push(box)
+        boxes.push(box)
         break
       }
     }
     if (!spot) {
       if (!active) continue
       spot = anchors[0]
-      placed.push({ x: spot.x - 3, y: spot.y - 9, w: tw + 6, h: 18 })
+      boxes.push({ x: spot.x - 3, y: spot.y - 9, w: tw + 6, h: 18 })
     }
 
     ctx.lineWidth = 3.5
@@ -282,27 +336,21 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
   }
 }
 
-export function hitTest(
-  stars: Star[],
-  project: (lat: number, lng: number) => { x: number; y: number },
-  point: { x: number; y: number },
-  zoom: number,
-): number | null {
+export function hitTest(placed: Placed[], point: { x: number; y: number }): number | null {
   let bestId: number | null = null
   let bestD = Infinity
-  for (const star of stars) {
-    const p = project(star.lat, star.lng)
-    const hit = Math.max(12, starRadius(star.magnitude, zoom) * 1.6 + 6)
+  for (const p of placed) {
+    const hit = Math.max(12, p.r * 1.6 + 6)
     const d = Math.hypot(p.x - point.x, p.y - point.y)
     if (d < hit && d < bestD) {
       bestD = d
-      bestId = star.id
+      bestId = p.star.id
     }
   }
   return bestId
 }
 
-/** #rrggbb (+ optional aa) → rgba() string. */
+/** #rrggbb → rgba() string. */
 function hexAlpha(hex: string, alpha: number) {
   const h = hex.replace("#", "")
   const r = parseInt(h.slice(0, 2), 16)
