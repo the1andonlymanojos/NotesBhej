@@ -96,7 +96,8 @@ export default function ProfilePage() {
   const handleSignOut = async () => {
     try {
       await apiLogout()
-      router.push("/nextlogin")
+      router.replace("/")
+      router.refresh()
     } catch (err) {
       console.error("Sign-out failed:", err)
       toast.error("Could not sign out")
