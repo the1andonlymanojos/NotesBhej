@@ -11,6 +11,7 @@ import "./khaoodex.css"
 type KhaaoDexMapProps = {
   theme: KhaaoDexTheme
   restaurants: KhaaoDexRestaurant[]
+  selectedId: number | null
   onRestaurantSelect: (restaurantId: number) => void
 }
 
@@ -42,7 +43,7 @@ const hasValidCoords = (restaurant: KhaaoDexRestaurant) =>
   Number.isFinite(restaurant.longitude) &&
   !(Math.abs(restaurant.latitude) < 0.01 && Math.abs(restaurant.longitude) < 0.01)
 
-export default function KhaaoDexMap({ theme, restaurants, onRestaurantSelect }: KhaaoDexMapProps) {
+export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaurantSelect }: KhaaoDexMapProps) {
   const mapElement = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
   const roadsRef = useRef<GeoJSONLayer | null>(null)
@@ -136,11 +137,20 @@ export default function KhaaoDexMap({ theme, restaurants, onRestaurantSelect }: 
     markerGroup.clearLayers()
     restaurants.filter(hasValidCoords).forEach((restaurant) => {
       const visited = Boolean(restaurant.relationship?.visited)
+      const selected = restaurant.id === selectedId
       const markerColor = visited ? colors.markerVisited : colors.markerUnvisited
+      const classes = [
+        "khaoodex-marker",
+        visited ? "khaoodex-marker-visited" : "khaoodex-marker-unvisited",
+        selected ? "khaoodex-marker-selected" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
       L.marker([restaurant.latitude, restaurant.longitude], {
+        zIndexOffset: selected ? 1000 : 0,
         icon: L.divIcon({
           className: "khaoodex-marker-wrap",
-          html: `<span class="khaoodex-marker khaoodex-marker-${visited ? "visited" : "unvisited"}" style="--marker-color:${markerColor};--marker-halo:${colors.markerHalo}"><span></span></span>`,
+          html: `<span class="${classes}" style="--marker-color:${markerColor};--marker-halo:${colors.markerHalo}"><span></span></span>`,
           iconSize: [30, 30],
           iconAnchor: [15, 15],
         }),
@@ -155,11 +165,21 @@ export default function KhaaoDexMap({ theme, restaurants, onRestaurantSelect }: 
       map.fitBounds(markerGroup.getBounds().pad(0.15), { maxZoom: 15 })
       didFitRef.current = true
     }
-  }, [restaurants, theme])
+  }, [restaurants, theme, selectedId])
 
   useEffect(() => {
     if (ready) void paint()
   }, [ready, paint])
+
+  // Ease the map to a freshly selected restaurant so its pin isn't hidden behind the panel.
+  useEffect(() => {
+    if (!ready || selectedId == null) return
+    const target = restaurants.find((restaurant) => restaurant.id === selectedId)
+    if (!target || !hasValidCoords(target)) return
+    const map = mapRef.current
+    if (!map) return
+    map.flyTo([target.latitude, target.longitude], Math.max(map.getZoom(), 14), { duration: 0.4 })
+  }, [ready, selectedId, restaurants])
 
   return <div ref={mapElement} className="h-full w-full" aria-label="Interactive map of Gwalior" />
 }

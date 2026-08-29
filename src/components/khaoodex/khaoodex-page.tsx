@@ -1,9 +1,22 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
-import { ArrowUpRight, Compass, Loader2, MapPinned, Sparkles, Star, Utensils, X } from "lucide-react"
+import {
+  ArrowUpRight,
+  Compass,
+  Loader2,
+  MapPinned,
+  Moon,
+  Navigation,
+  Plus,
+  Sparkles,
+  Star,
+  Sun,
+  Utensils,
+  X,
+} from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import {
   ApiHttpError,
@@ -18,6 +31,7 @@ import type { KhaaoDexCategory, KhaaoDexRestaurant, KhaaoDexReview } from "@/lib
 import KhaaoDexMap from "./khaoodex-map"
 import AddRestaurant from "./add-restaurant"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
+import { SURFACE, categoryLabel, googleDirectionsUrl, priceLabel } from "./ui"
 
 type RatingKey = "overallRating" | "valueForMoneyRating" | "foodQualityRating" | "ambienceRating"
 type ReviewDraft = Record<RatingKey, number | ""> & { text: string }
@@ -30,11 +44,17 @@ const ratingLabels: Array<{ key: RatingKey; label: string }> = [
 ]
 
 const categoryColors = ["#f59e0b", "#fb7185", "#34d399", "#a78bfa", "#38bdf8"]
-const categoryOptions: KhaaoDexCategory[] = ["CAFE", "QUICK_BITES", "NORTH_INDIAN", "CHAAT", "SWEETS_BAKERY", "DESSERT_PLACE", "STREET_FOOD", "FINE_DINING", "SOUTH_INDIAN"]
-
-function categoryLabel(category: string) {
-  return category.toLowerCase().split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
-}
+const categoryOptions: KhaaoDexCategory[] = [
+  "CAFE",
+  "QUICK_BITES",
+  "NORTH_INDIAN",
+  "SOUTH_INDIAN",
+  "CHAAT",
+  "SWEETS_BAKERY",
+  "DESSERT_PLACE",
+  "STREET_FOOD",
+  "FINE_DINING",
+]
 
 const emptyDraft = (): ReviewDraft => ({
   overallRating: "",
@@ -56,24 +76,84 @@ function isAuthError(error: unknown) {
   return error instanceof ApiHttpError && (error.status === 401 || error.status === 403)
 }
 
-function priceLabel(price?: string | null) {
-  return price ? price.charAt(0) + price.slice(1).toLowerCase() : "Price not listed"
+/* ------------------------------------------------------------------ shell --- */
+
+/** One panel treatment: bottom sheet on phones, a floating card on the left on desktop. */
+function Panel({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <>
+      <button
+        aria-label="Close"
+        onClick={onClose}
+        className="fixed inset-0 z-[590] bg-neutral-950/25 backdrop-blur-[1px] sm:hidden"
+      />
+      <aside
+        aria-label={label}
+        className={`${SURFACE} fixed inset-x-0 bottom-0 z-[600] flex max-h-[86svh] flex-col overflow-hidden rounded-t-[26px] sm:inset-auto sm:bottom-4 sm:left-4 sm:top-auto sm:max-h-[calc(100svh-2rem)] sm:w-[384px] sm:rounded-[26px]`}
+      >
+        <div className="relative shrink-0">
+          <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-neutral-300 dark:bg-neutral-700 sm:hidden" />
+          <button
+            onClick={onClose}
+            aria-label="Close panel"
+            className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full text-neutral-500 transition hover:bg-black/5 hover:text-neutral-900 dark:hover:bg-white/10 dark:hover:text-white"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-2 sm:pt-4">
+          {children}
+        </div>
+      </aside>
+    </>
+  )
 }
 
-function RatingInput({ label, value, onChange }: { label: string; value: number | ""; onChange: (value: number | "") => void }) {
+function StarRow({ value }: { value?: number | null }) {
   return (
-    <div>
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] opacity-55">{label}</div>
-      <div className="flex gap-1">
+    <span className="inline-flex items-center gap-1 text-sm font-semibold">
+      <Star className="size-4 fill-amber-400 text-amber-400" />
+      {typeof value === "number" ? value.toFixed(1) : "—"}
+    </span>
+  )
+}
+
+function RatingInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number | ""
+  onChange: (value: number | "") => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{label}</div>
+      <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((rating) => (
-          <button key={rating} type="button" onClick={() => onChange(rating)} className="rounded p-0.5 transition hover:scale-110" aria-label={`${label}: ${rating} stars`}>
-            <Star className={`size-4 ${typeof value === "number" && rating <= value ? "fill-[#f59e0b] text-[#f59e0b]" : "text-current opacity-25"}`} />
+          <button
+            key={rating}
+            type="button"
+            onClick={() => onChange(value === rating ? "" : rating)}
+            className="rounded p-1 transition hover:scale-110"
+            aria-label={`${label}: ${rating} star${rating > 1 ? "s" : ""}`}
+          >
+            <Star
+              className={`size-5 ${
+                typeof value === "number" && rating <= value
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-neutral-300 dark:text-neutral-600"
+              }`}
+            />
           </button>
         ))}
       </div>
     </div>
   )
 }
+
+/* ---------------------------------------------------------------- details --- */
 
 function RestaurantDetails({
   restaurant,
@@ -84,13 +164,12 @@ function RestaurantDetails({
   savingReview,
   deletingReview,
   error,
-  onClose,
   onVisit,
   onDraftChange,
   onReviewSubmit,
   onDeleteReview,
 }: {
-  restaurant: KhaaoDexRestaurant | null
+  restaurant: KhaaoDexRestaurant
   reviews: KhaaoDexReview[]
   loading: boolean
   draft: ReviewDraft
@@ -98,55 +177,180 @@ function RestaurantDetails({
   savingReview: boolean
   deletingReview: boolean
   error: string | null
-  onClose: () => void
   onVisit: () => void
   onDraftChange: (key: keyof ReviewDraft, value: number | "" | string) => void
   onReviewSubmit: (event: React.FormEvent<HTMLFormElement>) => void
   onDeleteReview: () => void
 }) {
-  if (!restaurant) return null
+  const visited = Boolean(restaurant.relationship?.review || restaurant.relationship?.visited)
+  const summary =
+    restaurant.cuisine ||
+    restaurant.categories?.map(categoryLabel).join(" · ") ||
+    "Cuisine not listed"
 
   return (
-    <aside className="absolute inset-y-0 right-0 z-[900] w-full max-w-[460px] overflow-y-auto border-l border-white/50 bg-[#f8f7f1]/95 p-5 text-[#27313a] shadow-2xl backdrop-blur-2xl dark:bg-[#101719]/95 dark:text-[#e9f1ec] sm:p-7">
-      <div className="flex items-start justify-between gap-4">
-        <div><div className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#ef7d57]">Restaurant details</div><h2 className="text-2xl font-black tracking-[-0.05em]">{restaurant.name}</h2></div>
-        <button onClick={onClose} className="rounded-full p-2 opacity-60 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10" aria-label="Close restaurant details"><X className="size-5" /></button>
+    <div>
+      <div className="pr-8">
+        <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">{restaurant.name}</h2>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-neutral-500 dark:text-neutral-400">
+          <span>{summary}</span>
+          {priceLabel(restaurant.priceCategory) && (
+            <>
+              <span aria-hidden>·</span>
+              <span>{priceLabel(restaurant.priceCategory)}</span>
+            </>
+          )}
+          <span aria-hidden>·</span>
+          <StarRow value={restaurant.averageRating} />
+          <span className="text-neutral-400 dark:text-neutral-500">({restaurant.reviewCount})</span>
+        </div>
       </div>
 
-      <div className="mt-5 rounded-3xl bg-white/70 p-4 dark:bg-white/5">
-        <div className="flex items-center justify-between gap-3"><div className="text-sm font-semibold opacity-65">{restaurant.cuisine || restaurant.categories?.map(categoryLabel).join(" · ") || "Cuisine not listed"} · {priceLabel(restaurant.priceCategory)}</div><div className="flex items-center gap-1 font-black"><Star className="size-4 fill-[#f59e0b] text-[#f59e0b]" /> {restaurant.averageRating?.toFixed(1) || "—"}</div></div>
-        {restaurant.categories?.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{restaurant.categories.map((category) => <span key={category} className="rounded-full bg-[#ef7d57]/10 px-2 py-1 text-[10px] font-bold text-[#d95f42]">{categoryLabel(category)}</span>)}</div>}
-        <p className="mt-2 text-sm leading-6 opacity-60">{restaurant.address || "Address not listed"}</p>
-        <button onClick={onVisit} disabled={savingVisit} className={`mt-4 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition ${restaurant.relationship?.visited ? "bg-[#ef7d57] text-white" : "bg-[#27313a] text-white dark:bg-white dark:text-[#172026]"}`}>
-          {savingVisit && <Loader2 className="size-4 animate-spin" />}{restaurant.relationship?.visited ? "Visited ✓" : "Mark as visited"}
+      {restaurant.categories?.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {restaurant.categories.map((category) => (
+            <span
+              key={category}
+              className="rounded-full bg-[#ef7d57]/12 px-2.5 py-1 text-xs font-semibold text-[#c1502f] dark:text-[#f0a184]"
+            >
+              {categoryLabel(category)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {restaurant.address && (
+        <p className="mt-3 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">{restaurant.address}</p>
+      )}
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button
+          onClick={onVisit}
+          disabled={savingVisit}
+          className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
+            visited
+              ? "bg-[#ef7d57] text-white hover:bg-[#e06b45]"
+              : "bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          }`}
+        >
+          {savingVisit ? <Loader2 className="size-4 animate-spin" /> : null}
+          {visited ? "Visited" : "Mark visited"}
         </button>
+        <a
+          href={googleDirectionsUrl(restaurant)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white/70 px-3 py-2.5 text-sm font-semibold text-neutral-800 transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-neutral-100 dark:hover:bg-white/10"
+        >
+          <Navigation className="size-4" />
+          Directions
+        </a>
       </div>
 
-      {loading ? <div className="flex items-center justify-center py-10 opacity-60"><Loader2 className="size-5 animate-spin" /></div> : <>
-        <section className="mt-7"><div className="mb-3 flex items-center justify-between"><h3 className="font-black">Trusted reviews</h3><span className="text-xs opacity-50">{restaurant.reviewCount} total</span></div>{reviews.length === 0 ? <p className="rounded-2xl border border-dashed border-black/15 p-4 text-sm opacity-55 dark:border-white/20">No reviews yet. Be the first person to log this place.</p> : <div className="space-y-3">{reviews.map((review) => <article key={review.id} className="rounded-2xl bg-white/60 p-4 dark:bg-white/5"><div className="flex justify-between gap-3 text-sm font-bold"><span>{review.userName}</span><span className="flex items-center gap-1"><Star className="size-3 fill-[#f59e0b] text-[#f59e0b]" /> {review.overallRating ?? "—"}</span></div>{review.text && <p className="mt-2 text-sm leading-6 opacity-65">{review.text}</p>}</article>)}</div>}</section>
+      {loading ? (
+        <div className="flex justify-center py-10 text-neutral-400">
+          <Loader2 className="size-5 animate-spin" />
+        </div>
+      ) : (
+        <>
+          <section className="mt-6">
+            <div className="mb-2 flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Reviews</h3>
+              <span className="text-xs text-neutral-400">{restaurant.reviewCount} total</span>
+            </div>
+            {reviews.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-black/10 p-3 text-sm text-neutral-500 dark:border-white/15 dark:text-neutral-400">
+                No reviews yet — be the first to log this place.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {reviews.map((review) => (
+                  <article key={review.id} className="rounded-xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+                    <div className="flex items-center justify-between text-sm font-semibold text-neutral-900 dark:text-white">
+                      <span>{review.userName}</span>
+                      <StarRow value={review.overallRating} />
+                    </div>
+                    {review.text && (
+                      <p className="mt-1.5 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
+                        {review.text}
+                      </p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
 
-        <section className="mt-8"><div className="mb-3 flex items-center justify-between"><h3 className="font-black">Your review</h3>{restaurant.relationship?.review && <button type="button" onClick={onDeleteReview} disabled={deletingReview} className="text-xs font-bold text-[#d95f42] hover:underline">{deletingReview ? "Removing…" : "Delete"}</button>}</div><form onSubmit={onReviewSubmit} className="space-y-4 rounded-3xl bg-white/60 p-4 dark:bg-white/5">{ratingLabels.map(({ key, label }) => <RatingInput key={key} label={label} value={draft[key] as number | ""} onChange={(value) => onDraftChange(key, value)} />)}<Textarea value={draft.text} onChange={(event) => onDraftChange("text", event.target.value)} placeholder="What should a trusted friend know?" className="min-h-24 resize-none bg-white/50 dark:bg-black/10" /><button type="submit" disabled={savingReview} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ef7d57] px-4 py-3 text-sm font-black text-white">{savingReview && <Loader2 className="size-4 animate-spin" />} {restaurant.relationship?.review ? "Update review" : "Save review"}</button></form></section>
-      </>}
-      {error && <p className="mt-4 rounded-2xl bg-red-500/10 p-3 text-sm font-semibold text-red-700 dark:text-red-300">{error}</p>}
-    </aside>
+          <section className="mt-6">
+            <div className="mb-3 flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Your review</h3>
+              {restaurant.relationship?.review && (
+                <button
+                  type="button"
+                  onClick={onDeleteReview}
+                  disabled={deletingReview}
+                  className="text-xs font-semibold text-[#c1502f] hover:underline dark:text-[#f0a184]"
+                >
+                  {deletingReview ? "Removing…" : "Delete"}
+                </button>
+              )}
+            </div>
+            <form onSubmit={onReviewSubmit} className="space-y-3 rounded-2xl bg-black/[0.03] p-4 dark:bg-white/[0.04]">
+              {ratingLabels.map(({ key, label }) => (
+                <RatingInput
+                  key={key}
+                  label={label}
+                  value={draft[key] as number | ""}
+                  onChange={(value) => onDraftChange(key, value)}
+                />
+              ))}
+              <Textarea
+                value={draft.text}
+                onChange={(event) => onDraftChange("text", event.target.value)}
+                placeholder="What should a friend know?"
+                className="min-h-20 resize-none border-black/10 bg-white/70 dark:border-white/15 dark:bg-white/5"
+              />
+              <button
+                type="submit"
+                disabled={savingReview}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#ef7d57] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#e06b45] disabled:opacity-60"
+              >
+                {savingReview ? <Loader2 className="size-4 animate-spin" /> : null}
+                {restaurant.relationship?.review ? "Update review" : "Save review"}
+              </button>
+            </form>
+          </section>
+        </>
+      )}
+
+      {error && (
+        <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
+      )}
+    </div>
   )
 }
 
+/* ------------------------------------------------------------------- page --- */
+
 export default function KhaaoDexPage() {
   const router = useRouter()
-  // The map theme follows the site theme (next-themes) so the map and the floating
-  // panels never disagree. "Matrix" is an opt-in extra that only restyles the map.
+  // The map theme follows the site theme (next-themes) so the map and the panels
+  // never disagree. "Matrix" is an opt-in extra that only restyles the map.
   const { resolvedTheme, setTheme: setSiteTheme } = useTheme()
   const [matrixMode, setMatrixMode] = useState(false)
   const theme: KhaaoDexTheme = matrixMode ? "matrix" : resolvedTheme === "dark" ? "dark" : "light"
-  const selectMapTheme = useCallback((next: KhaaoDexTheme) => {
-    if (next === "matrix") {
-      setMatrixMode(true)
-      return
-    }
-    setMatrixMode(false)
-    setSiteTheme(next)
-  }, [setSiteTheme])
+  const selectMapTheme = useCallback(
+    (next: KhaaoDexTheme) => {
+      if (next === "matrix") {
+        setMatrixMode(true)
+        return
+      }
+      setMatrixMode(false)
+      setSiteTheme(next)
+    },
+    [setSiteTheme],
+  )
+
   const [restaurants, setRestaurants] = useState<KhaaoDexRestaurant[]>([])
   const [selectedCategories, setSelectedCategories] = useState<KhaaoDexCategory[]>([])
   const [mapLoading, setMapLoading] = useState(true)
@@ -166,8 +370,17 @@ export default function KhaaoDexPage() {
   const [deletingReview, setDeletingReview] = useState(false)
   const colors = mapThemes[theme]
 
-  const selectedRestaurant = details?.restaurant ?? restaurants.find((restaurant) => restaurant.id === selectedId) ?? null
-  const visitedIds = useMemo(() => new Set((dex?.visitedRestaurants ?? restaurants.filter((restaurant) => restaurant.relationship?.visited)).map((restaurant) => restaurant.id)), [dex, restaurants])
+  const selectedRestaurant =
+    details?.restaurant ?? restaurants.find((restaurant) => restaurant.id === selectedId) ?? null
+  const visitedIds = useMemo(
+    () =>
+      new Set(
+        (dex?.visitedRestaurants ?? restaurants.filter((restaurant) => restaurant.relationship?.visited)).map(
+          (restaurant) => restaurant.id,
+        ),
+      ),
+    [dex, restaurants],
+  )
   const categories = useMemo(() => {
     const categoryMap = new Map<string, { total: number; visited: number }>()
     restaurants.forEach((restaurant) => {
@@ -179,7 +392,10 @@ export default function KhaaoDexPage() {
         categoryMap.set(category, entry)
       })
     })
-    return [...categoryMap.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, 5).map(([name, stats], index) => ({ name, ...stats, color: categoryColors[index] }))
+    return [...categoryMap.entries()]
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 5)
+      .map(([name, stats], index) => ({ name, ...stats, color: categoryColors[index] }))
   }, [restaurants, visitedIds])
   const visitedCount = dex?.visitedCount ?? visitedIds.size
   const totalActive = dex?.totalActiveRestaurants ?? restaurants.length
@@ -191,7 +407,7 @@ export default function KhaaoDexPage() {
     try {
       setRestaurants(await apiGetKhaaoDexRestaurants({ categories }))
     } catch {
-      setMapError("Could not load the Gwalior restaurant map.")
+      setMapError("Couldn’t load the Gwalior map. Check your connection and try again.")
     } finally {
       setMapLoading(false)
     }
@@ -205,16 +421,32 @@ export default function KhaaoDexPage() {
     if (selectedId == null) return
     setDetailsLoading(true)
     setActionError(null)
-    apiGetKhaaoDexRestaurantDetails(selectedId).then((result) => { setDetails(result); setDraft(draftFromReview(result.restaurant.relationship?.review)) }).catch(() => setActionError("Could not load this restaurant right now.")).finally(() => setDetailsLoading(false))
+    apiGetKhaaoDexRestaurantDetails(selectedId)
+      .then((result) => {
+        setDetails(result)
+        setDraft(draftFromReview(result.restaurant.relationship?.review))
+      })
+      .catch(() => setActionError("Couldn’t load this restaurant right now."))
+      .finally(() => setDetailsLoading(false))
   }, [selectedId])
 
   const selectRestaurant = useCallback((restaurantId: number) => setSelectedId(restaurantId), [])
+  const closeDetails = useCallback(() => {
+    setSelectedId(null)
+    setDetails(null)
+  }, [])
 
   const openDex = async () => {
     setDexOpen(true)
     setDexError(null)
     setDexLoading(true)
-    try { setDex(await apiGetKhaaoDexMyDex()) } catch (error) { if (!isAuthError(error)) setDexError("Sign in to open your personal Dex.") } finally { setDexLoading(false) }
+    try {
+      setDex(await apiGetKhaaoDexMyDex())
+    } catch (error) {
+      if (!isAuthError(error)) setDexError("Sign in to open your personal Dex.")
+    } finally {
+      setDexLoading(false)
+    }
   }
 
   const login = () => router.push(`/nextlogin?redirect=${encodeURIComponent("/khao-dex")}`)
@@ -227,78 +459,372 @@ export default function KhaaoDexPage() {
     loadRestaurants(next)
   }
 
+  const clearCategories = () => {
+    if (selectedCategories.length === 0) return
+    setSelectedCategories([])
+    loadRestaurants([])
+  }
+
   const handleVisit = async () => {
     if (!selectedRestaurant) return
-    setSavingVisit(true); setActionError(null)
+    setSavingVisit(true)
+    setActionError(null)
     try {
-      const relationship = await apiUpdateKhaaoDexRelationship(selectedRestaurant.id, { visited: !selectedRestaurant.relationship?.visited })
-      setRestaurants((current) => current.map((restaurant) => restaurant.id === selectedRestaurant.id ? { ...restaurant, relationship } : restaurant))
-      setDetails((current) => current ? { ...current, restaurant: { ...current.restaurant, relationship } } : current)
+      const relationship = await apiUpdateKhaaoDexRelationship(selectedRestaurant.id, {
+        visited: !selectedRestaurant.relationship?.visited,
+      })
+      setRestaurants((current) =>
+        current.map((restaurant) =>
+          restaurant.id === selectedRestaurant.id ? { ...restaurant, relationship } : restaurant,
+        ),
+      )
+      setDetails((current) =>
+        current ? { ...current, restaurant: { ...current.restaurant, relationship } } : current,
+      )
       if (dexOpen) setDex(await apiGetKhaaoDexMyDex())
-    } catch (error) { if (isAuthError(error)) login(); else setActionError("Could not update your visited status.") } finally { setSavingVisit(false) }
+    } catch (error) {
+      if (isAuthError(error)) login()
+      else setActionError("Couldn’t update your visited status.")
+    } finally {
+      setSavingVisit(false)
+    }
   }
 
   const handleReviewSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!selectedRestaurant) return
-    const body = Object.fromEntries(Object.entries(draft).filter(([, value]) => value !== "" && value !== undefined)) as Record<string, string | number>
-    if (Object.keys(body).length === 0) { setActionError("Add a rating or a note before saving."); return }
-    setSavingReview(true); setActionError(null)
+    const body = Object.fromEntries(
+      Object.entries(draft).filter(([, value]) => value !== "" && value !== undefined),
+    ) as Record<string, string | number>
+    if (Object.keys(body).length === 0) {
+      setActionError("Add a rating or a note before saving.")
+      return
+    }
+    setSavingReview(true)
+    setActionError(null)
     try {
-      await apiUpsertKhaaoDexReview(selectedRestaurant.id, { ...body, text: draft.text || null } as Parameters<typeof apiUpsertKhaaoDexReview>[1])
+      await apiUpsertKhaaoDexReview(selectedRestaurant.id, {
+        ...body,
+        text: draft.text || null,
+      } as Parameters<typeof apiUpsertKhaaoDexReview>[1])
       const fresh = await apiGetKhaaoDexRestaurantDetails(selectedRestaurant.id)
-      setDetails(fresh); setRestaurants((current) => current.map((restaurant) => restaurant.id === selectedRestaurant.id ? fresh.restaurant : restaurant)); setDraft(draftFromReview(fresh.restaurant.relationship?.review))
-    } catch (error) { if (isAuthError(error)) login(); else setActionError("Could not save your review.") } finally { setSavingReview(false) }
+      setDetails(fresh)
+      setRestaurants((current) =>
+        current.map((restaurant) => (restaurant.id === selectedRestaurant.id ? fresh.restaurant : restaurant)),
+      )
+      setDraft(draftFromReview(fresh.restaurant.relationship?.review))
+    } catch (error) {
+      if (isAuthError(error)) login()
+      else setActionError("Couldn’t save your review.")
+    } finally {
+      setSavingReview(false)
+    }
   }
 
   const handleDeleteReview = async () => {
     if (!selectedRestaurant || !window.confirm("Remove your review?")) return
-    setDeletingReview(true); setActionError(null)
-    try { await apiDeleteKhaaoDexReview(selectedRestaurant.id); const fresh = await apiGetKhaaoDexRestaurantDetails(selectedRestaurant.id); setDetails(fresh); setRestaurants((current) => current.map((restaurant) => restaurant.id === selectedRestaurant.id ? fresh.restaurant : restaurant)); setDraft(emptyDraft()) } catch (error) { if (isAuthError(error)) login(); else setActionError("Could not remove your review.") } finally { setDeletingReview(false) }
+    setDeletingReview(true)
+    setActionError(null)
+    try {
+      await apiDeleteKhaaoDexReview(selectedRestaurant.id)
+      const fresh = await apiGetKhaaoDexRestaurantDetails(selectedRestaurant.id)
+      setDetails(fresh)
+      setRestaurants((current) =>
+        current.map((restaurant) => (restaurant.id === selectedRestaurant.id ? fresh.restaurant : restaurant)),
+      )
+      setDraft(emptyDraft())
+    } catch (error) {
+      if (isAuthError(error)) login()
+      else setActionError("Couldn’t remove your review.")
+    } finally {
+      setDeletingReview(false)
+    }
   }
 
+  const chipBase =
+    "shrink-0 snap-start rounded-full px-3.5 py-2 text-[13px] font-semibold shadow-sm backdrop-blur-md transition"
+  const chipOn = "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+  const chipOff =
+    "border border-black/[0.06] bg-white/90 text-neutral-600 hover:text-neutral-900 dark:border-white/10 dark:bg-neutral-900/85 dark:text-neutral-300 dark:hover:text-white"
+  const styleButtons: Array<{ value: KhaaoDexTheme; icon: typeof Sun; label: string }> = [
+    { value: "light", icon: Sun, label: "Light map" },
+    { value: "dark", icon: Moon, label: "Dark map" },
+    { value: "matrix", icon: Sparkles, label: "Matrix map" },
+  ]
+
   return (
-    <main className="relative h-[100svh] min-h-[650px] overflow-hidden" style={{ background: colors.page, color: colors.text }}>
-      <KhaaoDexMap theme={theme} restaurants={restaurants} onRestaurantSelect={selectRestaurant} />
+    <main
+      className="relative h-[100svh] min-h-[600px] overflow-hidden"
+      style={{ background: colors.page, color: colors.text }}
+    >
+      <KhaaoDexMap
+        theme={theme}
+        restaurants={restaurants}
+        selectedId={selectedId}
+        onRestaurantSelect={selectRestaurant}
+      />
 
-      {/* Top overlay: brand + actions on one wrapping row, category filters below. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col gap-2 p-3 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="pointer-events-auto rounded-[22px] border border-white/55 bg-white/85 px-4 py-3 text-slate-900 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85 dark:text-white sm:px-5">
-            <div className="flex items-center gap-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#ef7d57] text-white shadow-lg shadow-[#ef7d57]/25"><Utensils className="size-5" /></div>
-              <div>
-                <div className="text-lg font-black tracking-[-0.05em] sm:text-xl">Khaao<span className="text-[#ef7d57]">Dex</span></div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-white/55">Gwalior food atlas</div>
-              </div>
+      {/* Top: one bar — identity on the left, actions on the right. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col items-center gap-2 p-3">
+        <div
+          className={`${SURFACE} pointer-events-auto flex w-full max-w-2xl items-center gap-2 rounded-2xl p-1.5 pl-2.5`}
+        >
+          <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#ef7d57] text-white">
+            <Utensils className="size-4" />
+          </div>
+          <div className="mr-auto text-[15px] font-bold tracking-tight text-neutral-900 dark:text-white">
+            Khaao<span className="text-[#ef7d57]">Dex</span>
+          </div>
+          <button
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1 rounded-xl bg-[#ef7d57] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#e06b45]"
+          >
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Add</span>
+          </button>
+          <button
+            onClick={openDex}
+            className="flex items-center gap-1.5 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          >
+            <Compass className="size-4" />
+            <span className="hidden sm:inline">My Dex</span>
+          </button>
+        </div>
+
+        {/* Category filter — one scrolling row, "All" resets it. */}
+        <div className="pointer-events-auto w-full max-w-2xl">
+          <div className="flex snap-x gap-1.5 overflow-x-auto pb-1 pr-8 [-ms-overflow-style:none] [mask-image:linear-gradient(to_right,#000_88%,transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <button
+              onClick={clearCategories}
+              className={`${chipBase} ${selectedCategories.length === 0 ? chipOn : chipOff}`}
+            >
+              All
+            </button>
+            {categoryOptions.map((category) => {
+              const active = selectedCategories.includes(category)
+              return (
+                <button
+                  key={category}
+                  onClick={() => toggleCategory(category)}
+                  className={`${chipBase} ${active ? chipOn : chipOff}`}
+                >
+                  {categoryLabel(category)}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Status + legend, bottom-left. */}
+      <div className="pointer-events-none absolute bottom-4 left-3 z-[500] flex flex-col gap-2">
+        {!mapLoading && !mapError && (
+          <div
+            className={`${SURFACE} pointer-events-auto flex items-center gap-2.5 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300`}
+          >
+            <span className="font-semibold text-neutral-900 dark:text-white">{totalActive}</span> places
+            <span className="text-neutral-300 dark:text-neutral-600">·</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="size-2 rounded-full bg-[#ef7d57]" />
+              {visitedCount} visited
+            </span>
+          </div>
+        )}
+        <div className={`${SURFACE} pointer-events-auto flex w-fit items-center gap-0.5 rounded-full p-1`}>
+          {styleButtons.map(({ value, icon: Icon, label }) => (
+            <button
+              key={value}
+              onClick={() => selectMapTheme(value)}
+              aria-label={label}
+              aria-pressed={theme === value}
+              className={`grid size-8 place-items-center rounded-full transition ${
+                theme === value
+                  ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                  : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
+              }`}
+            >
+              <Icon className="size-4" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mapLoading && (
+        <div
+          className={`${SURFACE} pointer-events-none absolute left-1/2 top-1/2 z-[400] -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-2.5 text-sm font-medium text-neutral-700 dark:text-neutral-200`}
+        >
+          <Loader2 className="mr-2 inline size-4 animate-spin" />
+          Finding Gwalior’s places…
+        </div>
+      )}
+      {mapError && (
+        <div className="absolute left-1/2 top-24 z-[500] w-[min(90vw,22rem)] -translate-x-1/2 rounded-2xl bg-red-500 px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
+          {mapError}
+          <button onClick={() => loadRestaurants(selectedCategories)} className="mt-1 block w-full text-xs underline">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {selectedRestaurant && (
+        <Panel label={`${selectedRestaurant.name} details`} onClose={closeDetails}>
+          <RestaurantDetails
+            restaurant={selectedRestaurant}
+            reviews={details?.reviews ?? []}
+            loading={detailsLoading}
+            draft={draft}
+            savingVisit={savingVisit}
+            savingReview={savingReview}
+            deletingReview={deletingReview}
+            error={actionError}
+            onVisit={handleVisit}
+            onDraftChange={(key, value) => setDraft((current) => ({ ...current, [key]: value }))}
+            onReviewSubmit={handleReviewSubmit}
+            onDeleteReview={handleDeleteReview}
+          />
+        </Panel>
+      )}
+
+      {addOpen && (
+        <AddRestaurant
+          onClose={() => setAddOpen(false)}
+          onLogin={login}
+          onCreated={() => loadRestaurants(selectedCategories)}
+        />
+      )}
+
+      {dexOpen && (
+        <Panel label="My Dex" onClose={() => setDexOpen(false)}>
+          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#ef7d57]">
+            <Sparkles className="size-3.5" /> Your collection
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">My Dex</h1>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            The places you’ve found around Gwalior.
+          </p>
+
+          {dexLoading ? (
+            <div className="flex justify-center py-14 text-neutral-400">
+              <Loader2 className="size-6 animate-spin" />
             </div>
-          </div>
-          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2 rounded-[22px] border border-white/55 bg-white/85 p-2 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85">
-            <button onClick={() => setAddOpen(true)} className="rounded-2xl bg-[#ef7d57] px-3 py-2.5 text-sm font-black text-white shadow-lg transition-transform hover:-translate-y-0.5">+ Add</button>
-            <button onClick={openDex} className="flex items-center gap-2 rounded-2xl bg-[#27313a] px-3 py-2.5 text-sm font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5 active:translate-y-0 dark:bg-white dark:text-[#172026]"><Compass className="size-4" /> <span>My Dex</span></button>
-          </div>
-        </div>
+          ) : dexError ? (
+            <div className="mt-6 rounded-2xl bg-black/[0.03] p-5 dark:bg-white/[0.04]">
+              <p className="text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">{dexError}</p>
+              <button
+                onClick={login}
+                className="mt-4 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-neutral-900"
+              >
+                Take me to login
+              </button>
+            </div>
+          ) : (
+            <>
+              <section
+                className="mt-5 rounded-2xl p-5 text-white"
+                style={{ background: theme === "matrix" ? "#173c2b" : "#27313a" }}
+              >
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="text-4xl font-bold tracking-tight">{completion.toFixed(0)}%</div>
+                    <div className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-white/55">
+                      dex complete
+                    </div>
+                  </div>
+                  <MapPinned className="size-7 text-[#ef7d57]" />
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15">
+                  <div
+                    className="h-full rounded-full bg-[#ef7d57]"
+                    style={{ width: `${Math.min(completion, 100)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-xs text-white/60">
+                  <span>{visitedCount} visited</span>
+                  <span>{totalActive} active places</span>
+                </div>
+              </section>
 
-        <div className="pointer-events-auto flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-white/55 bg-white/80 p-2 shadow-xl shadow-slate-900/10 backdrop-blur-xl [scrollbar-width:none] dark:border-white/10 dark:bg-slate-950/80 sm:max-w-xl sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
-          <span className="flex shrink-0 items-center px-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-white/50">Explore</span>
-          {categoryOptions.map((category) => <button key={category} onClick={() => toggleCategory(category)} className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-bold transition ${selectedCategories.includes(category) ? "bg-[#ef7d57] text-white" : "bg-black/5 text-slate-700 hover:bg-black/10 dark:bg-white/10 dark:text-white/80"}`}>{categoryLabel(category)}</button>)}
-        </div>
-      </div>
+              <section className="mt-4 grid grid-cols-2 gap-2.5">
+                <div className="rounded-2xl bg-black/[0.03] p-4 dark:bg-white/[0.04]">
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">{visitedCount}</div>
+                  <div className="mt-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                    places visited
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-black/[0.03] p-4 dark:bg-white/[0.04]">
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                    {Math.max(totalActive - visitedCount, 0)}
+                  </div>
+                  <div className="mt-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">still to try</div>
+                </div>
+              </section>
 
-      {mapLoading && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[400] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white/85 px-4 py-3 text-sm font-bold text-slate-900 shadow-xl backdrop-blur-xl dark:bg-slate-950/85 dark:text-white"><Loader2 className="mr-2 inline size-4 animate-spin" />Finding Gwalior&apos;s places…</div>}
-      {mapError && <div className="absolute left-1/2 top-32 z-[500] -translate-x-1/2 rounded-2xl bg-red-500/95 px-4 py-3 text-sm font-bold text-white shadow-xl">{mapError}</div>}
+              <section className="mt-6">
+                <h2 className="mb-2 text-sm font-semibold text-neutral-900 dark:text-white">Category progress</h2>
+                <div className="space-y-2.5">
+                  {categories.length === 0 ? (
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      Category stats appear as restaurants load.
+                    </p>
+                  ) : (
+                    categories.map((category) => (
+                      <div key={category.name}>
+                        <div className="mb-1 flex justify-between text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                          <span>{categoryLabel(category.name)}</span>
+                          <span className="text-neutral-400">
+                            {category.visited}/{category.total}
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-black/[0.06] dark:bg-white/10">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${category.total ? (category.visited / category.total) * 100 : 0}%`,
+                              background: category.color,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
 
-      {/* Bottom-left: map theme + legend. Leaflet's zoom control owns the bottom-right corner. */}
-      <div className="pointer-events-none absolute bottom-4 left-3 z-[500] flex flex-col items-start gap-2 sm:left-5">
-        <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-white/55 bg-white/80 p-1 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80">{(Object.keys(mapThemes) as KhaaoDexTheme[]).map((item) => <button key={item} onClick={() => selectMapTheme(item)} className={`rounded-xl px-3 py-2 text-[11px] font-bold transition ${theme === item ? "bg-[#27313a] text-white shadow-sm dark:bg-white dark:text-[#172026]" : "text-slate-600 hover:text-slate-900 dark:text-white/60 dark:hover:text-white"}`}>{mapThemes[item].label}</button>)}</div>
-        <div className="pointer-events-auto hidden items-center rounded-2xl border border-white/55 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-700 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80 dark:text-white/80 sm:flex"><span className="mr-2 inline-block size-2 rounded-full bg-[#ef7d57]" /> Visited <span className="ml-4 mr-2 inline-block size-2 rounded-full border-2 border-current" /> On your radar</div>
-      </div>
-
-      {selectedRestaurant && <RestaurantDetails restaurant={selectedRestaurant} reviews={details?.reviews ?? []} loading={detailsLoading} draft={draft} savingVisit={savingVisit} savingReview={savingReview} deletingReview={deletingReview} error={actionError} onClose={() => { setSelectedId(null); setDetails(null) }} onVisit={handleVisit} onDraftChange={(key, value) => setDraft((current) => ({ ...current, [key]: value }))} onReviewSubmit={handleReviewSubmit} onDeleteReview={handleDeleteReview} />}
-
-      {addOpen && <AddRestaurant onClose={() => setAddOpen(false)} onLogin={login} onCreated={() => loadRestaurants(selectedCategories)} />}
-
-      {dexOpen && <aside className="absolute inset-y-0 right-0 z-[1000] w-full max-w-[430px] overflow-y-auto border-l border-white/50 bg-[#f8f7f1]/95 p-5 text-[#27313a] shadow-2xl backdrop-blur-2xl dark:bg-[#101719]/95 dark:text-[#e9f1ec] sm:p-7"><div className="flex items-start justify-between"><div><div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-[#ef7d57]"><Sparkles className="size-4" /> Your collection</div><h1 className="text-3xl font-black tracking-[-0.06em]">My Dex</h1><p className="mt-2 max-w-xs text-sm opacity-60">A field guide to the places you&apos;ve discovered around Gwalior.</p></div><button onClick={() => setDexOpen(false)} className="rounded-full p-2 opacity-60 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10" aria-label="Close My Dex"><X className="size-5" /></button></div>{dexLoading ? <div className="flex justify-center py-14"><Loader2 className="size-6 animate-spin" /></div> : dexError ? <div className="mt-7 rounded-3xl bg-white/70 p-5 dark:bg-white/5"><p className="text-sm leading-6 opacity-65">{dexError}</p><button onClick={login} className="mt-4 rounded-2xl bg-[#27313a] px-4 py-3 text-sm font-black text-white dark:bg-white dark:text-[#172026]">Take me to login</button></div> : <><section className="mt-7 rounded-[28px] bg-[#27313a] p-5 text-white shadow-xl shadow-[#27313a]/20 dark:bg-[#173c2b]"><div className="flex items-end justify-between"><div><div className="text-5xl font-black tracking-[-0.08em]">{completion.toFixed(0)}%</div><div className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-white/55">dex complete</div></div><MapPinned className="size-8 text-[#ef7d57]" /></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#ef7d57]" style={{ width: `${Math.min(completion, 100)}%` }} /></div><div className="mt-3 flex justify-between text-xs text-white/60"><span>{visitedCount} visited</span><span>{totalActive} active places</span></div></section><section className="mt-7 grid grid-cols-2 gap-3"><div className="rounded-3xl border border-black/5 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5"><div className="text-2xl font-black">{visitedCount}</div><div className="mt-1 text-xs font-semibold opacity-55">places visited</div></div><div className="rounded-3xl border border-black/5 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5"><div className="text-2xl font-black">{Math.max(totalActive - visitedCount, 0)}</div><div className="mt-1 text-xs font-semibold opacity-55">still to try</div></div></section><section className="mt-8"><div className="mb-3 flex items-center justify-between"><h2 className="font-black">Category progress</h2><span className="text-xs opacity-45">live data</span></div><div className="space-y-3">{categories.length === 0 ? <p className="text-sm opacity-55">Category stats will appear as restaurants load.</p> : categories.map((category) => <div key={category.name} className="rounded-2xl border border-black/5 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5"><div className="mb-2 flex justify-between text-sm font-bold"><span>{categoryLabel(category.name)}</span><span className="opacity-50">{category.visited}/{category.total}</span></div><div className="h-2 rounded-full bg-black/5 dark:bg-white/10"><div className="h-full rounded-full" style={{ width: `${category.total ? (category.visited / category.total) * 100 : 0}%`, background: category.color }} /></div></div>)}</div></section><section className="mt-8"><div className="mb-3 flex items-center justify-between"><h2 className="font-black">Your discoveries</h2><ArrowUpRight className="size-4 opacity-50" /></div>{dex?.visitedRestaurants.length ? <div className="space-y-2">{dex.visitedRestaurants.slice(0, 8).map((restaurant) => <button key={restaurant.id} onClick={() => { setDexOpen(false); setSelectedId(restaurant.id) }} className="flex w-full items-center justify-between rounded-2xl bg-white/60 p-3 text-left text-sm font-bold dark:bg-white/5"><span>{restaurant.name}<span className="mt-1 block text-xs font-normal opacity-50">{restaurant.categories?.map(categoryLabel).join(" · ") || restaurant.cuisine || "Category not listed"}</span></span><ArrowUpRight className="size-4 opacity-45" /></button>)}</div> : <p className="rounded-3xl border border-dashed border-black/15 p-4 text-sm leading-6 opacity-55 dark:border-white/20">Your visited places will appear here as you explore.</p>}</section></>}</aside>}
+              <section className="mt-6">
+                <h2 className="mb-2 text-sm font-semibold text-neutral-900 dark:text-white">Your discoveries</h2>
+                {dex?.visitedRestaurants.length ? (
+                  <div className="space-y-1.5">
+                    {dex.visitedRestaurants.slice(0, 8).map((restaurant) => (
+                      <button
+                        key={restaurant.id}
+                        onClick={() => {
+                          setDexOpen(false)
+                          setSelectedId(restaurant.id)
+                        }}
+                        className="flex w-full items-center justify-between rounded-xl bg-black/[0.03] p-3 text-left transition hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
+                      >
+                        <span className="text-sm font-semibold text-neutral-900 dark:text-white">
+                          {restaurant.name}
+                          <span className="mt-0.5 block text-xs font-normal text-neutral-500 dark:text-neutral-400">
+                            {restaurant.categories?.map(categoryLabel).join(" · ") ||
+                              restaurant.cuisine ||
+                              "Category not listed"}
+                          </span>
+                        </span>
+                        <ArrowUpRight className="size-4 shrink-0 text-neutral-400" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-black/10 p-4 text-sm leading-relaxed text-neutral-500 dark:border-white/15 dark:text-neutral-400">
+                    Your visited places will show up here as you explore.
+                  </p>
+                )}
+              </section>
+            </>
+          )}
+        </Panel>
+      )}
     </main>
   )
 }
