@@ -4,10 +4,19 @@ import { Heart, BookOpen, Code, Mail, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
+
+/** Routes that render their own full-bleed chrome and must not show the site footer. */
+const FULL_BLEED_ROUTES = ["/khao-dex"]
 
 export function Footer() {
+  const pathname = usePathname()
   const currentYear = new Date().getFullYear()
   const appEnvironment = process.env.NEXT_PUBLIC_APP_ENV || "production"
+
+  if (pathname && FULL_BLEED_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
+    return null
+  }
 
   return (
     <footer className="relative bg-gradient-to-br from-zinc-50 via-indigo-50/30 to-purple-50/20 dark:from-zinc-950 dark:via-indigo-950/40 dark:to-purple-950/20 border-t border-zinc-200 dark:border-zinc-800">

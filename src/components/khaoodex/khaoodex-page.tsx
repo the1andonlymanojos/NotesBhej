@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowUpRight, Compass, Loader2, MapPinned, Search, Sparkles, Star, Utensils, X } from "lucide-react"
+import { useTheme } from "next-themes"
+import { ArrowUpRight, Compass, Loader2, MapPinned, Sparkles, Star, Utensils, X } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import {
   ApiHttpError,
@@ -133,7 +134,19 @@ function RestaurantDetails({
 
 export default function KhaaoDexPage() {
   const router = useRouter()
-  const [theme, setTheme] = useState<KhaaoDexTheme>("light")
+  // The map theme follows the site theme (next-themes) so the map and the floating
+  // panels never disagree. "Matrix" is an opt-in extra that only restyles the map.
+  const { resolvedTheme, setTheme: setSiteTheme } = useTheme()
+  const [matrixMode, setMatrixMode] = useState(false)
+  const theme: KhaaoDexTheme = matrixMode ? "matrix" : resolvedTheme === "dark" ? "dark" : "light"
+  const selectMapTheme = useCallback((next: KhaaoDexTheme) => {
+    if (next === "matrix") {
+      setMatrixMode(true)
+      return
+    }
+    setMatrixMode(false)
+    setSiteTheme(next)
+  }, [setSiteTheme])
   const [restaurants, setRestaurants] = useState<KhaaoDexRestaurant[]>([])
   const [selectedCategories, setSelectedCategories] = useState<KhaaoDexCategory[]>([])
   const [mapLoading, setMapLoading] = useState(true)
@@ -247,19 +260,39 @@ export default function KhaaoDexPage() {
   return (
     <main className="relative h-[100svh] min-h-[650px] overflow-hidden" style={{ background: colors.page, color: colors.text }}>
       <KhaaoDexMap theme={theme} restaurants={restaurants} onRestaurantSelect={selectRestaurant} />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/10" />
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex items-start justify-between gap-4 p-4 sm:p-7"><div className="pointer-events-auto rounded-[22px] border border-white/55 bg-white/80 px-4 py-3 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:bg-slate-950/80 sm:px-5"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-[#ef7d57] text-white shadow-lg shadow-[#ef7d57]/25"><Utensils className="size-5" /></div><div><div className="text-lg font-black tracking-[-0.05em] sm:text-xl">Khaao<span className="text-[#ef7d57]">Dex</span></div><div className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-55">Gwalior food atlas</div></div></div></div><div className="pointer-events-auto flex items-center gap-2 rounded-[22px] border border-white/55 bg-white/80 p-2 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:bg-slate-950/80"><button onClick={() => setAddOpen(true)} className="rounded-2xl bg-[#ef7d57] px-3 py-2.5 text-sm font-black text-white shadow-lg transition-transform hover:-translate-y-0.5">+ Add</button><button className="hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold opacity-55 sm:flex" disabled><Search className="size-4" /> Search soon</button><button onClick={openDex} className="flex items-center gap-2 rounded-2xl bg-[#27313a] px-3 py-2.5 text-sm font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5 active:translate-y-0 dark:bg-white dark:text-[#172026]"><Compass className="size-4" /> <span>My Dex</span></button></div></header>
+      {/* Top overlay: brand + actions on one wrapping row, category filters below. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col gap-2 p-3 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="pointer-events-auto rounded-[22px] border border-white/55 bg-white/85 px-4 py-3 text-slate-900 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85 dark:text-white sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#ef7d57] text-white shadow-lg shadow-[#ef7d57]/25"><Utensils className="size-5" /></div>
+              <div>
+                <div className="text-lg font-black tracking-[-0.05em] sm:text-xl">Khaao<span className="text-[#ef7d57]">Dex</span></div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-white/55">Gwalior food atlas</div>
+              </div>
+            </div>
+          </div>
+          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2 rounded-[22px] border border-white/55 bg-white/85 p-2 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85">
+            <button onClick={() => setAddOpen(true)} className="rounded-2xl bg-[#ef7d57] px-3 py-2.5 text-sm font-black text-white shadow-lg transition-transform hover:-translate-y-0.5">+ Add</button>
+            <button onClick={openDex} className="flex items-center gap-2 rounded-2xl bg-[#27313a] px-3 py-2.5 text-sm font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5 active:translate-y-0 dark:bg-white dark:text-[#172026]"><Compass className="size-4" /> <span>My Dex</span></button>
+          </div>
+        </div>
 
-      <div className="pointer-events-auto absolute left-4 right-4 top-[92px] z-[500] flex gap-2 overflow-x-auto rounded-2xl border border-white/55 bg-white/75 p-2 shadow-xl shadow-slate-900/10 backdrop-blur-xl sm:left-7 sm:right-auto sm:max-w-[760px] dark:bg-slate-950/75">
-        <span className="flex shrink-0 items-center px-2 text-[10px] font-black uppercase tracking-[0.12em] opacity-50">Explore</span>
-        {categoryOptions.map((category) => <button key={category} onClick={() => toggleCategory(category)} className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-bold transition ${selectedCategories.includes(category) ? "bg-[#ef7d57] text-white" : "bg-black/5 opacity-65 hover:opacity-100 dark:bg-white/10"}`}>{categoryLabel(category)}</button>)}
+        <div className="pointer-events-auto flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-white/55 bg-white/80 p-2 shadow-xl shadow-slate-900/10 backdrop-blur-xl [scrollbar-width:none] dark:border-white/10 dark:bg-slate-950/80 sm:max-w-xl sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+          <span className="flex shrink-0 items-center px-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-white/50">Explore</span>
+          {categoryOptions.map((category) => <button key={category} onClick={() => toggleCategory(category)} className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-bold transition ${selectedCategories.includes(category) ? "bg-[#ef7d57] text-white" : "bg-black/5 text-slate-700 hover:bg-black/10 dark:bg-white/10 dark:text-white/80"}`}>{categoryLabel(category)}</button>)}
+        </div>
       </div>
 
-      {mapLoading && <div className="absolute left-1/2 top-1/2 z-[500] -translate-x-1/2 rounded-2xl bg-white/80 px-4 py-3 text-sm font-bold shadow-xl backdrop-blur-xl dark:bg-slate-950/80"><Loader2 className="mr-2 inline size-4 animate-spin" />Finding Gwalior&apos;s places…</div>}
-      {mapError && <div className="absolute left-1/2 top-24 z-[500] -translate-x-1/2 rounded-2xl bg-red-500/90 px-4 py-3 text-sm font-bold text-white shadow-xl">{mapError}</div>}
-      <div className="absolute bottom-5 left-5 z-[500] hidden rounded-2xl border border-white/55 bg-white/75 px-3 py-2 text-xs font-semibold shadow-xl shadow-slate-900/10 backdrop-blur-xl sm:block"><span className="mr-2 inline-block size-2 rounded-full bg-[#ef7d57]" /> Visited <span className="ml-4 mr-2 inline-block size-2 rounded-full border-2 border-current" /> On your radar</div>
-      <div className="absolute bottom-5 right-5 z-[500] flex items-center gap-1 rounded-2xl border border-white/55 bg-white/75 p-1 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:bg-slate-950/75">{(Object.keys(mapThemes) as KhaaoDexTheme[]).map((item) => <button key={item} onClick={() => setTheme(item)} className={`rounded-xl px-3 py-2 text-[11px] font-bold transition ${theme === item ? "bg-[#27313a] text-white shadow-sm dark:bg-white dark:text-[#172026]" : "opacity-60 hover:opacity-100"}`}>{mapThemes[item].label}</button>)}</div>
+      {mapLoading && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[400] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white/85 px-4 py-3 text-sm font-bold text-slate-900 shadow-xl backdrop-blur-xl dark:bg-slate-950/85 dark:text-white"><Loader2 className="mr-2 inline size-4 animate-spin" />Finding Gwalior&apos;s places…</div>}
+      {mapError && <div className="absolute left-1/2 top-32 z-[500] -translate-x-1/2 rounded-2xl bg-red-500/95 px-4 py-3 text-sm font-bold text-white shadow-xl">{mapError}</div>}
+
+      {/* Bottom-left: map theme + legend. Leaflet's zoom control owns the bottom-right corner. */}
+      <div className="pointer-events-none absolute bottom-4 left-3 z-[500] flex flex-col items-start gap-2 sm:left-5">
+        <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-white/55 bg-white/80 p-1 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80">{(Object.keys(mapThemes) as KhaaoDexTheme[]).map((item) => <button key={item} onClick={() => selectMapTheme(item)} className={`rounded-xl px-3 py-2 text-[11px] font-bold transition ${theme === item ? "bg-[#27313a] text-white shadow-sm dark:bg-white dark:text-[#172026]" : "text-slate-600 hover:text-slate-900 dark:text-white/60 dark:hover:text-white"}`}>{mapThemes[item].label}</button>)}</div>
+        <div className="pointer-events-auto hidden items-center rounded-2xl border border-white/55 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-700 shadow-xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80 dark:text-white/80 sm:flex"><span className="mr-2 inline-block size-2 rounded-full bg-[#ef7d57]" /> Visited <span className="ml-4 mr-2 inline-block size-2 rounded-full border-2 border-current" /> On your radar</div>
+      </div>
 
       {selectedRestaurant && <RestaurantDetails restaurant={selectedRestaurant} reviews={details?.reviews ?? []} loading={detailsLoading} draft={draft} savingVisit={savingVisit} savingReview={savingReview} deletingReview={deletingReview} error={actionError} onClose={() => { setSelectedId(null); setDetails(null) }} onVisit={handleVisit} onDraftChange={(key, value) => setDraft((current) => ({ ...current, [key]: value }))} onReviewSubmit={handleReviewSubmit} onDeleteReview={handleDeleteReview} />}
 
