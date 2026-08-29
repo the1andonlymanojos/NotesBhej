@@ -5,9 +5,17 @@
 export const ACCENT = "#b34d66"
 export const ACCENT_HOVER = "#8f3d52"
 
-/** The one floating-panel treatment: frosted card, hairline border, soft lift. */
+/** Small floating chrome (top bar, chips, controls): frosted, hairline, soft lift. */
 export const SURFACE =
   "border border-pale-oak-950/[0.08] bg-pale-oak-50/90 shadow-lg shadow-pale-oak-950/[0.06] backdrop-blur-xl dark:border-white/10 dark:bg-muted-teal-900/85"
+
+/**
+ * Full-height sheets / modals: OPAQUE, no backdrop-blur. A big element with
+ * `backdrop-blur` recomputes a full-screen gaussian every frame while the map
+ * animates underneath — that's what made the drawer feel sluggish.
+ */
+export const SHEET =
+  "border border-pale-oak-950/[0.08] bg-pale-oak-50 shadow-2xl shadow-pale-oak-950/20 dark:border-white/10 dark:bg-muted-teal-900"
 
 export function categoryLabel(value: string) {
   return value

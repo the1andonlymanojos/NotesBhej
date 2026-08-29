@@ -49,7 +49,7 @@ import KhaaoDexMap from "./khaoodex-map"
 import AddRestaurant from "./add-restaurant"
 import EditRestaurant from "./edit-restaurant"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
-import { SURFACE, categoryLabel, googleDirectionsUrl, priceLabel } from "./ui"
+import { SHEET, SURFACE, categoryLabel, googleDirectionsUrl, priceLabel } from "./ui"
 
 const isModerator = (user: ApiUser | null) => user?.role === "ADMIN" || user?.role === "MODERATOR"
 
@@ -105,11 +105,11 @@ function Panel({ label, onClose, children }: { label: string; onClose: () => voi
       <button
         aria-label="Close"
         onClick={onClose}
-        className="fixed inset-0 z-[590] bg-muted-teal-950/25 backdrop-blur-[1px] sm:hidden"
+        className="fixed inset-0 z-[590] bg-muted-teal-950/40 duration-150 animate-in fade-in sm:hidden"
       />
       <aside
         aria-label={label}
-        className={`${SURFACE} fixed inset-x-0 bottom-0 z-[600] flex max-h-[86svh] flex-col overflow-hidden rounded-t-[26px] sm:inset-auto sm:bottom-4 sm:left-4 sm:top-auto sm:max-h-[calc(100svh-2rem)] sm:w-[384px] sm:rounded-[26px]`}
+        className={`${SHEET} fixed inset-x-0 bottom-0 z-[600] flex max-h-[86svh] flex-col overflow-hidden rounded-t-[26px] duration-200 ease-out animate-in slide-in-from-bottom-8 sm:inset-auto sm:bottom-4 sm:left-4 sm:top-auto sm:max-h-[calc(100svh-2rem)] sm:w-[384px] sm:rounded-[26px] sm:slide-in-from-bottom-4`}
       >
         <div className="relative shrink-0">
           <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-muted-teal-300 dark:bg-muted-teal-700 sm:hidden" />

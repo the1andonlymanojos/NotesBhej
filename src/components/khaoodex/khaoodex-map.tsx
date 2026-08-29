@@ -286,7 +286,15 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
     const target = stars.find((s) => s.id === selectedId)
     const map = mapRef.current
     if (!target || !map) return
-    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 14), { duration: 0.4 })
+    // Short + only when the pin is actually off toward the edges / covered by the
+    // sheet — a long flyTo competing with the sheet mount is what felt laggy.
+    const p = map.latLngToContainerPoint([target.lat, target.lng])
+    const size = map.getSize()
+    const needsMove =
+      map.getZoom() < 13.5 || p.x < 40 || p.x > size.x - 40 || p.y < 120 || p.y > size.y * 0.55
+    if (needsMove) {
+      map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 14), { duration: 0.25 })
+    }
   }, [ready, selectedId, stars])
 
   return <div ref={mapElement} className="h-full w-full" aria-label="Star map of Gwalior restaurants" />

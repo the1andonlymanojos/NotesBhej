@@ -9,7 +9,7 @@ import type {
   KhaaoDexPriceCategory,
   KhaaoDexRestaurant,
 } from "@/lib/api/types"
-import { SURFACE, categoryLabel } from "./ui"
+import { SHEET, categoryLabel } from "./ui"
 
 const categories: KhaaoDexCategory[] = [
   "CAFE",
@@ -95,9 +95,9 @@ export default function EditRestaurant({
   }
 
   return (
-    <div className="fixed inset-0 z-[1200] flex items-end justify-center overflow-y-auto bg-muted-teal-950/35 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[1200] flex items-end justify-center overflow-y-auto bg-muted-teal-950/55 p-0 duration-150 animate-in fade-in sm:items-center sm:p-4">
       <section
-        className={`${SURFACE} w-full max-w-lg overflow-hidden rounded-t-[26px] p-5 text-muted-teal-900 dark:text-white sm:rounded-[26px] sm:p-6`}
+        className={`${SHEET} w-full max-w-lg overflow-hidden rounded-t-[26px] p-5 text-muted-teal-900 duration-200 ease-out animate-in slide-in-from-bottom-8 dark:text-white sm:rounded-[26px] sm:p-6 sm:slide-in-from-bottom-4`}
       >
         <div className="flex items-start justify-between">
           <div>
