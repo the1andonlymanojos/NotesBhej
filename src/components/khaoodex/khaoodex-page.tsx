@@ -9,6 +9,7 @@ import {
   Compass,
   Loader2,
   LogIn,
+  LogOut,
   MapPinned,
   Moon,
   Navigation,
@@ -24,6 +25,13 @@ import {
 import Image from "next/image"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   ApiHttpError,
   apiDeleteKhaaoDexReview,
   apiGetKhaaoDexMyDex,
@@ -32,6 +40,7 @@ import {
   apiGetKhaaoDexRestaurantDetails,
   apiGetKhaaoDexRestaurants,
   apiGetMe,
+  apiLogout,
   apiUpdateKhaaoDexRelationship,
   apiUpsertKhaaoDexReview,
   getAuthOrigin,
@@ -501,6 +510,19 @@ export default function KhaaoDexPage() {
     window.location.href = `${getAuthOrigin()}/nextlogin?redirect=${encodeURIComponent(back)}`
   }
 
+  const signOut = async () => {
+    try {
+      await apiLogout()
+    } catch {
+      // best effort — clear local state regardless
+    }
+    setMe(null)
+    setPendingCount(null)
+    setDexOpen(false)
+    setDex(null)
+    closeDetails()
+  }
+
   const toggleCategory = (category: KhaaoDexCategory) => {
     const next = selectedCategories.includes(category)
       ? selectedCategories.filter((item) => item !== category)
@@ -655,17 +677,37 @@ export default function KhaaoDexPage() {
             <span className="hidden sm:inline">My Dex</span>
           </button>
           {me ? (
-            <Link
-              href="/profile"
-              title={me.fullName || "Profile"}
-              className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/10 bg-black/[0.03] text-muted-teal-500 dark:border-white/15 dark:bg-white/5 dark:text-muted-teal-300"
-            >
-              {me.profilePictureUrl ? (
-                <Image src={me.profilePictureUrl} alt="" width={36} height={36} className="size-full object-cover" />
-              ) : (
-                <UserIcon className="size-4" />
-              )}
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  title={me.fullName || me.email || "Account"}
+                  className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/10 bg-black/[0.03] text-muted-teal-500 outline-none dark:border-white/15 dark:bg-white/5 dark:text-muted-teal-300"
+                >
+                  {me.profilePictureUrl ? (
+                    <Image src={me.profilePictureUrl} alt="" width={36} height={36} className="size-full object-cover" />
+                  ) : (
+                    <UserIcon className="size-4" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                {(me.fullName || me.email) && (
+                  <div className="truncate px-2 py-1.5 text-xs text-muted-teal-500 dark:text-muted-teal-400">
+                    {me.fullName || me.email}
+                  </div>
+                )}
+                <DropdownMenuItem asChild>
+                  <a href={`${getAuthOrigin()}/profile`} target="_blank" rel="noopener noreferrer">
+                    <UserIcon className="size-4" /> Profile
+                    <ArrowUpRight className="ml-auto size-3.5 opacity-50" />
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => void signOut()}>
+                  <LogOut className="size-4" /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <button
               onClick={login}
