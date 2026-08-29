@@ -3,6 +3,69 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* KhaaoDex palette — muted, earthy, slightly moody. */
+@theme {
+  --color-light-blue-50: #eef5f6;
+  --color-light-blue-100: #deeaed;
+  --color-light-blue-200: #bdd6db;
+  --color-light-blue-300: #9cc1c9;
+  --color-light-blue-400: #7aacb8;
+  --color-light-blue-500: #5998a6;
+  --color-light-blue-600: #477985;
+  --color-light-blue-700: #365b63;
+  --color-light-blue-800: #243d42;
+  --color-light-blue-900: #121e21;
+  --color-light-blue-950: #0c1517;
+
+  --color-muted-teal-50: #f1f3f3;
+  --color-muted-teal-100: #e3e8e6;
+  --color-muted-teal-200: #c7d1ce;
+  --color-muted-teal-300: #acb9b5;
+  --color-muted-teal-400: #90a29c;
+  --color-muted-teal-500: #748b83;
+  --color-muted-teal-600: #5d6f69;
+  --color-muted-teal-700: #46534f;
+  --color-muted-teal-800: #2e3835;
+  --color-muted-teal-900: #171c1a;
+  --color-muted-teal-950: #101312;
+
+  --color-pale-oak-50: #f6f2ee;
+  --color-pale-oak-100: #ede5de;
+  --color-pale-oak-200: #dbcbbd;
+  --color-pale-oak-300: #c9b29c;
+  --color-pale-oak-400: #b8987a;
+  --color-pale-oak-500: #a67e59;
+  --color-pale-oak-600: #856547;
+  --color-pale-oak-700: #634c36;
+  --color-pale-oak-800: #423224;
+  --color-pale-oak-900: #211912;
+  --color-pale-oak-950: #17120c;
+
+  --color-dusty-lavender-50: #f3f1f4;
+  --color-dusty-lavender-100: #e8e2e9;
+  --color-dusty-lavender-200: #d0c5d3;
+  --color-dusty-lavender-300: #b9a9bc;
+  --color-dusty-lavender-400: #a18ca6;
+  --color-dusty-lavender-500: #8a6f90;
+  --color-dusty-lavender-600: #6e5973;
+  --color-dusty-lavender-700: #534356;
+  --color-dusty-lavender-800: #372c3a;
+  --color-dusty-lavender-900: #1c161d;
+  --color-dusty-lavender-950: #131014;
+
+  --color-wine-plum-50: #f7edf0;
+  --color-wine-plum-100: #f0dbe0;
+  --color-wine-plum-200: #e0b8c2;
+  --color-wine-plum-300: #d194a3;
+  --color-wine-plum-400: #c27085;
+  --color-wine-plum-500: #b34d66;
+  --color-wine-plum-600: #8f3d52;
+  --color-wine-plum-700: #6b2e3d;
+  --color-wine-plum-800: #471f29;
+  --color-wine-plum-900: #240f14;
+  --color-wine-plum-950: #190b0e;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

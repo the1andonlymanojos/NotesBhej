@@ -1,57 +1,20 @@
-/* ---------------------------------------------------------------- markers --- */
+/* --------------------------------------------------------------- starfield --- */
 
-.khaoodex-marker-wrap {
-  background: transparent;
-  border: 0;
-}
-
-.khaoodex-marker {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  border: 2px solid var(--marker-halo);
-  background: color-mix(in srgb, var(--marker-color) 22%, transparent);
-  box-shadow: 0 2px 8px rgb(15 23 42 / 22%);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.khaoodex-marker > span {
-  display: block;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: var(--marker-color);
-}
-
-/* "On your radar" — hollow ring. */
-.khaoodex-marker-unvisited > span {
-  background: transparent;
-  border: 2px solid var(--marker-color);
-}
-
-/* Visited — solid dot, a touch larger. */
-.khaoodex-marker-visited {
-  transform: scale(1.06);
-}
-
-/* Selected — lift it and wrap it in an accent halo. */
-.khaoodex-marker-selected {
-  transform: scale(1.28);
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--marker-color) 32%, transparent),
-    0 6px 16px rgb(15 23 42 / 30%);
+.khaoodex-starfield {
+  position: absolute;
+  inset: 0;
+  z-index: 650; /* above tiles + overlay, below leaflet controls (800) */
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------ leaflet zoom control --- */
 
 .leaflet-control-zoom {
-  border: 1px solid rgb(0 0 0 / 7%) !important;
+  border: 1px solid rgb(23 28 26 / 8%) !important;
   border-radius: 14px !important;
   overflow: hidden;
-  box-shadow: 0 8px 24px -6px rgb(15 23 42 / 18%) !important;
-  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 8px 24px -6px rgb(23 28 26 / 20%) !important;
+  background: rgb(246 242 238 / 92%);
   backdrop-filter: blur(12px);
 }
 
@@ -59,31 +22,31 @@
   width: 34px !important;
   height: 34px !important;
   line-height: 34px !important;
-  color: rgb(38 38 38 / 85%) !important;
+  color: rgb(36 61 66 / 88%) !important;
   background: transparent !important;
   font-size: 18px !important;
-  border-bottom-color: rgb(0 0 0 / 8%) !important;
+  border-bottom-color: rgb(23 28 26 / 9%) !important;
 }
 
 .leaflet-control-zoom a:hover {
-  background: rgb(0 0 0 / 4%) !important;
-  color: rgb(23 23 23) !important;
+  background: rgb(23 28 26 / 5%) !important;
+  color: rgb(18 30 33) !important;
 }
 
 .dark .leaflet-control-zoom {
   border-color: rgb(255 255 255 / 12%) !important;
-  background: rgb(23 23 23 / 88%);
+  background: rgb(23 28 26 / 90%);
   box-shadow: 0 8px 24px -6px rgb(0 0 0 / 45%) !important;
 }
 
 .dark .leaflet-control-zoom a {
-  color: rgb(245 245 245 / 80%) !important;
+  color: rgb(237 229 222 / 80%) !important;
   border-bottom-color: rgb(255 255 255 / 10%) !important;
 }
 
 .dark .leaflet-control-zoom a:hover {
   background: rgb(255 255 255 / 8%) !important;
-  color: rgb(255 255 255) !important;
+  color: rgb(237 229 222) !important;
 }
 
 /* ---------------------------------------------------- google places element --- */
@@ -91,10 +54,10 @@
 .khaoodex-google-autocomplete {
   width: 100%;
   min-height: 44px;
-  border: 1px solid rgb(0 0 0 / 12%);
+  border: 1px solid rgb(23 28 26 / 12%);
   border-radius: 12px;
-  background: rgb(255 255 255 / 75%);
-  color: #1c1c1c;
+  background: rgb(246 242 238 / 80%);
+  color: #243d42;
   font: inherit;
   padding: 0 12px;
 }
@@ -102,5 +65,5 @@
 .dark .khaoodex-google-autocomplete {
   border-color: rgb(255 255 255 / 15%);
   background: rgb(255 255 255 / 6%);
-  color: #f5f5f5;
+  color: #ede5de;
 }

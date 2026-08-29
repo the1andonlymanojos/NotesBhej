@@ -1,11 +1,13 @@
 // Shared visual language for the KhaaoDex surface — one card style, one accent,
 // so the floating chrome reads as a single system instead of a pile of stickers.
 
-export const ACCENT = "#ef7d57"
+/** wine-plum — the "you've been here" accent, used sparingly for primary actions. */
+export const ACCENT = "#b34d66"
+export const ACCENT_HOVER = "#8f3d52"
 
 /** The one floating-panel treatment: frosted card, hairline border, soft lift. */
 export const SURFACE =
-  "border border-black/[0.07] bg-white/90 shadow-lg shadow-black/[0.06] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/85"
+  "border border-pale-oak-950/[0.08] bg-pale-oak-50/90 shadow-lg shadow-pale-oak-950/[0.06] backdrop-blur-xl dark:border-white/10 dark:bg-muted-teal-900/85"
 
 export function categoryLabel(value: string) {
   return value

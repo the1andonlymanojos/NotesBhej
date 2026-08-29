@@ -43,7 +43,7 @@ const ratingLabels: Array<{ key: RatingKey; label: string }> = [
   { key: "ambienceRating", label: "Ambience" },
 ]
 
-const categoryColors = ["#f59e0b", "#fb7185", "#34d399", "#a78bfa", "#38bdf8"]
+const categoryColors = ["#b34d66", "#5998a6", "#8a6f90", "#a67e59", "#748b83"]
 const categoryOptions: KhaaoDexCategory[] = [
   "CAFE",
   "QUICK_BITES",
@@ -85,18 +85,18 @@ function Panel({ label, onClose, children }: { label: string; onClose: () => voi
       <button
         aria-label="Close"
         onClick={onClose}
-        className="fixed inset-0 z-[590] bg-neutral-950/25 backdrop-blur-[1px] sm:hidden"
+        className="fixed inset-0 z-[590] bg-muted-teal-950/25 backdrop-blur-[1px] sm:hidden"
       />
       <aside
         aria-label={label}
         className={`${SURFACE} fixed inset-x-0 bottom-0 z-[600] flex max-h-[86svh] flex-col overflow-hidden rounded-t-[26px] sm:inset-auto sm:bottom-4 sm:left-4 sm:top-auto sm:max-h-[calc(100svh-2rem)] sm:w-[384px] sm:rounded-[26px]`}
       >
         <div className="relative shrink-0">
-          <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-neutral-300 dark:bg-neutral-700 sm:hidden" />
+          <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-muted-teal-300 dark:bg-muted-teal-700 sm:hidden" />
           <button
             onClick={onClose}
             aria-label="Close panel"
-            className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full text-neutral-500 transition hover:bg-black/5 hover:text-neutral-900 dark:hover:bg-white/10 dark:hover:text-white"
+            className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full text-muted-teal-500 transition hover:bg-black/5 hover:text-muted-teal-900 dark:hover:bg-white/10 dark:hover:text-white"
           >
             <X className="size-4" />
           </button>
@@ -112,7 +112,7 @@ function Panel({ label, onClose, children }: { label: string; onClose: () => voi
 function StarRow({ value }: { value?: number | null }) {
   return (
     <span className="inline-flex items-center gap-1 text-sm font-semibold">
-      <Star className="size-4 fill-amber-400 text-amber-400" />
+      <Star className="size-4 fill-wine-plum-400 text-wine-plum-400" />
       {typeof value === "number" ? value.toFixed(1) : "—"}
     </span>
   )
@@ -129,7 +129,7 @@ function RatingInput({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{label}</div>
+      <div className="text-sm font-medium text-muted-teal-600 dark:text-muted-teal-300">{label}</div>
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((rating) => (
           <button
@@ -142,8 +142,8 @@ function RatingInput({
             <Star
               className={`size-5 ${
                 typeof value === "number" && rating <= value
-                  ? "fill-amber-400 text-amber-400"
-                  : "text-neutral-300 dark:text-neutral-600"
+                  ? "fill-wine-plum-400 text-wine-plum-400"
+                  : "text-muted-teal-300 dark:text-muted-teal-600"
               }`}
             />
           </button>
@@ -191,8 +191,8 @@ function RestaurantDetails({
   return (
     <div>
       <div className="pr-8">
-        <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">{restaurant.name}</h2>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-neutral-500 dark:text-neutral-400">
+        <h2 className="text-xl font-bold tracking-tight text-muted-teal-900 dark:text-white">{restaurant.name}</h2>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-teal-500 dark:text-muted-teal-400">
           <span>{summary}</span>
           {priceLabel(restaurant.priceCategory) && (
             <>
@@ -202,7 +202,7 @@ function RestaurantDetails({
           )}
           <span aria-hidden>·</span>
           <StarRow value={restaurant.averageRating} />
-          <span className="text-neutral-400 dark:text-neutral-500">({restaurant.reviewCount})</span>
+          <span className="text-muted-teal-400 dark:text-muted-teal-500">({restaurant.reviewCount})</span>
         </div>
       </div>
 
@@ -211,7 +211,7 @@ function RestaurantDetails({
           {restaurant.categories.map((category) => (
             <span
               key={category}
-              className="rounded-full bg-[#ef7d57]/12 px-2.5 py-1 text-xs font-semibold text-[#c1502f] dark:text-[#f0a184]"
+              className="rounded-full bg-[#b34d66]/12 px-2.5 py-1 text-xs font-semibold text-[#8f3d52] dark:text-[#d194a3]"
             >
               {categoryLabel(category)}
             </span>
@@ -220,7 +220,7 @@ function RestaurantDetails({
       )}
 
       {restaurant.address && (
-        <p className="mt-3 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">{restaurant.address}</p>
+        <p className="mt-3 text-sm leading-relaxed text-muted-teal-500 dark:text-muted-teal-400">{restaurant.address}</p>
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
@@ -229,8 +229,8 @@ function RestaurantDetails({
           disabled={savingVisit}
           className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
             visited
-              ? "bg-[#ef7d57] text-white hover:bg-[#e06b45]"
-              : "bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+              ? "bg-[#b34d66] text-white hover:bg-[#8f3d52]"
+              : "bg-muted-teal-900 text-white hover:bg-muted-teal-800 dark:bg-white dark:text-muted-teal-900 dark:hover:bg-pale-oak-200"
           }`}
         >
           {savingVisit ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -240,7 +240,7 @@ function RestaurantDetails({
           href={googleDirectionsUrl(restaurant)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white/70 px-3 py-2.5 text-sm font-semibold text-neutral-800 transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-neutral-100 dark:hover:bg-white/10"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white/70 px-3 py-2.5 text-sm font-semibold text-muted-teal-800 transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-pale-oak-100 dark:hover:bg-white/10"
         >
           <Navigation className="size-4" />
           Directions
@@ -248,30 +248,30 @@ function RestaurantDetails({
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-10 text-neutral-400">
+        <div className="flex justify-center py-10 text-muted-teal-400">
           <Loader2 className="size-5 animate-spin" />
         </div>
       ) : (
         <>
           <section className="mt-6">
             <div className="mb-2 flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Reviews</h3>
-              <span className="text-xs text-neutral-400">{restaurant.reviewCount} total</span>
+              <h3 className="text-sm font-semibold text-muted-teal-900 dark:text-white">Reviews</h3>
+              <span className="text-xs text-muted-teal-400">{restaurant.reviewCount} total</span>
             </div>
             {reviews.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-black/10 p-3 text-sm text-neutral-500 dark:border-white/15 dark:text-neutral-400">
+              <p className="rounded-xl border border-dashed border-black/10 p-3 text-sm text-muted-teal-500 dark:border-white/15 dark:text-muted-teal-400">
                 No reviews yet — be the first to log this place.
               </p>
             ) : (
               <div className="space-y-2">
                 {reviews.map((review) => (
                   <article key={review.id} className="rounded-xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
-                    <div className="flex items-center justify-between text-sm font-semibold text-neutral-900 dark:text-white">
+                    <div className="flex items-center justify-between text-sm font-semibold text-muted-teal-900 dark:text-white">
                       <span>{review.userName}</span>
                       <StarRow value={review.overallRating} />
                     </div>
                     {review.text && (
-                      <p className="mt-1.5 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
+                      <p className="mt-1.5 text-sm leading-relaxed text-muted-teal-600 dark:text-muted-teal-300">
                         {review.text}
                       </p>
                     )}
@@ -283,13 +283,13 @@ function RestaurantDetails({
 
           <section className="mt-6">
             <div className="mb-3 flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Your review</h3>
+              <h3 className="text-sm font-semibold text-muted-teal-900 dark:text-white">Your review</h3>
               {restaurant.relationship?.review && (
                 <button
                   type="button"
                   onClick={onDeleteReview}
                   disabled={deletingReview}
-                  className="text-xs font-semibold text-[#c1502f] hover:underline dark:text-[#f0a184]"
+                  className="text-xs font-semibold text-[#8f3d52] hover:underline dark:text-[#d194a3]"
                 >
                   {deletingReview ? "Removing…" : "Delete"}
                 </button>
@@ -313,7 +313,7 @@ function RestaurantDetails({
               <button
                 type="submit"
                 disabled={savingReview}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#ef7d57] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#e06b45] disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#b34d66] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#8f3d52] disabled:opacity-60"
               >
                 {savingReview ? <Loader2 className="size-4 animate-spin" /> : null}
                 {restaurant.relationship?.review ? "Update review" : "Save review"}
@@ -335,13 +335,13 @@ function RestaurantDetails({
 export default function KhaaoDexPage() {
   const router = useRouter()
   // The map theme follows the site theme (next-themes) so the map and the panels
-  // never disagree. "Matrix" is an opt-in extra that only restyles the map.
+  // never disagree. "Dusk" is an opt-in extra that only restyles the map.
   const { resolvedTheme, setTheme: setSiteTheme } = useTheme()
-  const [matrixMode, setMatrixMode] = useState(false)
-  const theme: KhaaoDexTheme = matrixMode ? "matrix" : resolvedTheme === "dark" ? "dark" : "light"
+  const [duskMode, setMatrixMode] = useState(false)
+  const theme: KhaaoDexTheme = duskMode ? "dusk" : resolvedTheme === "dark" ? "dark" : "light"
   const selectMapTheme = useCallback(
     (next: KhaaoDexTheme) => {
-      if (next === "matrix") {
+      if (next === "dusk") {
         setMatrixMode(true)
         return
       }
@@ -430,7 +430,10 @@ export default function KhaaoDexPage() {
       .finally(() => setDetailsLoading(false))
   }, [selectedId])
 
-  const selectRestaurant = useCallback((restaurantId: number) => setSelectedId(restaurantId), [])
+  const selectRestaurant = useCallback((restaurantId: number | null) => {
+    setSelectedId(restaurantId)
+    if (restaurantId == null) setDetails(null)
+  }, [])
   const closeDetails = useCallback(() => {
     setSelectedId(null)
     setDetails(null)
@@ -543,13 +546,13 @@ export default function KhaaoDexPage() {
 
   const chipBase =
     "shrink-0 snap-start rounded-full px-3.5 py-2 text-[13px] font-semibold shadow-sm backdrop-blur-md transition"
-  const chipOn = "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+  const chipOn = "bg-muted-teal-900 text-white dark:bg-white dark:text-muted-teal-900"
   const chipOff =
-    "border border-black/[0.06] bg-white/90 text-neutral-600 hover:text-neutral-900 dark:border-white/10 dark:bg-neutral-900/85 dark:text-neutral-300 dark:hover:text-white"
+    "border border-black/[0.06] bg-white/90 text-muted-teal-600 hover:text-muted-teal-900 dark:border-white/10 dark:bg-muted-teal-900/85 dark:text-muted-teal-300 dark:hover:text-white"
   const styleButtons: Array<{ value: KhaaoDexTheme; icon: typeof Sun; label: string }> = [
     { value: "light", icon: Sun, label: "Light map" },
     { value: "dark", icon: Moon, label: "Dark map" },
-    { value: "matrix", icon: Sparkles, label: "Matrix map" },
+    { value: "dusk", icon: Sparkles, label: "Dusk map" },
   ]
 
   return (
@@ -569,22 +572,22 @@ export default function KhaaoDexPage() {
         <div
           className={`${SURFACE} pointer-events-auto flex w-full max-w-2xl items-center gap-2 rounded-2xl p-1.5 pl-2.5`}
         >
-          <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#ef7d57] text-white">
+          <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#b34d66] text-white">
             <Utensils className="size-4" />
           </div>
-          <div className="mr-auto text-[15px] font-bold tracking-tight text-neutral-900 dark:text-white">
-            Khaao<span className="text-[#ef7d57]">Dex</span>
+          <div className="mr-auto text-[15px] font-bold tracking-tight text-muted-teal-900 dark:text-white">
+            Khaao<span className="text-[#b34d66]">Dex</span>
           </div>
           <button
             onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1 rounded-xl bg-[#ef7d57] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#e06b45]"
+            className="flex items-center gap-1 rounded-xl bg-[#b34d66] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#8f3d52]"
           >
             <Plus className="size-4" />
             <span className="hidden sm:inline">Add</span>
           </button>
           <button
             onClick={openDex}
-            className="flex items-center gap-1.5 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+            className="flex items-center gap-1.5 rounded-xl bg-muted-teal-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-muted-teal-800 dark:bg-white dark:text-muted-teal-900 dark:hover:bg-pale-oak-200"
           >
             <Compass className="size-4" />
             <span className="hidden sm:inline">My Dex</span>
@@ -620,12 +623,12 @@ export default function KhaaoDexPage() {
       <div className="pointer-events-none absolute bottom-4 left-3 z-[500] flex flex-col gap-2">
         {!mapLoading && !mapError && (
           <div
-            className={`${SURFACE} pointer-events-auto flex items-center gap-2.5 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300`}
+            className={`${SURFACE} pointer-events-auto flex items-center gap-2.5 rounded-full px-3 py-1.5 text-xs font-medium text-muted-teal-600 dark:text-muted-teal-300`}
           >
-            <span className="font-semibold text-neutral-900 dark:text-white">{totalActive}</span> places
-            <span className="text-neutral-300 dark:text-neutral-600">·</span>
+            <span className="font-semibold text-muted-teal-900 dark:text-white">{totalActive}</span> places
+            <span className="text-muted-teal-300 dark:text-muted-teal-600">·</span>
             <span className="inline-flex items-center gap-1">
-              <span className="size-2 rounded-full bg-[#ef7d57]" />
+              <span className="size-2 rounded-full bg-[#b34d66]" />
               {visitedCount} visited
             </span>
           </div>
@@ -639,8 +642,8 @@ export default function KhaaoDexPage() {
               aria-pressed={theme === value}
               className={`grid size-8 place-items-center rounded-full transition ${
                 theme === value
-                  ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-                  : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
+                  ? "bg-muted-teal-900 text-white dark:bg-white dark:text-muted-teal-900"
+                  : "text-muted-teal-500 hover:text-muted-teal-900 dark:text-muted-teal-400 dark:hover:text-white"
               }`}
             >
               <Icon className="size-4" />
@@ -651,7 +654,7 @@ export default function KhaaoDexPage() {
 
       {mapLoading && (
         <div
-          className={`${SURFACE} pointer-events-none absolute left-1/2 top-1/2 z-[400] -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-2.5 text-sm font-medium text-neutral-700 dark:text-neutral-200`}
+          className={`${SURFACE} pointer-events-none absolute left-1/2 top-1/2 z-[400] -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-2.5 text-sm font-medium text-muted-teal-700 dark:text-pale-oak-200`}
         >
           <Loader2 className="mr-2 inline size-4 animate-spin" />
           Finding Gwalior’s places…
@@ -695,24 +698,24 @@ export default function KhaaoDexPage() {
 
       {dexOpen && (
         <Panel label="My Dex" onClose={() => setDexOpen(false)}>
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#ef7d57]">
+          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#b34d66]">
             <Sparkles className="size-3.5" /> Your collection
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">My Dex</h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          <h1 className="text-2xl font-bold tracking-tight text-muted-teal-900 dark:text-white">My Dex</h1>
+          <p className="mt-1 text-sm text-muted-teal-500 dark:text-muted-teal-400">
             The places you’ve found around Gwalior.
           </p>
 
           {dexLoading ? (
-            <div className="flex justify-center py-14 text-neutral-400">
+            <div className="flex justify-center py-14 text-muted-teal-400">
               <Loader2 className="size-6 animate-spin" />
             </div>
           ) : dexError ? (
             <div className="mt-6 rounded-2xl bg-black/[0.03] p-5 dark:bg-white/[0.04]">
-              <p className="text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">{dexError}</p>
+              <p className="text-sm leading-relaxed text-muted-teal-600 dark:text-muted-teal-300">{dexError}</p>
               <button
                 onClick={login}
-                className="mt-4 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-neutral-900"
+                className="mt-4 rounded-xl bg-muted-teal-900 px-4 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-muted-teal-900"
               >
                 Take me to login
               </button>
@@ -721,7 +724,7 @@ export default function KhaaoDexPage() {
             <>
               <section
                 className="mt-5 rounded-2xl p-5 text-white"
-                style={{ background: theme === "matrix" ? "#173c2b" : "#27313a" }}
+                style={{ background: theme === "dusk" ? "#372c3a" : "#243d42" }}
               >
                 <div className="flex items-end justify-between">
                   <div>
@@ -730,11 +733,11 @@ export default function KhaaoDexPage() {
                       dex complete
                     </div>
                   </div>
-                  <MapPinned className="size-7 text-[#ef7d57]" />
+                  <MapPinned className="size-7 text-[#b34d66]" />
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15">
                   <div
-                    className="h-full rounded-full bg-[#ef7d57]"
+                    className="h-full rounded-full bg-[#b34d66]"
                     style={{ width: `${Math.min(completion, 100)}%` }}
                   />
                 </div>
@@ -746,32 +749,32 @@ export default function KhaaoDexPage() {
 
               <section className="mt-4 grid grid-cols-2 gap-2.5">
                 <div className="rounded-2xl bg-black/[0.03] p-4 dark:bg-white/[0.04]">
-                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">{visitedCount}</div>
-                  <div className="mt-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                  <div className="text-2xl font-bold text-muted-teal-900 dark:text-white">{visitedCount}</div>
+                  <div className="mt-0.5 text-xs font-medium text-muted-teal-500 dark:text-muted-teal-400">
                     places visited
                   </div>
                 </div>
                 <div className="rounded-2xl bg-black/[0.03] p-4 dark:bg-white/[0.04]">
-                  <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                  <div className="text-2xl font-bold text-muted-teal-900 dark:text-white">
                     {Math.max(totalActive - visitedCount, 0)}
                   </div>
-                  <div className="mt-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">still to try</div>
+                  <div className="mt-0.5 text-xs font-medium text-muted-teal-500 dark:text-muted-teal-400">still to try</div>
                 </div>
               </section>
 
               <section className="mt-6">
-                <h2 className="mb-2 text-sm font-semibold text-neutral-900 dark:text-white">Category progress</h2>
+                <h2 className="mb-2 text-sm font-semibold text-muted-teal-900 dark:text-white">Category progress</h2>
                 <div className="space-y-2.5">
                   {categories.length === 0 ? (
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                    <p className="text-sm text-muted-teal-500 dark:text-muted-teal-400">
                       Category stats appear as restaurants load.
                     </p>
                   ) : (
                     categories.map((category) => (
                       <div key={category.name}>
-                        <div className="mb-1 flex justify-between text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                        <div className="mb-1 flex justify-between text-sm font-medium text-muted-teal-700 dark:text-pale-oak-200">
                           <span>{categoryLabel(category.name)}</span>
-                          <span className="text-neutral-400">
+                          <span className="text-muted-teal-400">
                             {category.visited}/{category.total}
                           </span>
                         </div>
@@ -791,7 +794,7 @@ export default function KhaaoDexPage() {
               </section>
 
               <section className="mt-6">
-                <h2 className="mb-2 text-sm font-semibold text-neutral-900 dark:text-white">Your discoveries</h2>
+                <h2 className="mb-2 text-sm font-semibold text-muted-teal-900 dark:text-white">Your discoveries</h2>
                 {dex?.visitedRestaurants.length ? (
                   <div className="space-y-1.5">
                     {dex.visitedRestaurants.slice(0, 8).map((restaurant) => (
@@ -803,20 +806,20 @@ export default function KhaaoDexPage() {
                         }}
                         className="flex w-full items-center justify-between rounded-xl bg-black/[0.03] p-3 text-left transition hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
                       >
-                        <span className="text-sm font-semibold text-neutral-900 dark:text-white">
+                        <span className="text-sm font-semibold text-muted-teal-900 dark:text-white">
                           {restaurant.name}
-                          <span className="mt-0.5 block text-xs font-normal text-neutral-500 dark:text-neutral-400">
+                          <span className="mt-0.5 block text-xs font-normal text-muted-teal-500 dark:text-muted-teal-400">
                             {restaurant.categories?.map(categoryLabel).join(" · ") ||
                               restaurant.cuisine ||
                               "Category not listed"}
                           </span>
                         </span>
-                        <ArrowUpRight className="size-4 shrink-0 text-neutral-400" />
+                        <ArrowUpRight className="size-4 shrink-0 text-muted-teal-400" />
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <p className="rounded-xl border border-dashed border-black/10 p-4 text-sm leading-relaxed text-neutral-500 dark:border-white/15 dark:text-neutral-400">
+                  <p className="rounded-xl border border-dashed border-black/10 p-4 text-sm leading-relaxed text-muted-teal-500 dark:border-white/15 dark:text-muted-teal-400">
                     Your visited places will show up here as you explore.
                   </p>
                 )}

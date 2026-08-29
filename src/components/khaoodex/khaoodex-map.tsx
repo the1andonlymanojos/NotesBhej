@@ -1,10 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import type { FeatureGroup, GeoJSON as GeoJSONLayer, LayerGroup, Map as LeafletMap } from "leaflet"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { GeoJSON as GeoJSONLayer, LayerGroup, LeafletMouseEvent, Map as LeafletMap } from "leaflet"
 import type { KhaaoDexRestaurant } from "@/lib/api/types"
 import { landmarkAssets } from "./data"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
+import { constellationEdges, drawStarfield, hitTest, toStars, type Star } from "./starfield"
 import "leaflet/dist/leaflet.css"
 import "./khaoodex.css"
 
@@ -12,10 +13,12 @@ type KhaaoDexMapProps = {
   theme: KhaaoDexTheme
   restaurants: KhaaoDexRestaurant[]
   selectedId: number | null
-  onRestaurantSelect: (restaurantId: number) => void
+  onRestaurantSelect: (restaurantId: number | null) => void
 }
 
 const GWALIOR_CENTER: [number, number] = [26.2495, 78.174]
+/** Keep labels out from under the top bar + filter row. */
+const TOP_INSET = 116
 
 const geoJsonStyle = (theme: KhaaoDexTheme) => {
   const colors = mapThemes[theme]
@@ -23,7 +26,7 @@ const geoJsonStyle = (theme: KhaaoDexTheme) => {
     roads: (feature?: GeoJSON.Feature) => ({
       color: feature?.properties?.highway === "primary" ? colors.roadMajor : colors.road,
       weight: feature?.properties?.highway === "primary" ? 1.8 : 1,
-      opacity: theme === "matrix" ? 0.82 : 0.72,
+      opacity: theme === "dusk" ? 0.82 : 0.72,
       lineCap: "round" as const,
       lineJoin: "round" as const,
     }),
@@ -31,35 +34,73 @@ const geoJsonStyle = (theme: KhaaoDexTheme) => {
       color: colors.landmarkBorder,
       weight: 1,
       fillColor: colors.landmark,
-      fillOpacity: theme === "matrix" ? 0.5 : 0.6,
+      fillOpacity: theme === "dusk" ? 0.5 : 0.6,
     },
   }
 }
-
-// Guard against records with missing or null-island coordinates so they don't
-// strand a pin in the corner of the map.
-const hasValidCoords = (restaurant: KhaaoDexRestaurant) =>
-  Number.isFinite(restaurant.latitude) &&
-  Number.isFinite(restaurant.longitude) &&
-  !(Math.abs(restaurant.latitude) < 0.01 && Math.abs(restaurant.longitude) < 0.01)
 
 export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaurantSelect }: KhaaoDexMapProps) {
   const mapElement = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
   const roadsRef = useRef<GeoJSONLayer | null>(null)
   const landmarksRef = useRef<LayerGroup | null>(null)
-  const markerGroupRef = useRef<FeatureGroup | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const hoveredRef = useRef<number | null>(null)
   const didFitRef = useRef(false)
   const [ready, setReady] = useState(false)
 
-  // Track the latest select handler without forcing the map to re-initialise.
+  const stars = useMemo<Star[]>(() => toStars(restaurants), [restaurants])
+  const edges = useMemo(() => constellationEdges(stars), [stars])
+
+  // Keep the drawing inputs on refs so the rAF loop never sees stale data and the
+  // map never has to re-initialise.
+  const drawState = useRef({ stars, edges, theme, selectedId })
+  drawState.current = { stars, edges, theme, selectedId }
   const onSelectRef = useRef(onRestaurantSelect)
   useEffect(() => {
     onSelectRef.current = onRestaurantSelect
   }, [onRestaurantSelect])
 
-  // Initialise the map, its controls, and the static road/landmark layers exactly
-  // once. Filter and "mark visited" changes never tear this down.
+  const draw = useCallback(() => {
+    rafRef.current = null
+    const map = mapRef.current
+    const canvas = canvasRef.current
+    if (!map || !canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const size = map.getSize()
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    if (canvas.width !== size.x * dpr || canvas.height !== size.y * dpr) {
+      canvas.width = size.x * dpr
+      canvas.height = size.y * dpr
+      canvas.style.width = `${size.x}px`
+      canvas.style.height = `${size.y}px`
+    }
+
+    const { stars: s, edges: e, theme: t, selectedId: sel } = drawState.current
+    drawStarfield(ctx, {
+      stars: s,
+      edges: e,
+      project: (lat, lng) => map.latLngToContainerPoint([lat, lng]),
+      theme: t,
+      colors: mapThemes[t],
+      selectedId: sel,
+      hoveredId: hoveredRef.current,
+      zoom: map.getZoom(),
+      width: size.x,
+      height: size.y,
+      dpr,
+      topInset: TOP_INSET,
+    })
+  }, [])
+
+  const scheduleDraw = useCallback(() => {
+    if (rafRef.current == null) rafRef.current = window.requestAnimationFrame(draw)
+  }, [draw])
+
+  // Init once: the map, controls, static layers, and the starfield canvas.
   useEffect(() => {
     let disposed = false
 
@@ -79,9 +120,37 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
       map.getContainer().style.background = mapThemes[theme].map
       L.control.zoom({ position: "bottomright" }).addTo(map)
 
+      const canvas = document.createElement("canvas")
+      canvas.className = "khaoodex-starfield"
+      canvas.setAttribute("aria-hidden", "true")
+      map.getContainer().appendChild(canvas)
+      canvasRef.current = canvas
+
       const landmarks = L.layerGroup().addTo(map)
       landmarksRef.current = landmarks
-      markerGroupRef.current = L.featureGroup().addTo(map)
+
+      map.on("move zoom viewreset zoomanim resize", scheduleDraw)
+      map.on("click", (event: LeafletMouseEvent) => {
+        const { stars: s } = drawState.current
+        const id = hitTest(s, (lat, lng) => map.latLngToContainerPoint([lat, lng]), event.containerPoint, map.getZoom())
+        onSelectRef.current(id)
+      })
+      map.on("mousemove", (event: LeafletMouseEvent) => {
+        const { stars: s } = drawState.current
+        const id = hitTest(s, (lat, lng) => map.latLngToContainerPoint([lat, lng]), event.containerPoint, map.getZoom())
+        if (id !== hoveredRef.current) {
+          hoveredRef.current = id
+          map.getContainer().style.cursor = id != null ? "pointer" : ""
+          scheduleDraw()
+        }
+      })
+      map.on("mouseout", () => {
+        if (hoveredRef.current != null) {
+          hoveredRef.current = null
+          map.getContainer().style.cursor = ""
+          scheduleDraw()
+        }
+      })
 
       try {
         const [roadsData, ...landmarkData] = await Promise.all([
@@ -99,87 +168,77 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
 
       window.setTimeout(() => mapRef.current?.invalidateSize(), 50)
       if (!disposed) setReady(true)
+      scheduleDraw()
     }
 
     init().catch((error) => console.error("Could not initialise KhaaoDex map", error))
 
     return () => {
       disposed = true
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
       mapRef.current?.remove()
       mapRef.current = null
       roadsRef.current = null
       landmarksRef.current = null
-      markerGroupRef.current = null
+      canvasRef.current = null
+      hoveredRef.current = null
       didFitRef.current = false
       setReady(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Re-style the base layers and re-plot the markers when the theme or the
-  // restaurant set changes — an in-place update, not a rebuild.
-  const paint = useCallback(async () => {
+  // Theme: restyle the (heavy) base layers only when the theme actually changes.
+  useEffect(() => {
+    if (!ready) return
     const map = mapRef.current
-    const markerGroup = markerGroupRef.current
-    if (!map || !markerGroup) return
-
-    const L = await import("leaflet")
-    const colors = mapThemes[theme]
+    if (!map) return
     const styles = geoJsonStyle(theme)
-
-    map.getContainer().style.background = colors.map
+    map.getContainer().style.background = mapThemes[theme].map
     roadsRef.current?.setStyle(styles.roads)
     landmarksRef.current?.eachLayer((layer) => {
       const geoLayer = layer as GeoJSONLayer
       geoLayer.setStyle(() => styles.landmarks)
     })
+    scheduleDraw()
+  }, [ready, theme, scheduleDraw])
 
-    markerGroup.clearLayers()
-    restaurants.filter(hasValidCoords).forEach((restaurant) => {
-      const visited = Boolean(restaurant.relationship?.visited)
-      const selected = restaurant.id === selectedId
-      const markerColor = visited ? colors.markerVisited : colors.markerUnvisited
-      const classes = [
-        "khaoodex-marker",
-        visited ? "khaoodex-marker-visited" : "khaoodex-marker-unvisited",
-        selected ? "khaoodex-marker-selected" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")
-      L.marker([restaurant.latitude, restaurant.longitude], {
-        zIndexOffset: selected ? 1000 : 0,
-        icon: L.divIcon({
-          className: "khaoodex-marker-wrap",
-          html: `<span class="${classes}" style="--marker-color:${markerColor};--marker-halo:${colors.markerHalo}"><span></span></span>`,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
-        }),
-      })
-        .on("click", () => onSelectRef.current(restaurant.id))
-        .addTo(markerGroup)
-    })
-
-    // Frame the restaurants once, on the first load that actually has any — don't
-    // yank the viewport back every time someone toggles a filter.
-    if (!didFitRef.current && markerGroup.getBounds().isValid()) {
-      map.fitBounds(markerGroup.getBounds().pad(0.15), { maxZoom: 15 })
-      didFitRef.current = true
-    }
-  }, [restaurants, theme, selectedId])
-
+  // Stars / selection: cheap canvas redraw, no layer work.
   useEffect(() => {
-    if (ready) void paint()
-  }, [ready, paint])
+    if (ready) scheduleDraw()
+  }, [ready, stars, edges, selectedId, scheduleDraw])
 
-  // Ease the map to a freshly selected restaurant so its pin isn't hidden behind the panel.
+  // Fit once to the restaurants; then ease to whatever gets selected.
+  useEffect(() => {
+    if (!ready || !mapRef.current || stars.length === 0) return
+    const map = mapRef.current
+    void import("leaflet").then((L) => {
+      if (!mapRef.current) return
+      if (!didFitRef.current) {
+        // Frame the dense middle of the set, not the far-flung outliers, so the
+        // constellation actually fills the view.
+        const lats = stars.map((s) => s.lat).sort((a, b) => a - b)
+        const lngs = stars.map((s) => s.lng).sort((a, b) => a - b)
+        const lo = Math.floor(stars.length * 0.08)
+        const hi = Math.ceil(stars.length * 0.92) - 1
+        const bounds = L.latLngBounds(
+          [lats[lo], lngs[lo]],
+          [lats[Math.max(hi, lo)], lngs[Math.max(hi, lo)]],
+        )
+        if (bounds.isValid()) map.fitBounds(bounds.pad(0.25), { maxZoom: 15 })
+        didFitRef.current = true
+      }
+    })
+  }, [ready, stars])
+
   useEffect(() => {
     if (!ready || selectedId == null) return
-    const target = restaurants.find((restaurant) => restaurant.id === selectedId)
-    if (!target || !hasValidCoords(target)) return
+    const target = stars.find((s) => s.id === selectedId)
     const map = mapRef.current
-    if (!map) return
-    map.flyTo([target.latitude, target.longitude], Math.max(map.getZoom(), 14), { duration: 0.4 })
-  }, [ready, selectedId, restaurants])
+    if (!target || !map) return
+    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 14), { duration: 0.4 })
+  }, [ready, selectedId, stars])
 
-  return <div ref={mapElement} className="h-full w-full" aria-label="Interactive map of Gwalior" />
+  return <div ref={mapElement} className="h-full w-full" aria-label="Star map of Gwalior restaurants" />
 }
