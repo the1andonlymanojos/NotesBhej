@@ -788,7 +788,7 @@ export default function KhaaoDexPage() {
 
       {mapLoading && (
         <div
-          className={`${SURFACE} pointer-events-none absolute left-1/2 top-1/2 z-[400] -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-2.5 text-sm font-medium text-muted-teal-700 dark:text-pale-oak-200`}
+          className={`${SURFACE} pointer-events-none absolute left-1/2 top-1/2 z-[520] -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-2.5 text-sm font-medium text-muted-teal-700 dark:text-pale-oak-200`}
         >
           <Loader2 className="mr-2 inline size-4 animate-spin" />
           Finding Gwalior’s places…

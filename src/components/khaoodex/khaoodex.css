@@ -3,9 +3,17 @@
 .khaoodex-starfield {
   position: absolute;
   inset: 0;
-  z-index: 650; /* above tiles + overlay, below leaflet controls (800) */
+  /* Map decoration: above the tiles + roads, below every piece of UI chrome
+     (the top bar is z-500, the detail sheet z-600). */
+  z-index: 450;
   pointer-events: none;
   transition: opacity 130ms ease-out;
+}
+
+/* Leaflet stacks its controls at z-index 1000; keep them under the panels. */
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 500 !important;
 }
 
 /* ------------------------------------------------------ leaflet zoom control --- */
