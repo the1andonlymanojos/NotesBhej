@@ -71,7 +71,10 @@ export function getApiBaseUrl(): string {
 
 /** Origin that owns login / OAuth for every mshiv.net project (for now, NotesBhej). */
 export function getAuthOrigin(): string {
-  return getApiBaseUrl() || "https://notesbhej.mshiv.net";
+  const base = getApiBaseUrl();
+  if (base.startsWith("http")) return base;
+  // Dev / relative setups: log in on the current origin (the /springboot proxy handles it).
+  return typeof window !== "undefined" ? window.location.origin : "https://notesbhej.mshiv.net";
 }
 
 /** Server-side fetch (page.tsx, ISR). Hits backend directly so it works at build time without rewrites. */
