@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import KhaaoDexPage from "@/components/khaoodex/khaoodex-page"
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 }
 
 export default function KhaaoDexRoute() {
-  return <KhaaoDexPage />
+  return (
+    <Suspense fallback={null}>
+      <KhaaoDexPage />
+    </Suspense>
+  )
 }

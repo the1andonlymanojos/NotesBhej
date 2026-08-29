@@ -198,6 +198,33 @@ export interface KhaaoDexReviewRequest {
   imageUrls?: string[];
 }
 
+export type KhaaoDexEditStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+/** Fields a contributor can propose changing on an existing place. */
+export interface KhaaoDexEditRequest {
+  name?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  cuisine?: string;
+  priceCategory?: KhaaoDexPriceCategory;
+  categories?: KhaaoDexCategory[];
+  googlePlaceId?: string;
+}
+
+/** RestaurantEditView — a pending change awaiting moderation. */
+export interface KhaaoDexRestaurantEdit {
+  id: number;
+  restaurantId: number;
+  submittedById: number;
+  status: KhaaoDexEditStatus;
+  proposed: KhaaoDexEditRequest;
+  createdAt?: string;
+  reviewedById?: number | null;
+  reviewedAt?: string | null;
+  moderationNote?: string | null;
+}
+
 /** PATCH /api/v1/me body */
 export interface ApiUpdateMeRequest {
   bgPref?: string;

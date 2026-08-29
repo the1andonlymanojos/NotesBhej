@@ -34,6 +34,8 @@ import type {
   KhaaoDexMyDex,
   KhaaoDexCategory,
   KhaaoDexRestaurantCreateRequest,
+  KhaaoDexEditRequest,
+  KhaaoDexRestaurantEdit,
 } from "./types";
 
 export class ApiHttpError extends Error {
@@ -364,6 +366,62 @@ export async function apiDeleteKhaaoDexReview(id: number): Promise<void> {
 
 export async function apiGetKhaaoDexMyDex(): Promise<KhaaoDexMyDex> {
   return fetchApiBrowser<KhaaoDexMyDex>("/api/v1/khaao-dex/me");
+}
+
+// ——— Edits (contributor) + moderation (MODERATOR / ADMIN) ———
+
+/** POST /api/v1/khaao-dex/restaurants/{id}/edits — propose changes to a place. */
+export async function apiSubmitKhaaoDexEdit(
+  restaurantId: number,
+  body: KhaaoDexEditRequest
+): Promise<KhaaoDexRestaurantEdit> {
+  return fetchApiBrowser<KhaaoDexRestaurantEdit>(`/api/v1/khaao-dex/restaurants/${restaurantId}/edits`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** GET /api/v1/khaao-dex/moderation/restaurants — places awaiting approval. */
+export async function apiGetKhaaoDexPendingRestaurants(): Promise<KhaaoDexRestaurant[]> {
+  return fetchApiBrowser<KhaaoDexRestaurant[]>("/api/v1/khaao-dex/moderation/restaurants");
+}
+
+/** PATCH /api/v1/khaao-dex/moderation/restaurants/{id}/{approve|reject} */
+export async function apiModerateKhaaoDexRestaurant(
+  id: number,
+  approve: boolean,
+  note?: string
+): Promise<KhaaoDexRestaurant> {
+  return fetchApiBrowser<KhaaoDexRestaurant>(
+    `/api/v1/khaao-dex/moderation/restaurants/${id}/${approve ? "approve" : "reject"}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: note || null }),
+    }
+  );
+}
+
+/** GET /api/v1/khaao-dex/moderation/edits — proposed edits awaiting approval. */
+export async function apiGetKhaaoDexPendingEdits(): Promise<KhaaoDexRestaurantEdit[]> {
+  return fetchApiBrowser<KhaaoDexRestaurantEdit[]>("/api/v1/khaao-dex/moderation/edits");
+}
+
+/** PATCH /api/v1/khaao-dex/moderation/edits/{id}/{approve|reject} */
+export async function apiModerateKhaaoDexEdit(
+  id: number,
+  approve: boolean,
+  note?: string
+): Promise<KhaaoDexRestaurantEdit> {
+  return fetchApiBrowser<KhaaoDexRestaurantEdit>(
+    `/api/v1/khaao-dex/moderation/edits/${id}/${approve ? "approve" : "reject"}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: note || null }),
+    }
+  );
 }
 
 /** PATCH /api/v1/me — update current user fields (e.g. bgPref) */

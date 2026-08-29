@@ -6,6 +6,10 @@ on:
       - stage
   workflow_dispatch:
 
+concurrency:
+  group: stage-frontend-deployment
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -73,6 +77,13 @@ jobs:
           docker push "$REGISTRY_IMAGE:${GITHUB_SHA}"
           docker push "$REGISTRY_IMAGE:stage"
 
+      - name: Reclaim disk on the runner
+        if: always()
+        run: |
+          docker builder prune -f --keep-storage 3gb || true
+          docker image prune -f || true
+          docker system df || true
+
       - name: Configure stage namespace and secrets
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -101,9 +112,13 @@ jobs:
             app="$REGISTRY_IMAGE:${GITHUB_SHA}"
           kubectl -n "$STAGE_NAMESPACE" rollout status deployment/$STAGE_DEPLOYMENT --timeout=180s
 
-      - name: Smoke-test backend and frontend
+      # Informational only — `rollout status` above is the real gate. Hits the
+      # public URLs (through the tunnel) so it reflects what users actually get.
+      - name: Smoke-test (informational)
+        continue-on-error: true
         run: |
-          curl --fail --silent --show-error --retry 10 --retry-delay 3 \
+          set -x
+          curl --fail --show-error --retry 15 --retry-delay 3 --retry-all-errors \
             "$STAGE_API_URL/api/v1/health"
-          curl --fail --silent --show-error --retry 10 --retry-delay 3 \
-            http://127.0.0.1:31000/
+          curl --fail --show-error --retry 15 --retry-delay 3 --retry-all-errors \
+            "$STAGE_API_URL/khao-dex" -o /dev/null

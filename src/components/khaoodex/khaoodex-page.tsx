@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import {
   ArrowUpRight,
@@ -11,27 +12,36 @@ import {
   Moon,
   Navigation,
   Plus,
+  ShieldCheck,
   Sparkles,
   Star,
   Sun,
+  User as UserIcon,
   Utensils,
   X,
 } from "lucide-react"
+import Image from "next/image"
 import { Textarea } from "@/components/ui/textarea"
 import {
   ApiHttpError,
   apiDeleteKhaaoDexReview,
   apiGetKhaaoDexMyDex,
+  apiGetKhaaoDexPendingEdits,
+  apiGetKhaaoDexPendingRestaurants,
   apiGetKhaaoDexRestaurantDetails,
   apiGetKhaaoDexRestaurants,
+  apiGetMe,
   apiUpdateKhaaoDexRelationship,
   apiUpsertKhaaoDexReview,
 } from "@/lib/api/client"
-import type { KhaaoDexCategory, KhaaoDexRestaurant, KhaaoDexReview } from "@/lib/api/types"
+import type { ApiUser, KhaaoDexCategory, KhaaoDexRestaurant, KhaaoDexReview } from "@/lib/api/types"
 import KhaaoDexMap from "./khaoodex-map"
 import AddRestaurant from "./add-restaurant"
+import EditRestaurant from "./edit-restaurant"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
 import { SURFACE, categoryLabel, googleDirectionsUrl, priceLabel } from "./ui"
+
+const isModerator = (user: ApiUser | null) => user?.role === "ADMIN" || user?.role === "MODERATOR"
 
 type RatingKey = "overallRating" | "valueForMoneyRating" | "foodQualityRating" | "ambienceRating"
 type ReviewDraft = Record<RatingKey, number | ""> & { text: string }
@@ -165,6 +175,7 @@ function RestaurantDetails({
   deletingReview,
   error,
   onVisit,
+  onSuggestEdit,
   onDraftChange,
   onReviewSubmit,
   onDeleteReview,
@@ -178,6 +189,7 @@ function RestaurantDetails({
   deletingReview: boolean
   error: string | null
   onVisit: () => void
+  onSuggestEdit: () => void
   onDraftChange: (key: keyof ReviewDraft, value: number | "" | string) => void
   onReviewSubmit: (event: React.FormEvent<HTMLFormElement>) => void
   onDeleteReview: () => void
@@ -246,6 +258,13 @@ function RestaurantDetails({
           Directions
         </a>
       </div>
+
+      <button
+        onClick={onSuggestEdit}
+        className="mt-2 text-xs font-semibold text-muted-teal-500 transition hover:text-muted-teal-900 dark:text-muted-teal-400 dark:hover:text-white"
+      >
+        Suggest an edit
+      </button>
 
       {loading ? (
         <div className="flex justify-center py-10 text-muted-teal-400">
@@ -368,7 +387,11 @@ export default function KhaaoDexPage() {
   const [savingVisit, setSavingVisit] = useState(false)
   const [savingReview, setSavingReview] = useState(false)
   const [deletingReview, setDeletingReview] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [me, setMe] = useState<ApiUser | null>(null)
+  const [pendingCount, setPendingCount] = useState<number | null>(null)
   const colors = mapThemes[theme]
+  const searchParams = useSearchParams()
 
   const selectedRestaurant =
     details?.restaurant ?? restaurants.find((restaurant) => restaurant.id === selectedId) ?? null
@@ -412,6 +435,26 @@ export default function KhaaoDexPage() {
       setMapLoading(false)
     }
   }, [])
+
+  // Who's looking — drives the sign-in state and the moderator "Review" button.
+  useEffect(() => {
+    apiGetMe()
+      .then((user) => {
+        setMe(user)
+        if (isModerator(user)) {
+          Promise.all([apiGetKhaaoDexPendingRestaurants(), apiGetKhaaoDexPendingEdits()])
+            .then(([p, e]) => setPendingCount(p.length + e.length))
+            .catch(() => setPendingCount(null))
+        }
+      })
+      .catch(() => setMe(null))
+  }, [])
+
+  // Deep link: /khao-dex?place=123 opens that place.
+  useEffect(() => {
+    const place = Number(searchParams.get("place"))
+    if (Number.isFinite(place) && place > 0) setSelectedId(place)
+  }, [searchParams])
 
   useEffect(() => {
     loadRestaurants([])
@@ -585,6 +628,21 @@ export default function KhaaoDexPage() {
             <Plus className="size-4" />
             <span className="hidden sm:inline">Add</span>
           </button>
+          {isModerator(me) && (
+            <Link
+              href="/khao-dex/moderation"
+              title="Review queue"
+              className="relative flex items-center gap-1.5 rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-muted-teal-700 transition hover:bg-black/[0.03] dark:border-white/15 dark:text-muted-teal-100 dark:hover:bg-white/5"
+            >
+              <ShieldCheck className="size-4" />
+              <span className="hidden sm:inline">Review</span>
+              {pendingCount != null && pendingCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 grid min-w-[1.1rem] place-items-center rounded-full bg-[#b34d66] px-1 text-[10px] font-bold text-white">
+                  {pendingCount > 99 ? "99+" : pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
           <button
             onClick={openDex}
             className="flex items-center gap-1.5 rounded-xl bg-muted-teal-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-muted-teal-800 dark:bg-white dark:text-muted-teal-900 dark:hover:bg-pale-oak-200"
@@ -592,6 +650,26 @@ export default function KhaaoDexPage() {
             <Compass className="size-4" />
             <span className="hidden sm:inline">My Dex</span>
           </button>
+          {me ? (
+            <Link
+              href="/profile"
+              title={me.fullName || "Profile"}
+              className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/10 bg-black/[0.03] text-muted-teal-500 dark:border-white/15 dark:bg-white/5 dark:text-muted-teal-300"
+            >
+              {me.profilePictureUrl ? (
+                <Image src={me.profilePictureUrl} alt="" width={36} height={36} className="size-full object-cover" />
+              ) : (
+                <UserIcon className="size-4" />
+              )}
+            </Link>
+          ) : (
+            <button
+              onClick={login}
+              className="rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-muted-teal-700 transition hover:bg-black/[0.03] dark:border-white/15 dark:text-muted-teal-100 dark:hover:bg-white/5"
+            >
+              Sign in
+            </button>
+          )}
         </div>
 
         {/* Category filter — one scrolling row, "All" resets it. */}
@@ -681,11 +759,21 @@ export default function KhaaoDexPage() {
             deletingReview={deletingReview}
             error={actionError}
             onVisit={handleVisit}
+            onSuggestEdit={() => setEditOpen(true)}
             onDraftChange={(key, value) => setDraft((current) => ({ ...current, [key]: value }))}
             onReviewSubmit={handleReviewSubmit}
             onDeleteReview={handleDeleteReview}
           />
         </Panel>
+      )}
+
+      {editOpen && selectedRestaurant && (
+        <EditRestaurant
+          restaurant={selectedRestaurant}
+          onClose={() => setEditOpen(false)}
+          onLogin={login}
+          onSubmitted={() => setEditOpen(false)}
+        />
       )}
 
       {addOpen && (
