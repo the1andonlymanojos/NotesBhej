@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   Compass,
   Loader2,
+  LogIn,
   MapPinned,
   Moon,
   Navigation,
@@ -618,7 +619,7 @@ export default function KhaaoDexPage() {
           <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#b34d66] text-white">
             <Utensils className="size-4" />
           </div>
-          <div className="mr-auto text-[15px] font-bold tracking-tight text-muted-teal-900 dark:text-white">
+          <div className="mr-auto min-w-0 truncate text-[15px] font-bold tracking-tight text-muted-teal-900 dark:text-white">
             Khaao<span className="text-[#b34d66]">Dex</span>
           </div>
           <button
@@ -665,9 +666,10 @@ export default function KhaaoDexPage() {
           ) : (
             <button
               onClick={login}
-              className="rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-muted-teal-700 transition hover:bg-black/[0.03] dark:border-white/15 dark:text-muted-teal-100 dark:hover:bg-white/5"
+              className="flex items-center gap-1.5 rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-muted-teal-700 transition hover:bg-black/[0.03] dark:border-white/15 dark:text-muted-teal-100 dark:hover:bg-white/5"
             >
-              Sign in
+              <LogIn className="size-4" />
+              <span className="hidden sm:inline">Sign in</span>
             </button>
           )}
         </div>

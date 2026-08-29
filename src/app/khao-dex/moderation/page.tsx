@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Check, Loader2, MapPin, X } from "lucide-react"
+import { ArrowLeft, Check, Loader2, MapPin, RefreshCw, X } from "lucide-react"
 import {
   ApiHttpError,
   apiGetKhaaoDexPendingEdits,
@@ -29,6 +29,15 @@ export default function KhaaoDexModerationPage() {
   const [places, setPlaces] = useState<KhaaoDexRestaurant[] | null>(null)
   const [edits, setEdits] = useState<KhaaoDexRestaurantEdit[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [flash, setFlash] = useState<{ tone: "ok" | "warn"; text: string } | null>(null)
+  const flashTimer = useRef<number | null>(null)
+
+  const announce = useCallback((tone: "ok" | "warn", text: string) => {
+    setFlash({ tone, text })
+    if (flashTimer.current) window.clearTimeout(flashTimer.current)
+    flashTimer.current = window.setTimeout(() => setFlash(null), 3500)
+  }, [])
 
   useEffect(() => {
     apiGetMe()
@@ -41,6 +50,7 @@ export default function KhaaoDexModerationPage() {
 
   const load = useCallback(async () => {
     setLoadError(null)
+    setRefreshing(true)
     try {
       const [p, e] = await Promise.all([apiGetKhaaoDexPendingRestaurants(), apiGetKhaaoDexPendingEdits()])
       setPlaces(p)
@@ -51,6 +61,8 @@ export default function KhaaoDexModerationPage() {
         return
       }
       setLoadError("Couldn’t load the moderation queue. Try again in a moment.")
+    } finally {
+      setRefreshing(false)
     }
   }, [])
 
@@ -99,26 +111,48 @@ export default function KhaaoDexModerationPage() {
 
   return (
     <Shell>
-      <div className="mb-4 flex items-center gap-1 rounded-full bg-black/[0.04] p-1 dark:bg-white/[0.06]">
-        {(
-          [
-            ["places", `Places${places ? ` (${places.length})` : ""}`],
-            ["edits", `Edits${edits ? ` (${edits.length})` : ""}`],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() => setTab(value)}
-            className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${
-              tab === value
-                ? "bg-white text-muted-teal-900 shadow-sm dark:bg-muted-teal-800 dark:text-white"
-                : "text-muted-teal-500 hover:text-muted-teal-800 dark:text-muted-teal-400 dark:hover:text-white"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-1 rounded-full bg-black/[0.04] p-1 dark:bg-white/[0.06]">
+          {(
+            [
+              ["places", `Places${places ? ` (${places.length})` : ""}`],
+              ["edits", `Edits${edits ? ` (${edits.length})` : ""}`],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setTab(value)}
+              className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                tab === value
+                  ? "bg-white text-muted-teal-900 shadow-sm dark:bg-muted-teal-800 dark:text-white"
+                  : "text-muted-teal-500 hover:text-muted-teal-800 dark:text-muted-teal-400 dark:hover:text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={load}
+          disabled={refreshing}
+          aria-label="Refresh queue"
+          className="grid size-9 shrink-0 place-items-center rounded-full border border-black/10 text-muted-teal-500 transition hover:text-muted-teal-900 disabled:opacity-50 dark:border-white/15 dark:text-muted-teal-300 dark:hover:text-white"
+        >
+          <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
       </div>
+
+      {flash && (
+        <div
+          className={`mb-3 rounded-xl px-3.5 py-2.5 text-sm font-medium ${
+            flash.tone === "ok"
+              ? "bg-[#b34d66]/10 text-[#8f3d52] dark:text-[#d194a3]"
+              : "bg-amber-500/12 text-amber-700 dark:text-amber-300"
+          }`}
+        >
+          {flash.text}
+        </div>
+      )}
 
       {loadError && (
         <div className="mb-4 rounded-2xl bg-red-500/10 p-4 text-sm font-medium text-red-700 dark:text-red-300">
@@ -132,12 +166,13 @@ export default function KhaaoDexModerationPage() {
       {tab === "places" ? (
         <Queue
           items={places}
-          empty="No places waiting for review."
+          empty="No places waiting for review — nice work."
           render={(place) => (
             <PlaceCard
               key={place.id}
               place={place}
               onDone={() => setPlaces((current) => (current ?? []).filter((p) => p.id !== place.id))}
+              onResult={announce}
             />
           )}
         />
@@ -150,6 +185,7 @@ export default function KhaaoDexModerationPage() {
               key={edit.id}
               edit={edit}
               onDone={() => setEdits((current) => (current ?? []).filter((e) => e.id !== edit.id))}
+              onResult={announce}
             />
           )}
         />
@@ -212,10 +248,12 @@ function DecisionBar({
   onApprove,
   onReject,
   busy,
+  notePlaceholder = "Reason (optional)",
 }: {
   onApprove: () => void
   onReject: (note: string) => void
   busy: false | "approve" | "reject"
+  notePlaceholder?: string
 }) {
   const [rejecting, setRejecting] = useState(false)
   const [note, setNote] = useState("")
@@ -226,7 +264,8 @@ function DecisionBar({
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          placeholder="Why is this being rejected? (optional, shown to the submitter)"
+          placeholder={notePlaceholder}
+          autoFocus
           className="min-h-16 w-full resize-none rounded-xl border border-black/10 bg-white/70 p-2.5 text-sm outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
         />
         <div className="flex gap-2">
@@ -270,7 +309,17 @@ function DecisionBar({
   )
 }
 
-function PlaceCard({ place, onDone }: { place: KhaaoDexRestaurant; onDone: () => void }) {
+type ResultFn = (tone: "ok" | "warn", text: string) => void
+
+function PlaceCard({
+  place,
+  onDone,
+  onResult,
+}: {
+  place: KhaaoDexRestaurant
+  onDone: () => void
+  onResult: ResultFn
+}) {
   const [busy, setBusy] = useState<false | "approve" | "reject">(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -279,8 +328,14 @@ function PlaceCard({ place, onDone }: { place: KhaaoDexRestaurant; onDone: () =>
     setError(null)
     try {
       await apiModerateKhaaoDexRestaurant(place.id, approve, note)
+      onResult("ok", `${approve ? "Approved" : "Rejected"} ${place.name}`)
       onDone()
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiHttpError && err.status === 409) {
+        onResult("warn", `${place.name} was already reviewed by someone else.`)
+        onDone()
+        return
+      }
       setError("That didn’t go through. Try again.")
       setBusy(false)
     }
@@ -317,7 +372,12 @@ function PlaceCard({ place, onDone }: { place: KhaaoDexRestaurant; onDone: () =>
         </div>
       )}
       {error && <p className="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
-      <DecisionBar onApprove={() => decide(true)} onReject={(note) => decide(false, note)} busy={busy} />
+      <DecisionBar
+        onApprove={() => decide(true)}
+        onReject={(note) => decide(false, note)}
+        busy={busy}
+        notePlaceholder="Internal note (optional)"
+      />
     </article>
   )
 }
@@ -343,7 +403,15 @@ function fmt(field: string, value: unknown): string {
   return String(value)
 }
 
-function EditCard({ edit, onDone }: { edit: KhaaoDexRestaurantEdit; onDone: () => void }) {
+function EditCard({
+  edit,
+  onDone,
+  onResult,
+}: {
+  edit: KhaaoDexRestaurantEdit
+  onDone: () => void
+  onResult: ResultFn
+}) {
   const [busy, setBusy] = useState<false | "approve" | "reject">(false)
   const [error, setError] = useState<string | null>(null)
   const [current, setCurrent] = useState<KhaaoDexRestaurant | null>(null)
@@ -370,13 +438,20 @@ function EditCard({ edit, onDone }: { edit: KhaaoDexRestaurantEdit; onDone: () =
     return rows
   }, [edit.proposed, current])
 
+  const label = current ? current.name : `restaurant #${edit.restaurantId}`
   const decide = async (approve: boolean, note?: string) => {
     setBusy(approve ? "approve" : "reject")
     setError(null)
     try {
       await apiModerateKhaaoDexEdit(edit.id, approve, note)
+      onResult("ok", `${approve ? "Applied edit to" : "Rejected edit for"} ${label}`)
       onDone()
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiHttpError && err.status === 409) {
+        onResult("warn", "That edit was already reviewed by someone else.")
+        onDone()
+        return
+      }
       setError("That didn’t go through. Try again.")
       setBusy(false)
     }
@@ -390,9 +465,10 @@ function EditCard({ edit, onDone }: { edit: KhaaoDexRestaurantEdit; onDone: () =
         </h2>
         <Link
           href={`/khao-dex?place=${edit.restaurantId}`}
-          className="text-xs font-semibold text-[#b34d66] hover:underline dark:text-[#d194a3]"
+          target="_blank"
+          className="shrink-0 text-xs font-semibold text-[#b34d66] hover:underline dark:text-[#d194a3]"
         >
-          View on map
+          View on map ↗
         </Link>
       </div>
       <p className="mt-0.5 text-xs text-muted-teal-400">
