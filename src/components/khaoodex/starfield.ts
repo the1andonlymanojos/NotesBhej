@@ -183,11 +183,11 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
     const alpha = Math.max(0, Math.min(0.38, 0.38 * (1 - km / 3.6)))
     if (alpha < 0.015) continue
     const active = isActive(pa.star.id) || isActive(pb.star.id)
-    // Threads of starlight — the "on the radar" star colour, so the constellation
-    // reads as its own layer rather than blending into the road network.
-    ctx.strokeStyle = active ? colors.markerVisited : colors.markerUnvisited
-    ctx.globalAlpha = active ? Math.min(0.7, alpha + 0.4) : alpha
-    ctx.lineWidth = active ? 1.4 : 1
+    // Constellation threads always carry the accent colour; links to the
+    // selected / hovered star just burn brighter.
+    ctx.strokeStyle = colors.markerVisited
+    ctx.globalAlpha = active ? Math.min(0.8, alpha + 0.45) : alpha
+    ctx.lineWidth = active ? 1.6 : 1
     ctx.beginPath()
     ctx.moveTo(pa.x, pa.y)
     ctx.lineTo(pb.x, pb.y)
