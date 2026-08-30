@@ -9,6 +9,7 @@ import type {
   KhaaoDexPriceCategory,
   KhaaoDexRestaurant,
 } from "@/lib/api/types"
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer"
 import { SHEET, categoryLabel } from "./ui"
 
 const categories: KhaaoDexCategory[] = [
@@ -95,10 +96,14 @@ export default function EditRestaurant({
   }
 
   return (
-    <div className="fixed inset-0 z-[1200] flex items-end justify-center overflow-y-auto bg-muted-teal-950/55 p-0 duration-150 animate-in fade-in sm:items-center sm:p-4">
-      <section
-        className={`${SHEET} w-full max-w-lg overflow-hidden rounded-t-[26px] p-5 text-muted-teal-900 duration-200 ease-out animate-in slide-in-from-bottom-8 dark:text-white sm:rounded-[26px] sm:p-6 sm:slide-in-from-bottom-4`}
+    <Drawer open onOpenChange={(next) => !next && onClose()} noBodyStyles>
+      <DrawerContent
+        aria-describedby={undefined}
+        overlayClassName="z-[1390]"
+        className={`${SHEET} z-[1400] max-h-[92svh] overflow-hidden rounded-t-[26px] text-muted-teal-900 dark:text-white sm:inset-x-0 sm:bottom-4 sm:mx-auto sm:max-h-[calc(100svh-2rem)] sm:max-w-lg sm:rounded-[26px]`}
       >
+        <DrawerTitle className="sr-only">Suggest an edit</DrawerTitle>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 sm:p-6">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-[#b34d66]">Fix the Dex</div>
@@ -137,7 +142,7 @@ export default function EditRestaurant({
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-sm font-normal outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
+                  className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-base font-normal outline-none focus:border-[#b34d66] sm:text-sm dark:border-white/15 dark:bg-white/5"
                 />
               </label>
               <label className="block text-sm font-medium text-muted-teal-700 dark:text-pale-oak-200">
@@ -145,7 +150,7 @@ export default function EditRestaurant({
                 <textarea
                   value={address}
                   onChange={(event) => setAddress(event.target.value)}
-                  className="mt-1.5 min-h-16 w-full resize-none rounded-xl border border-black/10 bg-white/70 p-2.5 text-sm font-normal outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
+                  className="mt-1.5 min-h-16 w-full resize-none rounded-xl border border-black/10 bg-white/70 p-2.5 text-base font-normal outline-none focus:border-[#b34d66] sm:text-sm dark:border-white/15 dark:bg-white/5"
                 />
               </label>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -155,7 +160,7 @@ export default function EditRestaurant({
                     value={cuisine}
                     onChange={(event) => setCuisine(event.target.value)}
                     placeholder="e.g. Indian"
-                    className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-sm font-normal outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
+                    className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-base font-normal outline-none focus:border-[#b34d66] sm:text-sm dark:border-white/15 dark:bg-white/5"
                   />
                 </label>
                 <label className="text-sm font-medium text-muted-teal-700 dark:text-pale-oak-200">
@@ -163,7 +168,7 @@ export default function EditRestaurant({
                   <select
                     value={priceCategory}
                     onChange={(event) => setPriceCategory(event.target.value as KhaaoDexPriceCategory | "")}
-                    className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-sm font-normal outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
+                    className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-base font-normal outline-none focus:border-[#b34d66] sm:text-sm dark:border-white/15 dark:bg-white/5"
                   >
                     <option value="">Not set</option>
                     {prices.map((price) => (
@@ -217,7 +222,8 @@ export default function EditRestaurant({
             </button>
           </>
         )}
-      </section>
-    </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }

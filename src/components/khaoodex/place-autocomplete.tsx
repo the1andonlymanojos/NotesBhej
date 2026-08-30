@@ -146,7 +146,9 @@ export default function PlaceAutocomplete({ onSelect }: PlaceAutocompleteProps) 
         input,
         sessionToken: tokenRef.current,
         includedRegionCodes: ["in"],
-        locationBias: { center: GWALIOR, radius: 30000 },
+        // Food places only — keeps localities like "Burari" out of the list.
+        includedPrimaryTypes: ["restaurant", "cafe", "bakery", "bar", "meal_takeaway"],
+        locationBias: { center: GWALIOR, radius: 40000 },
       })
       if (seq !== seqRef.current) return
       setSuggestions(raw.map((s) => s.placePrediction).filter((p): p is Prediction => Boolean(p)))
@@ -229,7 +231,7 @@ export default function PlaceAutocomplete({ onSelect }: PlaceAutocompleteProps) 
           }}
           autoComplete="off"
           placeholder="Search for a restaurant…"
-          className="h-11 w-full rounded-xl border border-black/10 bg-white/70 pl-9 pr-9 text-sm outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
+          className="h-11 w-full rounded-xl border border-black/10 bg-white/70 pl-9 pr-9 text-base outline-none focus:border-[#b34d66] sm:text-sm dark:border-white/15 dark:bg-white/5"
           role="combobox"
           aria-expanded={showList}
           aria-controls={`${inputId}-list`}

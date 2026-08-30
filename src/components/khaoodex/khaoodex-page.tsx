@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
-import { Drawer } from "vaul"
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer"
 import {
   ArrowUpRight,
   Compass,
@@ -100,47 +100,33 @@ function isAuthError(error: unknown) {
 /* ------------------------------------------------------------------ shell --- */
 
 /**
- * One panel treatment: a vaul (shadcn) drawer that is a swipe-dismissable bottom
- * sheet on phones and a floating card on the left on desktop. Non-modal so the
- * map stays pannable while it's open; the dimmed scrim is phone-only.
+ * One panel treatment on the shadcn Drawer: a swipe-dismissable bottom sheet on
+ * phones, a floating card bottom-left on desktop. `noBodyStyles` keeps vaul from
+ * pinning the body — the map page manages its own scroll.
  */
 function Panel({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
   return (
-    <Drawer.Root
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose()
-      }}
-      modal={false}
-      shouldScaleBackground={false}
-    >
-      <Drawer.Portal>
-        <button
-          aria-label="Close"
-          onClick={onClose}
-          className="fixed inset-0 z-[590] bg-muted-teal-950/40 duration-150 animate-in fade-in sm:hidden"
-        />
-        <Drawer.Content
-          aria-label={label}
-          className={`${SHEET} fixed inset-x-0 bottom-0 z-[600] flex max-h-[86svh] flex-col overflow-hidden rounded-t-[26px] outline-none focus:outline-none sm:inset-x-auto sm:bottom-4 sm:left-4 sm:max-h-[calc(100svh-2rem)] sm:w-[384px] sm:rounded-[26px]`}
-        >
-          <Drawer.Title className="sr-only">{label}</Drawer.Title>
-          <div className="relative shrink-0">
-            <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-muted-teal-300 dark:bg-muted-teal-700 sm:hidden" />
-            <button
-              onClick={onClose}
-              aria-label="Close panel"
-              className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full text-muted-teal-500 transition hover:bg-black/5 hover:text-muted-teal-900 dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-2 sm:pt-4">
-            {children}
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+    <Drawer open onOpenChange={(next) => !next && onClose()} noBodyStyles>
+      <DrawerContent
+        aria-describedby={undefined}
+        overlayClassName="z-[1190]"
+        className={`${SHEET} z-[1200] max-h-[86svh] overflow-hidden rounded-t-[26px] sm:inset-x-auto sm:bottom-4 sm:left-4 sm:mt-0 sm:max-h-[calc(100svh-2rem)] sm:w-[384px] sm:rounded-[26px]`}
+      >
+        <DrawerTitle className="sr-only">{label}</DrawerTitle>
+        <div className="relative shrink-0">
+          <button
+            onClick={onClose}
+            aria-label="Close panel"
+            className="absolute right-2.5 top-2.5 z-10 grid size-8 place-items-center rounded-full text-muted-teal-500 transition hover:bg-black/5 hover:text-muted-teal-900 dark:hover:bg-white/10 dark:hover:text-white"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-2 sm:pt-4">
+          {children}
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }
 

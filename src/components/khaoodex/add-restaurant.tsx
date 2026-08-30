@@ -4,6 +4,7 @@ import { useCallback, useState } from "react"
 import { Loader2, X } from "lucide-react"
 import { ApiHttpError, apiSubmitKhaaoDexRestaurant } from "@/lib/api/client"
 import type { KhaaoDexCategory, KhaaoDexPriceCategory } from "@/lib/api/types"
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer"
 import PlaceAutocomplete, { type SelectedGooglePlace } from "./place-autocomplete"
 import { SHEET, categoryLabel } from "./ui"
 
@@ -86,10 +87,14 @@ export default function AddRestaurant({
   }
 
   return (
-    <div className="fixed inset-0 z-[1200] flex items-end justify-center overflow-y-auto bg-muted-teal-950/55 p-0 duration-150 animate-in fade-in sm:items-center sm:p-4">
-      <section
-        className={`${SHEET} w-full max-w-lg overflow-hidden rounded-t-[26px] p-5 text-muted-teal-900 duration-200 ease-out animate-in slide-in-from-bottom-8 dark:text-white sm:rounded-[26px] sm:p-6 sm:slide-in-from-bottom-4`}
+    <Drawer open onOpenChange={(next) => !next && onClose()} noBodyStyles>
+      <DrawerContent
+        aria-describedby={undefined}
+        overlayClassName="z-[1290]"
+        className={`${SHEET} z-[1300] max-h-[92svh] overflow-hidden rounded-t-[26px] text-muted-teal-900 dark:text-white sm:inset-x-0 sm:bottom-4 sm:mx-auto sm:max-h-[calc(100svh-2rem)] sm:max-w-lg sm:rounded-[26px]`}
       >
+        <DrawerTitle className="sr-only">Add a restaurant</DrawerTitle>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 sm:p-6">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-[#b34d66]">Grow the Dex</div>
@@ -167,7 +172,7 @@ export default function AddRestaurant({
                   value={cuisine}
                   onChange={(event) => setCuisine(event.target.value)}
                   placeholder="e.g. Indian"
-                  className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-sm font-normal outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
+                  className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-base font-normal outline-none focus:border-[#b34d66] sm:text-sm dark:border-white/15 dark:bg-white/5"
                 />
               </label>
               <label className="text-sm font-medium text-muted-teal-700 dark:text-pale-oak-200">
@@ -175,7 +180,7 @@ export default function AddRestaurant({
                 <select
                   value={priceCategory}
                   onChange={(event) => setPriceCategory(event.target.value as KhaaoDexPriceCategory | "")}
-                  className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-sm font-normal outline-none focus:border-[#b34d66] dark:border-white/15 dark:bg-white/5"
+                  className="mt-1.5 h-10 w-full rounded-xl border border-black/10 bg-white/70 px-3 text-base font-normal outline-none focus:border-[#b34d66] sm:text-sm dark:border-white/15 dark:bg-white/5"
                 >
                   <option value="">Not sure</option>
                   {prices.map((price) => (
@@ -203,7 +208,8 @@ export default function AddRestaurant({
             </button>
           </>
         )}
-      </section>
-    </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }
