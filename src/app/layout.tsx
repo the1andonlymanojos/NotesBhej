@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "sonner"
 import { Footer } from "@/components/footer"
+import { KHAAODEX_HOST_HEADER } from "@/lib/khaaodex-host";
 import { BACKGROUND_COOKIE_NAME, DEFAULT_BACKGROUND } from "@/lib/backgrounds";
 import { QueryProvider } from "@/components/query-provider";
 
@@ -26,11 +28,14 @@ export const metadata: Metadata = {
   description: "Community-powered archive of IIIT-Gwalior course materials.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // On khao-dex.mshiv.net the KhaaoDex surface owns the whole viewport and
+  // carries its own chrome — drop the shared NotesBhej footer entirely.
+  const onKhaaoDexHost = (await headers()).get(KHAAODEX_HOST_HEADER) === "1"
   const backgroundScript = `(function() {
     var cookieName = ${JSON.stringify(BACKGROUND_COOKIE_NAME)};
     var fallback = ${JSON.stringify(DEFAULT_BACKGROUND)};
@@ -75,7 +80,7 @@ export default function RootLayout({
         >
           <QueryProvider>
             {children}
-            <Footer />
+            {!onKhaaoDexHost && <Footer />}
             <Toaster richColors />
           </QueryProvider>
         </ThemeProvider>

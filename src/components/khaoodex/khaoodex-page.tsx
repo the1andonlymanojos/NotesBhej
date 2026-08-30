@@ -20,7 +20,6 @@ import {
   Star,
   Sun,
   User as UserIcon,
-  Utensils,
   X,
 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
@@ -47,6 +46,7 @@ import {
 } from "@/lib/api/client"
 import type { ApiUser, KhaaoDexCategory, KhaaoDexRestaurant, KhaaoDexReview } from "@/lib/api/types"
 import KhaaoDexMap from "./khaoodex-map"
+import KhaaoDexMenu from "./menu"
 import AddRestaurant from "./add-restaurant"
 import EditRestaurant from "./edit-restaurant"
 import { mapThemes, type KhaaoDexTheme } from "./themes"
@@ -416,6 +416,7 @@ export default function KhaaoDexPage() {
   const [pendingCount, setPendingCount] = useState<number | null>(null)
   const colors = mapThemes[theme]
   const searchParams = useSearchParams()
+  const appEnv = process.env.NEXT_PUBLIC_APP_ENV || "production"
 
   const selectedRestaurant =
     details?.restaurant ?? restaurants.find((restaurant) => restaurant.id === selectedId) ?? null
@@ -457,6 +458,22 @@ export default function KhaaoDexPage() {
       setMapError("Couldn’t load the Gwalior map. Check your connection and try again.")
     } finally {
       setMapLoading(false)
+    }
+  }, [])
+
+  // The KhaaoDex map owns the whole viewport — never let the document itself
+  // scroll or rubber-band behind the floating chrome and sheets.
+  useEffect(() => {
+    const { style: htmlStyle } = document.documentElement
+    const { style: bodyStyle } = document.body
+    const prev = [htmlStyle.overflow, bodyStyle.overflow, bodyStyle.overscrollBehavior]
+    htmlStyle.overflow = "hidden"
+    bodyStyle.overflow = "hidden"
+    bodyStyle.overscrollBehavior = "none"
+    return () => {
+      htmlStyle.overflow = prev[0]
+      bodyStyle.overflow = prev[1]
+      bodyStyle.overscrollBehavior = prev[2]
     }
   }, [])
 
@@ -653,11 +670,9 @@ export default function KhaaoDexPage() {
       {/* Top: one bar — identity on the left, actions on the right. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col items-center gap-2 p-3">
         <div
-          className={`${SURFACE} pointer-events-auto flex w-full max-w-2xl items-center gap-2 rounded-2xl p-1.5 pl-2.5`}
+          className={`${SURFACE} pointer-events-auto flex w-full max-w-2xl items-center gap-2 rounded-2xl p-1.5`}
         >
-          <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#b34d66] text-white">
-            <Utensils className="size-4" />
-          </div>
+          <KhaaoDexMenu isModerator={isModerator(me)} appEnv={appEnv} />
           <div className="mr-auto min-w-0 truncate text-[15px] font-bold tracking-tight text-muted-teal-900 dark:text-white">
             Khaao<span className="text-[#b34d66]">Dex</span>
           </div>
@@ -672,7 +687,7 @@ export default function KhaaoDexPage() {
             <Link
               href="/khao-dex/moderation"
               title="Review queue"
-              className="relative flex items-center gap-1.5 rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-muted-teal-700 transition hover:bg-black/[0.03] dark:border-white/15 dark:text-muted-teal-100 dark:hover:bg-white/5"
+              className="relative hidden items-center gap-1.5 rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-muted-teal-700 transition hover:bg-black/[0.03] sm:flex dark:border-white/15 dark:text-muted-teal-100 dark:hover:bg-white/5"
             >
               <ShieldCheck className="size-4" />
               <span className="hidden sm:inline">Review</span>
