@@ -94,7 +94,15 @@ export default function KhaaoDexMap({ theme, restaurants, selectedId, onRestaura
     const { stars: s, edges: e, theme: t, selectedId: sel } = drawState.current
     const cheap = interactingRef.current
     const zoom = map.getZoom()
-    const placed = layoutStars(s, (lat, lng) => map.latLngToContainerPoint([lat, lng]), zoom, !cheap)
+    // Pins run smaller on phone-width screens so a crowded area stays readable.
+    const radiusScale = size.x < 640 ? 0.7 : 1
+    const placed = layoutStars(
+      s,
+      (lat, lng) => map.latLngToContainerPoint([lat, lng]),
+      zoom,
+      !cheap,
+      radiusScale,
+    )
     layoutRef.current = placed
     drawStarfield(ctx, {
       placed,

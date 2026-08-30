@@ -83,9 +83,9 @@ export function constellationEdges(stars: Star[]): Array<[number, number, number
   return edges
 }
 
-function starRadius(magnitude: number, zoom: number) {
+function starRadius(magnitude: number, zoom: number, scale: number) {
   const zoomBoost = Math.max(0.92, Math.min(1.6, 0.92 + (zoom - 12) * 0.08))
-  return (3.4 + magnitude * 4.6) * zoomBoost
+  return (3.4 + magnitude * 4.6) * zoomBoost * scale
 }
 
 /**
@@ -93,7 +93,13 @@ function starRadius(magnitude: number, zoom: number) {
  * pixels apart — enough that both are visible and tappable, never so far that a
  * pin lies about where a place is (each stays within DRIFT_CAP px of its point).
  */
-export function layoutStars(stars: Star[], project: Project, zoom: number, declutter: boolean): Placed[] {
+export function layoutStars(
+  stars: Star[],
+  project: Project,
+  zoom: number,
+  declutter: boolean,
+  radiusScale = 1,
+): Placed[] {
   const n = stars.length
   const x = new Float64Array(n)
   const y = new Float64Array(n)
@@ -104,7 +110,7 @@ export function layoutStars(stars: Star[], project: Project, zoom: number, declu
     const p = project(stars[i].lat, stars[i].lng)
     x[i] = ox[i] = p.x
     y[i] = oy[i] = p.y
-    r[i] = starRadius(stars[i].magnitude, zoom)
+    r[i] = starRadius(stars[i].magnitude, zoom, radiusScale)
   }
 
   if (declutter && n > 1 && n <= 500) {
@@ -180,14 +186,14 @@ export function drawStarfield(ctx: CanvasRenderingContext2D, o: DrawOptions) {
     const pa = placed[a]
     const pb = placed[b]
     if (!pa || !pb || (!onScreen(pa) && !onScreen(pb))) continue
-    const alpha = Math.max(0, Math.min(0.38, 0.38 * (1 - km / 3.6)))
-    if (alpha < 0.015) continue
+    const alpha = Math.max(0, Math.min(0.66, 0.66 * (1 - km / 4.2)))
+    if (alpha < 0.02) continue
     const active = isActive(pa.star.id) || isActive(pb.star.id)
     // Constellation threads always carry the accent colour; links to the
     // selected / hovered star just burn brighter.
     ctx.strokeStyle = colors.markerVisited
-    ctx.globalAlpha = active ? Math.min(0.8, alpha + 0.45) : alpha
-    ctx.lineWidth = active ? 1.6 : 1
+    ctx.globalAlpha = active ? Math.min(0.92, alpha + 0.4) : alpha
+    ctx.lineWidth = active ? 1.9 : 1.3
     ctx.beginPath()
     ctx.moveTo(pa.x, pa.y)
     ctx.lineTo(pb.x, pb.y)
