@@ -222,6 +222,15 @@ export default function AddContentPage({
           
           // (File size check moved to handleUpload entry, not here)
 
+          // Snapshot the bytes now: sending the File directly streams it from disk
+          // and Chrome aborts with ERR_UPLOAD_FILE_CHANGED if it changed since selection.
+          let body: Blob
+          try {
+            body = new Blob([await file.arrayBuffer()], { type: file.type })
+          } catch {
+            throw new Error(`Could not read "${file.name}". It may have been moved or modified; please re-select it.`)
+          }
+
           const { signedURL, publicFileUrl } = await apiGetUploadUrl(
             file.name,
             file.type
@@ -242,9 +251,12 @@ export default function AddContentPage({
           await new Promise((resolve, reject) => {
             xhr.open("PUT", signedURL)
             xhr.setRequestHeader("Content-Type", file.type)
-            xhr.onload = () => resolve(xhr.response)
+            xhr.onload = () =>
+              xhr.status >= 200 && xhr.status < 300
+                ? resolve(xhr.response)
+                : reject(new Error(`Upload failed (${xhr.status})`))
             xhr.onerror = () => reject(new Error("Upload failed"))
-            xhr.send(file)
+            xhr.send(body)
           })
           console.log({ publicFileUrl, title: fileTitles[file.name] })
 
